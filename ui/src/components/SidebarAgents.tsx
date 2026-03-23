@@ -91,7 +91,7 @@ export function SidebarAgents() {
               )}
             />
             <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/60">
-              Agents
+              Agenti
             </span>
           </CollapsibleTrigger>
           <button

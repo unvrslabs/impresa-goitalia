@@ -77,12 +77,11 @@ export function SidebarNavItem({
       )}
       {badge != null && badge > 0 && (
         <span
-          className={cn(
-            "ml-auto rounded-full px-1.5 py-0.5 text-xs leading-none",
-            badgeTone === "danger"
-              ? "bg-red-600/90 text-red-50"
-              : "bg-primary text-primary-foreground",
-          )}
+          className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none text-white"
+          style={badgeTone === "danger"
+            ? { background: "linear-gradient(135deg, hsl(0 65% 50%), hsl(0 65% 40%))", boxShadow: "0 2px 8px hsl(0 65% 50% / 0.4)" }
+            : { background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", boxShadow: "0 2px 8px hsl(158 64% 42% / 0.3)" }
+          }
         >
           {badge}
         </span>

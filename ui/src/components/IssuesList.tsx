@@ -63,9 +63,9 @@ const defaultViewState: IssueViewState = {
 
 const quickFilterPresets = [
   { label: "All", statuses: [] as string[] },
-  { label: "Active", statuses: ["todo", "in_progress", "in_review", "blocked"] },
-  { label: "Backlog", statuses: ["backlog"] },
-  { label: "Done", statuses: ["done", "cancelled"] },
+  { label: "Attive", statuses: ["todo", "in_progress", "in_review", "blocked"] },
+  { label: "In Coda", statuses: ["backlog"] },
+  { label: "Completate", statuses: ["done", "cancelled"] },
 ];
 
 function getViewState(key: string): IssueViewState {
@@ -288,7 +288,7 @@ export function IssuesList({
       key,
       label:
         key === "__unassigned"
-          ? "Unassigned"
+          ? "Non assegnato"
           : key.startsWith("__user:")
             ? (formatAssigneeUserLabel(key.slice("__user:".length), currentUserId) ?? "User")
             : (agentName(key) ?? key.slice(0, 8)),
@@ -321,28 +321,40 @@ export function IssuesList({
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <Button size="sm" variant="outline" onClick={() => openNewIssue(newIssueDefaults())}>
-            <Plus className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">New Issue</span>
-          </Button>
+          <button
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all text-white"
+            style={{
+              background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))",
+              boxShadow: "0 4px 20px hsl(158 64% 42% / 0.3)",
+            }}
+            onClick={() => openNewIssue(newIssueDefaults())}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nuova Attività</span>
+          </button>
           <div className="relative w-48 sm:w-64 md:w-80">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+            <input
               value={issueSearch}
               onChange={(e) => {
                 setIssueSearch(e.target.value);
                 onSearchChange?.(e.target.value);
               }}
-              placeholder="Search issues..."
-              className="pl-7 text-xs sm:text-sm"
-              aria-label="Search issues"
+              placeholder="Cerca attività..."
+              className="w-full pl-8 pr-3 py-2 rounded-xl text-xs sm:text-sm outline-none transition-colors"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "hsl(0 0% 98%)",
+              }}
+              aria-label="Cerca attività"
             />
           </div>
         </div>
 
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           {/* View mode toggle */}
-          <div className="flex items-center border border-border rounded-md overflow-hidden mr-1">
+          <div className="flex items-center rounded-xl overflow-hidden mr-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}>
             <button
               className={`p-1.5 transition-colors ${viewState.viewMode === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => updateView({ viewMode: "list" })}
@@ -362,9 +374,9 @@ export function IssuesList({
           {/* Filter */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className={`text-xs ${activeFilterCount > 0 ? "text-blue-600 dark:text-blue-400" : ""}`}>
+              <button className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
                 <Filter className="h-3.5 w-3.5 sm:h-3 sm:w-3 sm:mr-1" />
-                <span className="hidden sm:inline">{activeFilterCount > 0 ? `Filters: ${activeFilterCount}` : "Filter"}</span>
+                <span className="hidden sm:inline">{activeFilterCount > 0 ? `Filtri: ${activeFilterCount}` : "Filtri"}</span>
                 {activeFilterCount > 0 && (
                   <span className="sm:hidden text-[10px] font-medium ml-0.5">{activeFilterCount}</span>
                 )}
@@ -377,12 +389,12 @@ export function IssuesList({
                     }}
                   />
                 )}
-              </Button>
+              </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[min(480px,calc(100vw-2rem))] p-0">
+            <PopoverContent align="end" className="w-[min(480px,calc(100vw-2rem))] p-0" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.01) 100%)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderRadius: "1rem" }}>
               <div className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Filters</span>
+                  <span className="text-sm font-medium">Filtri</span>
                   {activeFilterCount > 0 && (
                     <button
                       className="text-xs text-muted-foreground hover:text-foreground"
@@ -465,7 +477,7 @@ export function IssuesList({
                             checked={viewState.assignees.includes("__unassigned")}
                             onCheckedChange={() => updateView({ assignees: toggleInArray(viewState.assignees, "__unassigned") })}
                           />
-                          <span className="text-sm">No assignee</span>
+                          <span className="text-sm">Nessun assegnatario</span>
                         </label>
                         {currentUserId && (
                           <label className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-accent/50 cursor-pointer">
@@ -533,19 +545,19 @@ export function IssuesList({
           {viewState.viewMode === "list" && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-xs">
+                <button className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
                   <ArrowUpDown className="h-3.5 w-3.5 sm:h-3 sm:w-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Sort</span>
-                </Button>
+                  <span className="hidden sm:inline">Ordina</span>
+                </button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-48 p-0">
+              <PopoverContent align="end" className="w-48 p-0" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.01) 100%)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderRadius: "1rem" }}>
                 <div className="p-2 space-y-0.5">
                   {([
-                    ["status", "Status"],
-                    ["priority", "Priority"],
+                    ["status", "Stato"],
+                    ["priority", "Priorità"],
                     ["title", "Title"],
-                    ["created", "Created"],
-                    ["updated", "Updated"],
+                    ["created", "Creazione"],
+                    ["updated", "Aggiornamento"],
                   ] as const).map(([field, label]) => (
                     <button
                       key={field}
@@ -577,17 +589,17 @@ export function IssuesList({
           {viewState.viewMode === "list" && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-xs">
+                <button className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
                   <Layers className="h-3.5 w-3.5 sm:h-3 sm:w-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Group</span>
-                </Button>
+                  <span className="hidden sm:inline">Raggruppa</span>
+                </button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-44 p-0">
+              <PopoverContent align="end" className="w-44 p-0" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.01) 100%)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderRadius: "1rem" }}>
                 <div className="p-2 space-y-0.5">
                   {([
-                    ["status", "Status"],
-                    ["priority", "Priority"],
-                    ["assignee", "Assignee"],
+                    ["status", "Stato"],
+                    ["priority", "Priorità"],
+                    ["assignee", "Assegnatario"],
                     ["none", "None"],
                   ] as const).map(([value, label]) => (
                     <button
@@ -614,8 +626,8 @@ export function IssuesList({
       {!isLoading && filtered.length === 0 && viewState.viewMode === "list" && (
         <EmptyState
           icon={CircleDot}
-          message="No issues match the current filters or search."
-          action="Create Issue"
+          message="Nessuna attività corrisponde ai filtri o alla ricerca."
+          action="Crea Attività"
           onAction={() => openNewIssue(newIssueDefaults())}
         />
       )}

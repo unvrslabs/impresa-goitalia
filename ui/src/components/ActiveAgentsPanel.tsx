@@ -55,7 +55,7 @@ export function ActiveAgentsPanel({ companyId }: ActiveAgentsPanelProps) {
         Agents
       </h3>
       {runs.length === 0 ? (
-        <div className="rounded-xl border border-border p-4">
+        <div className="glass-card p-4">
           <p className="text-sm text-muted-foreground">No recent agent runs.</p>
         </div>
       ) : (
@@ -91,12 +91,12 @@ function AgentRunCard({
 }) {
   return (
     <div className={cn(
-      "flex h-[320px] flex-col overflow-hidden rounded-xl border shadow-sm",
+      "flex h-[320px] flex-col overflow-hidden glass-card",
       isActive
         ? "border-cyan-500/25 bg-cyan-500/[0.04] shadow-[0_16px_40px_rgba(6,182,212,0.08)]"
-        : "border-border bg-background/70",
+        : "",
     )}>
-      <div className="border-b border-border/60 px-3 py-3">
+      <div className="border-b border-white/5 px-3 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -111,20 +111,20 @@ function AgentRunCard({
               <Identity name={run.agentName} size="sm" className="[&>span:last-child]:!text-[11px]" />
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <span>{isActive ? "Live now" : run.finishedAt ? `Finished ${relativeTime(run.finishedAt)}` : `Started ${relativeTime(run.createdAt)}`}</span>
+              <span>{isActive ? "In esecuzione" : run.finishedAt ? `Terminato ${relativeTime(run.finishedAt)}` : `Iniziato ${relativeTime(run.createdAt)}`}</span>
             </div>
           </div>
 
           <Link
             to={`/agents/${run.agentId}/runs/${run.id}`}
-            className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
           >
             <ExternalLink className="h-2.5 w-2.5" />
           </Link>
         </div>
 
         {run.issueId && (
-          <div className="mt-3 rounded-lg border border-border/60 bg-background/60 px-2.5 py-2 text-xs">
+          <div className="mt-3 glass-card px-2.5 py-2 text-xs">
             <Link
               to={`/issues/${issue?.identifier ?? run.issueId}`}
               className={cn(

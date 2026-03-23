@@ -881,3 +881,8 @@ a.paperclip-project-mention-chip {
 .hide-adapter-section [data-section="apikeys"] {
   display: none !important;
 }
+
+/* Inter font override */
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
