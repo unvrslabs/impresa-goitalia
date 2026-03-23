@@ -922,7 +922,7 @@ export function AgentDetail() {
               { value: "dashboard", label: "Panoramica", icon: <LayoutDashboard className="h-4 w-4" /> },
               { value: "instructions", label: "Istruzioni", icon: <FileText className="h-4 w-4" /> },
               { value: "skills", label: "Competenze", icon: <Boxes className="h-4 w-4" /> },
-              { value: "configuration", label: "Configurazione", icon: <Settings className="h-4 w-4" /> },
+              ...((agent.adapterType as string) !== "claude_api" ? [{ value: "configuration", label: "Configurazione", icon: <Settings className="h-4 w-4" /> }] : []),
               { value: "runs", label: "Esecuzioni", icon: <Play className="h-4 w-4" /> },
               { value: "budget", label: "Budget", icon: <Wallet className="h-4 w-4" /> },
             ]}
@@ -1621,8 +1621,62 @@ function PromptTemplateEditor({
     } : null);
   }, [isDirty, draft, config, agent.id, companyId, queryClient, onSaveActionChange]);
 
+  const agentObj = agent as unknown as Record<string, unknown>;
+  const [nameDraft, setNameDraft] = useState((agentObj.name as string) || "");
+  const [titleDraft, setTitleDraft] = useState((agentObj.title as string) || "");
+  const [capDraft, setCapDraft] = useState((agentObj.capabilities as string) || "");
+
+  const identityDirty = nameDraft !== ((agentObj.name as string) || "") ||
+    titleDraft !== ((agentObj.title as string) || "") ||
+    capDraft !== ((agentObj.capabilities as string) || "");
+
+  const anyDirty = isDirty || identityDirty;
+
+  useEffect(() => { onDirtyChange(anyDirty); }, [onDirtyChange, anyDirty]);
+
+  useEffect(() => {
+    onSaveActionChange(anyDirty ? () => {
+      const doSave = async () => {
+        setSaving(true);
+        try {
+          const updates: Record<string, unknown> = {};
+          if (isDirty) updates.adapterConfig = { ...config, promptTemplate: draft };
+          if (identityDirty) {
+            updates.name = nameDraft;
+            updates.title = titleDraft;
+            updates.capabilities = capDraft;
+          }
+          await agentsApi.update(agent.id, updates, companyId);
+          queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+        } finally {
+          setSaving(false);
+        }
+      };
+      void doSave();
+    } : null);
+  }, [anyDirty, isDirty, identityDirty, draft, nameDraft, titleDraft, capDraft, config, agent.id, companyId, queryClient, onSaveActionChange]);
+
+  const inputClass = "w-full rounded-xl border border-white/10 bg-transparent px-3 py-2 text-sm outline-none";
+
   return (
     <div className="max-w-4xl space-y-4">
+      <div className="glass-card p-4 space-y-4">
+        <h3 className="text-sm font-medium text-foreground">Identit\u00e0</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground">Nome</label>
+            <input className={inputClass} value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Titolo</label>
+            <input className={inputClass} value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Competenze</label>
+            <textarea className={inputClass + " min-h-[80px] resize-y"} value={capDraft} onChange={(e) => setCapDraft(e.target.value)} />
+          </div>
+        </div>
+      </div>
       <div className="glass-card p-4 space-y-4">
         <div>
           <h3 className="text-sm font-medium text-foreground">Istruzioni Agente</h3>
