@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Users, Building2, CreditCard, CheckCircle, ArrowRight, ArrowLeft, Bot } from "lucide-react";
+import { Plus, Trash2, Users, Building2, CreditCard, CheckCircle, ArrowRight, ArrowLeft, Bot, ChevronRight, UserPlus, X } from "lucide-react";
+import { AGENT_TEMPLATES, EMPTY_TEMPLATE } from "../data/agent-templates";
 
 // Shared styles matching goitalia.eu
 const styles = {
@@ -112,7 +113,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
   );
 }
 
-// Step 1: Team members
+// Step 1: Scegli agenti
 function Step1Team({
   members,
   setMembers,
@@ -122,142 +123,151 @@ function Step1Team({
   setMembers: (m: TeamMember[]) => void;
   onNext: () => void;
 }) {
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showCustomForm, setShowCustomForm] = useState(false);
   const [form, setForm] = useState({ name: "", role: "", department: "", software: "", description: "" });
 
-  const resetForm = () => { setForm({ name: "", role: "", department: "", software: "", description: "" }); setEditingId(null); setShowForm(false); };
+  function addFromTemplate(templateId: string) {
+    const template = AGENT_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    // Check if already added
+    if (members.some(m => m.name === template.name)) return;
+    setMembers([...members, {
+      id: crypto.randomUUID(),
+      name: template.name,
+      role: template.title,
+      department: template.department,
+      software: template.plugins.join(", "),
+      description: template.capabilities,
+    }]);
+  }
 
-  const addOrUpdateMember = () => {
+  function addCustom() {
     if (!form.name || !form.role || !form.department) return;
-    if (editingId) {
-      setMembers(members.map((m) => m.id === editingId ? { ...m, ...form } : m));
-    } else {
-      setMembers([...members, { id: crypto.randomUUID(), ...form }]);
-    }
-    resetForm();
-  };
+    setMembers([...members, { id: crypto.randomUUID(), ...form }]);
+    setForm({ name: "", role: "", department: "", software: "", description: "" });
+    setShowCustomForm(false);
+  }
 
-  const editMember = (member: TeamMember) => {
-    setForm({ name: member.name, role: member.role, department: member.department, software: member.software, description: member.description });
-    setEditingId(member.id);
-    setShowForm(true);
-  };
+  function removeMember(id: string) {
+    setMembers(members.filter(m => m.id !== id));
+  }
 
-  const removeMember = (id: string) => setMembers(members.filter((m) => m.id !== id));
-
-  const departments = members.reduce<Record<string, TeamMember[]>>((acc, m) => {
-    if (!acc[m.department]) acc[m.department] = [];
-    acc[m.department].push(m);
-    return acc;
-  }, {});
+  const addedTemplateNames = new Set(members.map(m => m.name));
 
   return (
     <div>
-      <div className="text-center mb-10">
-        <h2 className="text-3xl md:text-4xl font-black mb-3" style={{ color: "hsl(0 0% 98%)" }}>Descrivi il tuo team</h2>
+      <div className="text-center mb-8">
+        <h2 className="text-3xl md:text-4xl font-black mb-3" style={{ color: "hsl(0 0% 98%)" }}>Scegli i tuoi agenti AI</h2>
         <p style={{ color: styles.muted }} className="text-base max-w-md mx-auto">
-          Aggiungi i membri della tua azienda. Per ogni persona, indicaci il ruolo, il reparto e cosa fa.
+          Seleziona gli agenti che vuoi attivare per la tua impresa. Puoi aggiungerne altri in seguito.
         </p>
       </div>
 
-      {/* Member list grouped by department */}
-      {Object.keys(departments).length > 0 && (
-        <div className="space-y-6 mb-8">
-          {Object.entries(departments).map(([dept, deptMembers]) => (
-            <div key={dept}>
-              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: styles.primary }}>{dept}</h3>
-              <div className="space-y-2">
-                {deptMembers.map((member) => (
-                  <div
-                    key={member.id}
-                    className={styles.glassCard + " p-4 cursor-pointer hover:border-[hsl(158,64%,42%,0.3)] transition-all"}
-                    style={styles.glassCardBg}
-                    onClick={() => editMember(member)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "hsl(158 64% 42% / 0.15)" }}>
-                            <Users className="w-3.5 h-3.5" style={{ color: styles.primary }} />
-                          </div>
-                          <span className="font-semibold text-sm" style={{ color: "hsl(0 0% 98%)" }}>{member.name}</span>
-                          <span className="text-xs" style={{ color: styles.muted }}>{member.role}</span>
-                        </div>
-                        {member.description && (
-                          <p className="text-xs mt-1.5 pl-9 truncate" style={{ color: "hsl(215 20% 45%)" }}>{member.description}</p>
-                        )}
-                        {member.software && (
-                          <div className="flex gap-1.5 mt-2 pl-9 flex-wrap">
-                            {member.software.split(",").map((s, i) => (
-                              <span key={i} className="text-[10px] px-2.5 py-0.5 rounded-full border" style={{ borderColor: "hsl(158 64% 42% / 0.2)", color: styles.primary, background: "hsl(158 64% 42% / 0.08)" }}>
-                                {s.trim()}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); removeMember(member.id); }} className="p-2 rounded-lg transition-colors hover:bg-[hsl(0,0%,100%,0.06)]">
-                        <Trash2 className="w-4 h-4" style={{ color: "hsl(215 20% 45%)" }} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+      {/* Selected agents */}
+      {members.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: styles.primary }}>
+            Agenti selezionati ({members.length})
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {members.map((member) => {
+              const template = AGENT_TEMPLATES.find(t => t.name === member.name);
+              const Icon = template?.icon ?? Users;
+              const color = template?.color ?? "hsl(0 0% 50%)";
+              return (
+                <div key={member.id} className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm" style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
+                  <Icon className="h-3.5 w-3.5" style={{ color }} />
+                  <span style={{ color: "hsl(0 0% 95%)" }}>{member.name}</span>
+                  <button onClick={() => removeMember(member.id)} className="ml-1 p-0.5 rounded hover:bg-white/10">
+                    <X className="h-3 w-3" style={{ color: "hsl(0 0% 60%)" }} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Add/Edit form */}
-      {showForm ? (
-        <div className={styles.glass + " p-6 md:p-8 mb-8"} style={styles.glassBg}>
-          <h3 className="text-base font-bold mb-5" style={{ color: "hsl(0 0% 98%)" }}>
-            {editingId ? "Modifica membro" : "Nuovo membro del team"}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Template grid */}
+      <div className="grid grid-cols-2 gap-2 mb-6">
+        {AGENT_TEMPLATES.map((template) => {
+          const Icon = template.icon;
+          const isAdded = addedTemplateNames.has(template.name);
+          return (
+            <button
+              key={template.id}
+              disabled={isAdded}
+              className="flex items-start gap-2 p-3 rounded-xl text-left transition-all disabled:opacity-40"
+              style={{
+                background: isAdded ? `${template.color}15` : "rgba(255,255,255,0.03)",
+                border: isAdded ? `1px solid ${template.color}40` : "1px solid rgba(255,255,255,0.08)",
+              }}
+              onClick={() => addFromTemplate(template.id)}
+              onMouseEnter={(e) => { if (!isAdded) { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.borderColor = template.color; } }}
+              onMouseLeave={(e) => { if (!isAdded) { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; } }}
+            >
+              <div className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${template.color}20`, color: template.color }}>
+                <Icon className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold" style={{ color: "hsl(0 0% 95%)" }}>{template.name}</div>
+                <div className="text-[10px] mt-0.5 line-clamp-2" style={{ color: "hsl(215 20% 55%)" }}>{template.description}</div>
+              </div>
+              {isAdded ? (
+                <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" style={{ color: template.color }} />
+              ) : (
+                <Plus className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "hsl(0 0% 50%)" }} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Custom agent */}
+      {showCustomForm ? (
+        <div className={styles.glass + " p-5 mb-6"} style={styles.glassBg}>
+          <h3 className="text-sm font-bold mb-4" style={{ color: "hsl(0 0% 98%)" }}>Agente personalizzato</h3>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={styles.label}>Nome *</label>
-              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="es. Marco Rossi" className={styles.input} style={styles.inputBg} autoComplete="off" />
+              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="es. Marco" className={styles.input} style={styles.inputBg} />
             </div>
             <div>
               <label className={styles.label}>Ruolo *</label>
-              <input type="text" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="es. Responsabile vendite" className={styles.input} style={styles.inputBg} autoComplete="off" />
+              <input type="text" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="es. Responsabile vendite" className={styles.input} style={styles.inputBg} />
             </div>
             <div>
               <label className={styles.label}>Reparto *</label>
-              <input type="text" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="es. Commerciale" className={styles.input} style={styles.inputBg} autoComplete="off" />
+              <input type="text" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="es. Commerciale" className={styles.input} style={styles.inputBg} />
             </div>
             <div>
-              <label className={styles.label}>Software utilizzati</label>
-              <input type="text" value={form.software} onChange={(e) => setForm({ ...form, software: e.target.value })} placeholder="es. Excel, Salesforce, WhatsApp" className={styles.input} style={styles.inputBg} autoComplete="off" />
+              <label className={styles.label}>Software</label>
+              <input type="text" value={form.software} onChange={(e) => setForm({ ...form, software: e.target.value })} placeholder="es. Excel, WhatsApp" className={styles.input} style={styles.inputBg} />
             </div>
-            <div className="sm:col-span-2">
-              <label className={styles.label}>Descrizione del compito</label>
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="es. Gestisce i contatti con i clienti, prepara preventivi, segue il post-vendita" rows={2} className={styles.input + " resize-none"} style={styles.inputBg} />
+            <div className="col-span-2">
+              <label className={styles.label}>Descrizione</label>
+              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Cosa deve fare..." rows={2} className={styles.input + " resize-none"} style={styles.inputBg} />
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button onClick={resetForm} className={styles.btnSecondary + " !px-5 !py-2.5 text-sm"} style={styles.btnSecondaryBg}>Annulla</button>
-            <button onClick={addOrUpdateMember} disabled={!form.name || !form.role || !form.department} className={styles.btnPremium + " !px-5 !py-2.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed"} style={styles.btnPremiumBg}>
-              {editingId ? "Salva modifiche" : "Aggiungi"}
-            </button>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setShowCustomForm(false)} className="px-4 py-2 rounded-xl text-xs" style={{ color: "hsl(215 20% 60%)" }}>Annulla</button>
+            <button onClick={addCustom} disabled={!form.name || !form.role || !form.department} className={styles.btnPremium + " !px-4 !py-2 text-xs disabled:opacity-40"} style={styles.btnPremiumBg}>Aggiungi</button>
           </div>
         </div>
       ) : (
         <button
-          onClick={() => setShowForm(true)}
-          className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border border-dashed transition-all text-sm font-medium mb-8"
-          style={{ borderColor: "hsl(158 64% 42% / 0.3)", color: styles.primary }}
+          onClick={() => setShowCustomForm(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed transition-all text-sm mb-6"
+          style={{ borderColor: "hsl(0 0% 100% / 0.15)", color: "hsl(215 20% 55%)" }}
         >
-          <Plus className="w-4 h-4" />
-          Aggiungi membro del team
+          <UserPlus className="w-4 h-4" />
+          Aggiungi agente personalizzato
         </button>
       )}
 
       <div className="flex justify-end">
         <button onClick={onNext} disabled={members.length === 0} className={styles.btnPremium + " flex items-center gap-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"} style={styles.btnPremiumBg}>
-          Genera organigramma AI <ArrowRight className="w-4 h-4" />
+          Continua <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>
