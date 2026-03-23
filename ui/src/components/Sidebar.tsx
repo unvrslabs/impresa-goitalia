@@ -1,7 +1,6 @@
 import {
   Inbox,
   CircleDot,
-  Target,
   LayoutDashboard,
   DollarSign,
   History,
@@ -11,6 +10,7 @@ import {
   Boxes,
   Repeat,
   Settings,
+  Plug,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -48,17 +48,14 @@ export function Sidebar() {
 
   return (
     <aside className="w-60 h-full min-h-0 border-r border-border bg-background flex flex-col">
-      {/* Top bar: Company name (bold) + Search — aligned with top sections (no visible border) */}
-      <div className="flex items-center gap-1 px-3 h-12 shrink-0">
-        {selectedCompany?.brandColor && (
-          <div
-            className="w-4 h-4 rounded-sm shrink-0 ml-1"
-            style={{ backgroundColor: selectedCompany.brandColor }}
-          />
-        )}
-        <span className="flex-1 text-sm font-bold text-foreground truncate pl-1">
-          {selectedCompany?.name ?? "Select company"}
+      {/* Logo + Company name */}
+      <div className="flex items-center gap-2.5 px-4 h-14 shrink-0 border-b border-border">
+        <span className="text-sm font-black tracking-tight">
+          <span style={{ color: "hsl(0 65% 50%)" }}>GO</span>{" "}
+          <span className="text-foreground">ITAL</span>{" "}
+          <span style={{ color: "hsl(158 64% 42%)" }}>IA</span>
         </span>
+        <span className="text-xs text-muted-foreground truncate flex-1">{selectedCompany?.name}</span>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -69,15 +66,15 @@ export function Sidebar() {
         </Button>
       </div>
 
-      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-4 px-3 py-2">
+      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-4 px-3 py-3">
         <div className="flex flex-col gap-0.5">
-          {/* New Issue button aligned with nav items */}
+          {/* Nuova attività */}
           <button
             onClick={() => openNewIssue()}
-            className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+            className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-primary hover:bg-primary/10 transition-colors rounded-lg"
           >
             <SquarePen className="h-4 w-4 shrink-0" />
-            <span className="truncate">New Issue</span>
+            <span className="truncate">Nuova attività</span>
           </button>
           <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />
           <SidebarNavItem
@@ -97,22 +94,22 @@ export function Sidebar() {
           />
         </div>
 
-        <SidebarSection label="Work">
-          <SidebarNavItem to="/issues" label="Issues" icon={CircleDot} />
-          <SidebarNavItem to="/routines" label="Routines" icon={Repeat} textBadge="Beta" textBadgeTone="amber" />
-          <SidebarNavItem to="/goals" label="Goals" icon={Target} />
+        <SidebarSection label="Lavoro">
+          <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />
+          <SidebarNavItem to="/routines" label="Routine" icon={Repeat} />
         </SidebarSection>
 
         <SidebarProjects />
 
         <SidebarAgents />
 
-        <SidebarSection label="Company">
-          <SidebarNavItem to="/org" label="Org" icon={Network} />
-          <SidebarNavItem to="/skills" label="Skills" icon={Boxes} />
-          <SidebarNavItem to="/costs" label="Costs" icon={DollarSign} />
-          <SidebarNavItem to="/activity" label="Activity" icon={History} />
-          <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />
+        <SidebarSection label="Azienda">
+          <SidebarNavItem to="/org" label="Organigramma" icon={Network} />
+          <SidebarNavItem to="/skills" label="Competenze" icon={Boxes} />
+          <SidebarNavItem to="/costs" label="Costi" icon={DollarSign} />
+          <SidebarNavItem to="/activity" label="Attività recente" icon={History} />
+          <SidebarNavItem to="/plugins" label="Plugin" icon={Plug} />
+          <SidebarNavItem to="/company/settings" label="Impostazioni" icon={Settings} />
         </SidebarSection>
 
         <PluginSlotOutlet
