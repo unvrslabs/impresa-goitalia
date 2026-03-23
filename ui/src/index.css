@@ -38,13 +38,13 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
 }
 
 :root {
   color-scheme: light;
-  --radius: 0;
+  --radius: 0.75rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -79,39 +79,40 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* GoItalia Impresa — Dark theme matching goitalia.eu */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.637 0.237 25.331);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.145 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: hsl(220 40% 7%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(215 30% 12%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(215 30% 10%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(158 64% 42%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(215 25% 16%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(215 25% 14%);
+  --muted-foreground: hsl(215 20% 55%);
+  --accent: hsl(215 25% 18%);
+  --accent-foreground: hsl(0 0% 98%);
+  --destructive: hsl(0 65% 55%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(0 0% 100% / 0.1);
+  --input: hsl(215 25% 16%);
+  --ring: hsl(158 64% 42%);
+  --chart-1: hsl(158 64% 42%);
+  --chart-2: hsl(170 50% 45%);
+  --chart-3: hsl(200 60% 50%);
+  --chart-4: hsl(38 92% 50%);
+  --chart-5: hsl(0 65% 55%);
+  --sidebar: hsl(220 35% 8%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(158 64% 42%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(215 25% 14%);
+  --sidebar-accent-foreground: hsl(0 0% 98%);
+  --sidebar-border: hsl(0 0% 100% / 0.08);
+  --sidebar-ring: hsl(158 64% 42%);
 }
 
 @layer base {
@@ -729,3 +730,88 @@ a.paperclip-project-mention-chip {
 [class*="_toolbarNodeKindSelectContainer_"] {
   z-index: 81 !important;
 }
+
+/* ============================================
+   GoItalia Impresa — Liquid Glass Design System
+   ============================================ */
+
+/* Liquid Glass Card */
+.glass-card {
+  background: linear-gradient(135deg, hsl(0 0% 100% / 0.08) 0%, hsl(0 0% 100% / 0.04) 50%, hsl(0 0% 100% / 0.02) 100%);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid hsl(0 0% 100% / 0.12);
+  box-shadow: 0 8px 32px hsl(0 0% 0% / 0.12), inset 0 1px 0 0 hsl(0 0% 100% / 0.1);
+  border-radius: 1rem;
+}
+
+/* Glass Surface — sidebar, topbar */
+.glass-surface {
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.06) 0%, hsl(0 0% 100% / 0.02) 100%);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-right: 1px solid hsl(0 0% 100% / 0.08);
+}
+
+/* Glass Input */
+.glass-input {
+  background: hsl(215 30% 12%);
+  border: 1px solid hsl(0 0% 100% / 0.12);
+  border-radius: 0.75rem;
+  transition: border-color 0.2s;
+}
+.glass-input:focus {
+  border-color: hsl(158 64% 42%);
+  outline: none;
+}
+
+/* Glass Badge */
+.glass-badge {
+  background: hsl(158 64% 42% / 0.12);
+  border: 1px solid hsl(158 64% 42% / 0.25);
+  color: hsl(158 64% 50%);
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Premium Button */
+.btn-goitalia {
+  background: linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%));
+  color: white;
+  border-radius: 9999px;
+  font-weight: 600;
+  padding: 0.625rem 1.5rem;
+  box-shadow: 0 4px 20px hsl(158 64% 42% / 0.35);
+  transition: all 0.2s;
+}
+.btn-goitalia:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px hsl(158 64% 42% / 0.45);
+}
+
+/* Mesh gradient background */
+.mesh-bg {
+  background:
+    radial-gradient(ellipse at 20% 20%, hsl(158 64% 42% / 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 10%, hsl(170 50% 50% / 0.06) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 60%, hsl(158 64% 42% / 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 80%, hsl(158 50% 40% / 0.07) 0%, transparent 45%);
+}
+
+/* Green glow effect */
+.glow-green {
+  box-shadow: 0 0 20px hsl(158 64% 42% / 0.2);
+}
+
+/* Status indicator dot */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status-dot.active { background: hsl(158 64% 42%); box-shadow: 0 0 8px hsl(158 64% 42% / 0.5); }
+.status-dot.idle { background: hsl(215 20% 45%); }
+.status-dot.paused { background: hsl(38 92% 50%); }
+.status-dot.error { background: hsl(0 65% 55%); box-shadow: 0 0 8px hsl(0 65% 55% / 0.5); }
