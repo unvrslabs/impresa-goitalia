@@ -10,12 +10,14 @@ import {
   agentRuntimeState,
   agentTaskSessions,
   agentWakeupRequests,
+  companySecrets,
   heartbeatRunEvents,
   heartbeatRuns,
   issues,
   projects,
   projectWorkspaces,
 } from "@goitalia/db";
+import { decryptSecret } from "../routes/onboarding.js";
 import { conflict, notFound } from "../errors.js";
 import { logger } from "../middleware/logger.js";
 import { publishLiveEvent } from "./live-events.js";
@@ -2371,6 +2373,20 @@ export function heartbeatService(db: Db) {
           payload: meta as unknown as Record<string, unknown>,
         });
       };
+
+      // Inject Claude API key for claude_api adapter
+      if (agent.adapterType === "claude_api") {
+        try {
+          const apiKeySecret = await db.select().from(companySecrets)
+            .where(and(eq(companySecrets.companyId, agent.companyId), eq(companySecrets.name, "claude_api_key")))
+            .then((rows) => rows[0]);
+          if (apiKeySecret?.description) {
+            context.claudeApiKey = decryptSecret(apiKeySecret.description);
+          }
+        } catch (err) {
+          await onLog("stderr", "[goitalia] Failed to resolve Claude API key\n");
+        }
+      }
 
       const adapter = getServerAdapter(agent.adapterType);
       const authToken = adapter.supportsLocalAgentJwt
