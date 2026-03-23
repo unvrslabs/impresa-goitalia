@@ -1571,6 +1571,73 @@ function ConfigurationTab({
   );
 }
 
+/* ---- Prompt Template Editor (for non-local adapters like claude_api) ---- */
+
+function PromptTemplateEditor({
+  agent,
+  companyId,
+  onDirtyChange,
+  onSaveActionChange,
+  onCancelActionChange,
+  onSavingChange,
+}: {
+  agent: Agent;
+  companyId?: string;
+  onDirtyChange: (dirty: boolean) => void;
+  onSaveActionChange: (save: (() => void) | null) => void;
+  onCancelActionChange: (cancel: (() => void) | null) => void;
+  onSavingChange: (saving: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const config = (agent.adapterConfig ?? {}) as Record<string, unknown>;
+  const savedPrompt = (config.promptTemplate as string) ?? "";
+  const [draft, setDraft] = useState<string>(savedPrompt);
+  const [saving, setSaving] = useState(false);
+  const isDirty = draft !== savedPrompt;
+
+  useEffect(() => { setDraft(savedPrompt); }, [savedPrompt]);
+  useEffect(() => { onDirtyChange(isDirty); }, [onDirtyChange, isDirty]);
+  useEffect(() => { onSavingChange(saving); }, [onSavingChange, saving]);
+
+  useEffect(() => {
+    onCancelActionChange(isDirty ? () => setDraft(savedPrompt) : null);
+  }, [isDirty, onCancelActionChange, savedPrompt]);
+
+  useEffect(() => {
+    onSaveActionChange(isDirty ? () => {
+      const save = async () => {
+        setSaving(true);
+        try {
+          const newConfig = { ...config, promptTemplate: draft };
+          await agentsApi.update(agent.id, { adapterConfig: newConfig }, companyId);
+          queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+        } finally {
+          setSaving(false);
+        }
+      };
+      void save();
+    } : null);
+  }, [isDirty, draft, config, agent.id, companyId, queryClient, onSaveActionChange]);
+
+  return (
+    <div className="max-w-4xl space-y-4">
+      <div>
+        <h3 className="text-sm font-medium text-foreground">Istruzioni Agente</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          Il prompt di sistema che definisce il comportamento dell&apos;agente.
+        </p>
+      </div>
+      <textarea
+        className="w-full min-h-[400px] rounded-md border border-border bg-card p-4 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Scrivi qui le istruzioni per l&apos;agente..."
+        spellCheck={false}
+      />
+    </div>
+  );
+}
+
 /* ---- Prompts Tab ---- */
 
 function PromptsTab({
@@ -1866,11 +1933,14 @@ function PromptsTab({
 
   if (!isLocal) {
     return (
-      <div className="max-w-3xl">
-        <p className="text-sm text-muted-foreground">
-          Instructions bundles are only available for local adapters.
-        </p>
-      </div>
+      <PromptTemplateEditor
+        agent={agent}
+        companyId={companyId}
+        onDirtyChange={onDirtyChange}
+        onSaveActionChange={onSaveActionChange}
+        onCancelActionChange={onCancelActionChange}
+        onSavingChange={onSavingChange}
+      />
     );
   }
 
