@@ -30,10 +30,85 @@ export function ChatPage() {
   });
 
   const ceoAgent = (agents ?? []).find((a) => a.role === "ceo");
+  const otherAgents = (agents ?? []).filter((a) => a.role !== "ceo");
+  const isOnboarding = otherAgents.length === 0 && !!ceoAgent;
+  const [autoStarted, setAutoStarted] = useState(false);
 
   useEffect(() => {
     setBreadcrumbs([{ label: "Chat" }]);
   }, [setBreadcrumbs]);
+
+  // Auto-start onboarding conversation
+  useEffect(() => {
+    if (isOnboarding && !autoStarted && ceoAgent && messages.length === 0 && !isStreaming) {
+      setAutoStarted(true);
+      // Simulate sending a start message
+      const startMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: "Ciao! Ho appena registrato la mia impresa. Aiutami a configurare gli agenti AI.",
+        timestamp: new Date(),
+      };
+      setMessages([startMsg]);
+      setIsStreaming(true);
+      const assistantId = crypto.randomUUID();
+      setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "", timestamp: new Date() }]);
+
+      const history = [{ role: "user" as const, content: startMsg.content }];
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          companyId: selectedCompanyId,
+          agentId: ceoAgent.id,
+          message: startMsg.content,
+          history: [],
+        }),
+      }).then(async (res) => {
+        if (!res.ok) {
+          setMessages((prev) =>
+            prev.map((m) => m.id === assistantId ? { ...m, content: "Errore nella connessione. Riprova." } : m)
+          );
+          setIsStreaming(false);
+          return;
+        }
+        const reader = res.body?.getReader();
+        if (!reader) { setIsStreaming(false); return; }
+        const decoder = new TextDecoder();
+        let fullText = "";
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                  fullText += parsed.delta.text;
+                  setMessages((prev) =>
+                    prev.map((m) => m.id === assistantId ? { ...m, content: fullText } : m)
+                  );
+                }
+              } catch {}
+            }
+          }
+        }
+        if (!fullText) {
+          setMessages((prev) =>
+            prev.map((m) => m.id === assistantId && !m.content ? { ...m, content: "Ciao! Sono il tuo Direttore AI. Raccontami della tua impresa." } : m)
+          );
+        }
+        setIsStreaming(false);
+      }).catch(() => { setIsStreaming(false); });
+    }
+  }, [isOnboarding, autoStarted, ceoAgent, messages.length, isStreaming, selectedCompanyId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

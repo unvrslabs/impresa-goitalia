@@ -20,6 +20,7 @@ import { SidebarSection } from "./SidebarSection";
 import { SidebarNavItem } from "./SidebarNavItem";
 import { SidebarProjects } from "./SidebarProjects";
 import { SidebarAgents } from "./SidebarAgents";
+import { agentsApi } from "../api/agents";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
 import { heartbeatsApi } from "../api/heartbeats";
@@ -33,6 +34,12 @@ import { useState } from "react";
 export function Sidebar() {
   const { openNewIssue } = useDialog();
   const { companies, selectedCompanyId, selectedCompany, setSelectedCompanyId } = useCompany();
+  const { data: sidebarAgents } = useQuery({
+    queryKey: queryKeys.agents.list(selectedCompanyId!),
+    queryFn: () => agentsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+  const isOnboarding = !!selectedCompanyId && (sidebarAgents ?? []).filter((a: any) => a.role !== "ceo").length === 0;
   const inboxBadge = useInboxBadge(selectedCompanyId);
   const queryClient = useQueryClient();
   const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
@@ -88,16 +95,16 @@ export function Sidebar() {
       <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-1 px-2 py-2">
         {/* Top items */}
         <div className="flex flex-col gap-0.5">
-          <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />
-          <SidebarNavItem
+          {!isOnboarding && <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />}
+          {!isOnboarding && <SidebarNavItem
             to="/inbox"
             label="Inbox"
             icon={Inbox}
             badge={inboxBadge.inbox}
             badgeTone={inboxBadge.failedRuns > 0 ? "danger" : "default"}
             alert={inboxBadge.failedRuns > 0}
-          />
-          <button
+          />}
+          {!isOnboarding && <button
             onClick={() => openNewIssue()}
             className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors rounded-lg"
             style={{ color: "hsl(158 64% 52%)" }}
@@ -106,7 +113,7 @@ export function Sidebar() {
           >
             <SquarePen className="h-4 w-4 shrink-0" />
             <span className="truncate">Nuova attività</span>
-          </button>
+          </button>}
           <PluginSlotOutlet
             slotTypes={["sidebar"]}
             context={pluginContext}
@@ -119,25 +126,25 @@ export function Sidebar() {
         {/* Lavoro */}
         <SidebarSection label="Lavoro">
           <SidebarNavItem to="/chat" label="Chat" icon={MessageCircle} />
-          <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />
-          <SidebarNavItem to="/goals" label="Obiettivi" icon={Target} />
+          {!isOnboarding && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}
+          {!isOnboarding && <SidebarNavItem to="/goals" label="Obiettivi" icon={Target} />}
         </SidebarSection>
 
         {/* Automazione */}
-        <SidebarSection label="Automazione">
+        {!isOnboarding && <SidebarSection label="Automazione">
           <SidebarNavItem to="/org" label="Organigramma" icon={Share2} />
-        </SidebarSection>
+        </SidebarSection>}
 
         {/* Projects */}
-        <SidebarProjects />
+        {!isOnboarding && <SidebarProjects />}
 
         {/* Agents */}
-        <SidebarAgents />
+        {!isOnboarding && <SidebarAgents />}
 
         {/* Impostazioni - nel menu principale */}
         <SidebarSection label="Impostazioni">
-          <SidebarNavItem to="/plugins" label="Plugin" icon={Plug} />
-          <SidebarNavItem to="/company/settings" label="Impostazioni" icon={Settings} />
+          {!isOnboarding && <SidebarNavItem to="/plugins" label="Plugin" icon={Plug} />}
+          {!isOnboarding && <SidebarNavItem to="/company/settings" label="Impostazioni" icon={Settings} />}
           <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} />
           {session?.user?.email === "emanuele@unvrslabs.dev" && (
             <SidebarNavItem to="/admin" label="Admin" icon={ShieldCheck} />

@@ -65,7 +65,7 @@ export function AuthPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
       // After registration, redirect to home - app routes to company dashboard
       // Then user can go to API Claude from there
-      window.location.href = "/";
+      window.location.href = "/chat";
     },
     onError: (err) => {
       const msg = err instanceof Error ? err.message : "";
