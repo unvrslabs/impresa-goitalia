@@ -43,7 +43,7 @@ const styles = {
   // Input
   input: "w-full px-4 py-3 rounded-2xl border border-[hsl(0,0%,100%,0.15)] text-white text-sm placeholder:text-[hsl(215,20%,55%)] focus:border-[hsl(158,64%,42%)] focus:outline-none transition-colors",
   inputBg: {
-    background: "hsl(215 30% 12%)",
+    background: "rgba(255,255,255,0.04)",
   } as React.CSSProperties,
   // Label
   label: "text-xs text-[hsl(215,20%,70%)] mb-1.5 block font-medium",

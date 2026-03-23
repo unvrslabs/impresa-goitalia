@@ -3,17 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "@/lib/router";
 import { authApi } from "../api/auth";
 import { queryKeys } from "../lib/queryKeys";
-import { Button } from "@/components/ui/button";
-import { AsciiArtAnimation } from "@/components/AsciiArtAnimation";
-import { Sparkles } from "lucide-react";
-
-type AuthMode = "sign_in" | "sign_up";
 
 export function AuthPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<AuthMode>("sign_in");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,15 +28,7 @@ export function AuthPage() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (mode === "sign_in") {
-        await authApi.signInEmail({ email: email.trim(), password });
-        return;
-      }
-      await authApi.signUpEmail({
-        name: name.trim(),
-        email: email.trim(),
-        password,
-      });
+      await authApi.signInEmail({ email: email.trim(), password });
     },
     onSuccess: async () => {
       setError(null);
@@ -51,121 +37,135 @@ export function AuthPage() {
       navigate(nextPath, { replace: true });
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      setError(err instanceof Error ? err.message : "Autenticazione fallita");
     },
   });
 
-  const canSubmit =
-    email.trim().length > 0 &&
-    password.trim().length > 0 &&
-    (mode === "sign_in" || (name.trim().length > 0 && password.trim().length >= 8));
+  const canSubmit = email.trim().length > 0 && password.trim().length > 0;
 
   if (isSessionLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Caricamento...</p>
       </div>
     );
   }
 
+  const inputStyle = {
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    color: "hsl(0 0% 98%)",
+  };
+
   return (
-    <div className="fixed inset-0 flex bg-background">
-      {/* Left half — form */}
-      <div className="w-full md:w-1/2 flex flex-col overflow-y-auto">
-        <div className="w-full max-w-md mx-auto my-auto px-8 py-12">
-          <div className="flex items-center gap-2 mb-8">
-            <Sparkles className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">GoItalia</span>
+    <div className="fixed inset-0 flex items-center justify-center p-4" style={{
+      background: `
+        radial-gradient(ellipse at 20% 20%, rgba(39, 176, 125, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 10%, rgba(64, 191, 170, 0.08) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 60%, rgba(39, 176, 125, 0.06) 0%, transparent 50%),
+        linear-gradient(rgb(15, 22, 36), rgb(12, 16, 24), rgb(9, 11, 17))
+      `,
+    }}>
+      <div
+        className="w-full max-w-md overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.01) 100%)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          backdropFilter: "blur(40px)",
+          WebkitBackdropFilter: "blur(40px)",
+          borderRadius: "2rem",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+        }}
+      >
+        {/* Green accent top */}
+        <div className="h-1" style={{ background: "linear-gradient(90deg, hsl(158 64% 42%), hsl(170 50% 50%), hsl(158 64% 42%))" }} />
+
+        <div className="p-8">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-black tracking-tight">
+              <span style={{ color: "hsl(0 65% 50%)" }}>GO</span>{" "}
+              <span className="text-white">ITAL</span>{" "}
+              <span style={{ color: "hsl(158 64% 42%)" }}>IA</span>
+            </h1>
+            <p className="text-xs mt-2" style={{ color: "hsl(215 20% 55%)" }}>
+              La tua impresa, potenziata dall'AI
+            </p>
           </div>
 
-          <h1 className="text-xl font-semibold">
-            {mode === "sign_in" ? "Sign in to GoItalia" : "Create your GoItalia account"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "sign_in"
-              ? "Use your email and password to access this instance."
-              : "Create an account for this instance. Email confirmation is not required in v1."}
+          {/* Title */}
+          <h2 className="text-lg font-semibold text-center mb-1" style={{ color: "hsl(0 0% 98%)" }}>
+            "Accedi"
+          </h2>
+          <p className="text-xs text-center mb-6" style={{ color: "hsl(215 20% 55%)" }}>
+            "Inserisci le tue credenziali per accedere"
           </p>
 
           <form
-            className="mt-6 space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (mutation.isPending) return;
-              if (!canSubmit) {
-                setError("Please fill in all required fields.");
-                return;
-              }
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (mutation.isPending || !canSubmit) return;
               mutation.mutate();
             }}
           >
-            {mode === "sign_up" && (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Name</label>
-                <input
-                  className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  autoComplete="name"
-                  autoFocus
-                />
-              </div>
-            )}
+
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Email</label>
+              <label className="text-xs mb-1.5 block" style={{ color: "hsl(215 20% 65%)" }}>Email</label>
               <input
-                className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-colors"
+                style={inputStyle}
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="la-tua@email.it"
                 autoComplete="email"
-                autoFocus={mode === "sign_in"}
+                autoFocus
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Password</label>
+              <label className="text-xs mb-1.5 block" style={{ color: "hsl(215 20% 65%)" }}>Password</label>
               <input
-                className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-colors"
+                style={inputStyle}
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete={mode === "sign_in" ? "current-password" : "new-password"}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="La tua password"
+                autoComplete="current-password"
               />
             </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
-            <Button
-              type="submit"
-              disabled={mutation.isPending}
-              aria-disabled={!canSubmit || mutation.isPending}
-              className={`w-full ${!canSubmit && !mutation.isPending ? "opacity-50" : ""}`}
-            >
-              {mutation.isPending
-                ? "Working…"
-                : mode === "sign_in"
-                  ? "Sign In"
-                  : "Create Account"}
-            </Button>
-          </form>
 
-          <div className="mt-5 text-sm text-muted-foreground">
-            {mode === "sign_in" ? "Need an account?" : "Already have an account?"}{" "}
+            {error && (
+              <div className="rounded-xl px-3 py-2 text-xs" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "hsl(0 65% 65%)" }}>
+                {error}
+              </div>
+            )}
+
             <button
-              type="button"
-              className="font-medium text-foreground underline underline-offset-2"
-              onClick={() => {
-                setError(null);
-                setMode(mode === "sign_in" ? "sign_up" : "sign_in");
+              type="submit"
+              disabled={mutation.isPending || !canSubmit}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))",
+                boxShadow: "0 4px 20px hsl(158 64% 42% / 0.3)",
               }}
             >
-              {mode === "sign_in" ? "Create one" : "Sign in"}
+              {mutation.isPending ? "Caricamento..." : "Accedi"}
             </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm" style={{ color: "hsl(215 20% 55%)" }}>
+            Non hai un account?{" "}
+            <a
+              href="/start"
+              className="font-medium underline underline-offset-2 transition-colors"
+              style={{ color: "hsl(158 64% 52%)" }}
+            >
+              Crea la tua impresa AI
+            </a>
           </div>
         </div>
-      </div>
-
-      {/* Right half — ASCII art animation (hidden on mobile) */}
-      <div className="hidden md:block w-1/2 overflow-hidden">
-        <AsciiArtAnimation />
       </div>
     </div>
   );
