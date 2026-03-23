@@ -138,7 +138,7 @@ export function Sidebar() {
         <SidebarSection label="Impostazioni">
           <SidebarNavItem to="/plugins" label="Plugin" icon={Plug} />
           <SidebarNavItem to="/company/settings" label="Impostazioni" icon={Settings} />
-          <SidebarNavItem to="/company/settings" label="API Claude" icon={Key} />
+          <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} />
           {session?.user?.email === "emanuele@unvrslabs.dev" && (
             <SidebarNavItem to="/admin" label="Admin" icon={ShieldCheck} />
           )}
