@@ -51,6 +51,17 @@ const TOOLS = [
     },
   },
   {
+    name: "elimina_agente",
+    description: "Elimina un agente dalla company. Usa con cautela.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        agente_id: { type: "string", description: "ID dell'agente da eliminare" },
+      },
+      required: ["agente_id"],
+    },
+  },
+  {
     name: "crea_agente",
     description: "Crea un nuovo agente specializzato per la company.",
     input_schema: {
@@ -133,6 +144,17 @@ async function executeChatTool(
       case "commenta_task": {
         const input = toolInput as { task_id: string; commento: string };
         return `Nota registrata per task ${input.task_id}: ${input.commento}`;
+      }
+
+      case "elimina_agente": {
+        const input = toolInput as { agente_id: string };
+        if (input.agente_id === agentId) return "Non puoi eliminare te stesso (il Direttore AI).";
+        const target = await db.select({ id: agents.id, name: agents.name }).from(agents)
+          .where(and(eq(agents.id, input.agente_id), eq(agents.companyId, companyId)))
+          .then((rows) => rows[0]);
+        if (!target) return "Agente non trovato con id: " + input.agente_id;
+        await db.delete(agents).where(eq(agents.id, input.agente_id));
+        return `Agente eliminato: ${target.name} (${target.id})`;
       }
 
       case "crea_agente": {
@@ -239,6 +261,7 @@ Hai a disposizione dei tool per gestire l'azienda:
 - stato_task: per controllare lo stato dei lavori
 - commenta_task: per aggiungere istruzioni ai task
 - crea_agente: per creare nuovi agenti specializzati
+- elimina_agente: per eliminare agenti
 
 Rispondi sempre in italiano, in modo professionale e conciso.
 Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
