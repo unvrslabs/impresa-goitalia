@@ -9,12 +9,14 @@ import { accessService } from "../services/access.js";
 import { logActivity } from "../services/activity-log.js";
 
 // --- Encryption helpers for API keys ---
-const ENCRYPTION_KEY = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-const KEY_HASH = createHash("sha256").update(ENCRYPTION_KEY).digest();
+function getKeyHash(): Buffer {
+  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
+  return createHash("sha256").update(key).digest();
+}
 
 function encrypt(text: string): string {
   const iv = randomBytes(16);
-  const cipher = createCipheriv("aes-256-cbc", KEY_HASH, iv);
+  const cipher = createCipheriv("aes-256-cbc", getKeyHash(), iv);
   let encrypted = cipher.update(text, "utf8", "hex");
   encrypted += cipher.final("hex");
   return iv.toString("hex") + ":" + encrypted;
@@ -24,7 +26,7 @@ function decrypt(text: string): string {
   const [ivHex, encryptedHex] = text.split(":");
   if (!ivHex || !encryptedHex) throw new Error("Invalid encrypted format");
   const iv = Buffer.from(ivHex, "hex");
-  const decipher = createDecipheriv("aes-256-cbc", KEY_HASH, iv);
+  const decipher = createDecipheriv("aes-256-cbc", getKeyHash(), iv);
   let decrypted = decipher.update(encryptedHex, "hex", "utf8");
   decrypted += decipher.final("utf8");
   return decrypted;
