@@ -67,8 +67,9 @@ export function AuthPage() {
       setError(null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth.session });
       await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
-      // After registration, go to API key setup
-      navigate("/api-claude", { replace: true });
+      // After registration, redirect to home - app routes to company dashboard
+      // Then user can go to API Claude from there
+      window.location.href = "/";
     },
     onError: (err) => {
       const msg = err instanceof Error ? err.message : "";
