@@ -833,7 +833,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         </div>
       )}
 
-      {/* ---- Politica Esecuzione ---- */}
+      {/* ---- Politica Esecuzione (solo per adapter locali, non per claude_api PMI) ---- */}
+      {adapterType !== "claude_api" && (<>
       {isCreate && showCreateRunPolicySection ? (
         <div className={cn(!cards && "border-b border-border")}>
           {cards
@@ -922,6 +923,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           </div>
         </div>
       ) : null}
+      </>)}
 
     </div>
   );
