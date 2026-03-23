@@ -16,6 +16,7 @@ const BOARD_ROUTE_ROOTS = new Set([
   "inbox",
   "plugins",
   "chat",
+  "api-claude",
   "design-guide",
 ]);
 
