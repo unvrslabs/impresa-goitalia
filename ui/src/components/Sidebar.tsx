@@ -39,7 +39,7 @@ export function Sidebar() {
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
-  const isOnboarding = !!selectedCompanyId && (sidebarAgents ?? []).filter((a: any) => a.role !== "ceo").length === 0;
+  const isOnboarding = !!selectedCompanyId && (sidebarAgents ?? []).length > 0 && (sidebarAgents ?? []).every((a: any) => a.adapterType === "claude_api") && (sidebarAgents ?? []).filter((a: any) => a.role !== "ceo").length === 0;
   const inboxBadge = useInboxBadge(selectedCompanyId);
   const queryClient = useQueryClient();
   const [companyMenuOpen, setCompanyMenuOpen] = useState(false);

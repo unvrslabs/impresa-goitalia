@@ -32,7 +32,7 @@ export function ChatPage() {
 
   const ceoAgent = (agents ?? []).find((a) => a.role === "ceo");
   const otherAgents = (agents ?? []).filter((a) => a.role !== "ceo");
-  const isOnboarding = otherAgents.length === 0 && !!ceoAgent;
+  const isOnboarding = otherAgents.length === 0 && !!ceoAgent && (ceoAgent as any).adapterType === "claude_api";
   const [autoStarted, setAutoStarted] = useState(false);
 
   useEffect(() => {

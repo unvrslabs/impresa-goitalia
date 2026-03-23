@@ -48,7 +48,7 @@ export function Dashboard() {
 
   // Redirect to chat if in onboarding (only Direttore, no other agents)
   const otherAgents = (agents ?? []).filter((a: any) => a.role !== "ceo");
-  const isOnboarding = !!agents && agents.length > 0 && otherAgents.length === 0;
+  const isOnboarding = !!agents && agents.length > 0 && (agents as any[]).every((a: any) => a.adapterType === "claude_api") && otherAgents.length === 0;
 
   useEffect(() => {
     setBreadcrumbs([{ label: "Dashboard" }]);
