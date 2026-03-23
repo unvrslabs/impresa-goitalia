@@ -1621,19 +1621,21 @@ function PromptTemplateEditor({
 
   return (
     <div className="max-w-4xl space-y-4">
-      <div>
-        <h3 className="text-sm font-medium text-foreground">Istruzioni Agente</h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          Il prompt di sistema che definisce il comportamento dell&apos;agente.
-        </p>
+      <div className="glass-card p-4 space-y-4">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">Istruzioni Agente</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Il prompt di sistema che definisce il comportamento dell&apos;agente.
+          </p>
+        </div>
+        <textarea
+          className="min-h-[420px] w-full rounded-2xl border border-white/10 bg-transparent px-3 py-2 font-mono text-sm outline-none resize-y placeholder:text-muted-foreground"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Scrivi qui le istruzioni per l&apos;agente..."
+          spellCheck={false}
+        />
       </div>
-      <textarea
-        className="w-full min-h-[400px] rounded-md border border-border bg-card p-4 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder="Scrivi qui le istruzioni per l&apos;agente..."
-        spellCheck={false}
-      />
     </div>
   );
 }
