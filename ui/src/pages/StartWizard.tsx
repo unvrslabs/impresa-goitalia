@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, Users, Building2, CreditCard, CheckCircle, ArrowRight, ArrowLeft, Bot } from "lucide-react";
 
 // Shared styles matching goitalia.eu
@@ -390,11 +390,17 @@ function Step3Account({ companyData, setCompanyData, onNext, onBack }: { company
 // Step 4: Trial activation
 function Step4Trial({ companyData, members, onBack }: { companyData: CompanyData; members: TeamMember[]; onBack: () => void }) {
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-
+  // Check localStorage for previously completed activation
+  const [done, setDone] = useState(() => {
+    try { return localStorage.getItem("goitalia_activated") === companyData.email; } catch { return false; }
+  });
   const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false); // Prevent double-click
 
   const activate = async () => {
+    // Double-click guard (synchronous check before async)
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -418,11 +424,15 @@ function Step4Trial({ companyData, members, onBack }: { companyData: CompanyData
       if (!res.ok) {
         setError(data.error || "Errore durante l'attivazione");
         setLoading(false);
+        submittingRef.current = false;
         return;
       }
+      // Persist success in localStorage for idempotency
+      try { localStorage.setItem("goitalia_activated", companyData.email); } catch {}
       setDone(true);
     } catch {
       setError("Errore di connessione. Riprova.");
+      submittingRef.current = false;
     }
     setLoading(false);
   };

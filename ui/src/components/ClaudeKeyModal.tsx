@@ -72,6 +72,7 @@ export function ClaudeKeyModal() {
         setLoading(false);
         return;
       }
+      setApiKey(""); // Clear key from memory immediately
       setSuccess(true);
       setTimeout(() => setVisible(false), 1500);
     } catch {
