@@ -54,7 +54,16 @@ export function Dashboard() {
     setBreadcrumbs([{ label: "Dashboard" }]);
   }, [setBreadcrumbs]);
 
-  if (isOnboarding) {
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+    fetch(`/api/onboarding/claude-key/${selectedCompanyId}`)
+      .then((r) => r.json())
+      .then((data) => setHasApiKey(!!data.hasKey))
+      .catch(() => setHasApiKey(null));
+  }, [selectedCompanyId]);
+
+  if (isOnboarding && hasApiKey === true) {
     return <Navigate to="chat" replace />;
   }
 
