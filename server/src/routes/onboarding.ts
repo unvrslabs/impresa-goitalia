@@ -37,7 +37,10 @@ export function onboardingRoutes(db: Db, serverPort: number) {
       // 1. Create user via Better Auth signup API
       const signupRes = await fetch(`http://127.0.0.1:${serverPort}/api/auth/sign-up/email`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Origin": `http://127.0.0.1:${serverPort}`,
+        },
         body: JSON.stringify({
           email: body.email,
           password: body.password,
