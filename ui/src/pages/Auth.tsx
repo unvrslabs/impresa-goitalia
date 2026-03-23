@@ -41,13 +41,10 @@ export function AuthPage() {
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      // 1. Create account
-      await authApi.signUpEmail({ name: companyName.trim(), email: email.trim(), password });
-      // 2. Create company via onboarding/activate
+      // Call activate which does signup + company creation in one step
       const res = await fetch("/api/onboarding/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           companyName: companyName.trim(),
           email: email.trim(),
@@ -55,13 +52,12 @@ export function AuthPage() {
           members: [],
         }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        // If email already registered, that's ok - the signup already worked
-        if (!data.error?.includes("già registrata")) {
-          throw new Error(data.error || "Errore nella creazione dell'impresa");
-        }
+        throw new Error(data.error || "Errore nella registrazione");
       }
+      // Now sign in to get session
+      await authApi.signInEmail({ email: email.trim(), password });
     },
     onSuccess: async () => {
       setError(null);
