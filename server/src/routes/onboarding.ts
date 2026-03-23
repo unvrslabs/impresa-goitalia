@@ -118,7 +118,7 @@ export function onboardingRoutes(db: Db, serverPort: number) {
       const body = req.body as OnboardingRequest;
 
       // Validate required fields
-      if (!body.companyName || !body.email || !body.password || !body.members?.length) {
+      if (!body.companyName || !body.email || !body.password) {
         res.status(400).json({ error: "Campi obbligatori mancanti" });
         return;
       }
@@ -136,14 +136,14 @@ export function onboardingRoutes(db: Db, serverPort: number) {
       }
 
       // Cap members
-      if (body.members.length > MAX_MEMBERS) {
+      if ((body.members ?? []).length > MAX_MEMBERS) {
         res.status(400).json({ error: `Massimo ${MAX_MEMBERS} membri del team` });
         return;
       }
 
       // Sanitize all inputs
       const companyName = sanitizeString(body.companyName, 200);
-      const members = body.members.map((m) => ({
+      const members = (body.members ?? []).map((m) => ({
         name: sanitizeString(m.name, 100),
         role: sanitizeString(m.role, 200),
         department: sanitizeString(m.department, 100),
