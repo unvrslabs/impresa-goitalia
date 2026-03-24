@@ -10,6 +10,7 @@ import {
   Calendar,
   HardDrive,
   MessageSquare,
+  Phone,
   Share2,
   Plus,
   ChevronDown,
@@ -46,6 +47,7 @@ export function Sidebar() {
   const [mailUnread, setMailUnread] = useState(0);
   const [hasGoogle, setHasGoogle] = useState(false);
   const [hasTelegram, setHasTelegram] = useState(false);
+  const [hasWhatsApp, setHasWhatsApp] = useState(false);
   const [telegramUnread, setTelegramUnread] = useState(0);
 
   useEffect(() => {
@@ -58,6 +60,10 @@ export function Sidebar() {
       fetch("/api/telegram/status?companyId=" + selectedCompanyId, { credentials: "include" })
         .then((r) => r.json())
         .then((d) => setHasTelegram(d.connected || false))
+        .catch(() => {});
+      fetch("/api/whatsapp/status?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setHasWhatsApp(d.connected || false))
         .catch(() => {});
     };
     checkConnectors();
@@ -175,6 +181,7 @@ export function Sidebar() {
           {hasGoogle && <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />}
           {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
           {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}
+          {hasWhatsApp && <SidebarNavItem to="/whatsapp" label="WhatsApp" icon={Phone} />}
           {hasTelegram && <SidebarNavItem to="/telegram" label="Telegram" icon={MessageSquare} badge={telegramUnread > 0 ? telegramUnread : undefined} />}
           {!isOnboarding && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}
           {!isOnboarding && <SidebarNavItem to="/goals" label="Obiettivi" icon={Target} />}
