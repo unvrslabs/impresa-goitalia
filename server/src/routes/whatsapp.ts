@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
 
 const WASENDER_API = "https://www.wasenderapi.com/api";
-const WASENDER_PAT = process.env.WASENDER_PAT || "";
+function getWasenderPat() { return process.env.WASENDER_PAT || ""; }
 
 export function whatsappRoutes(db: Db) {
   const router = Router();
@@ -37,10 +37,10 @@ export function whatsappRoutes(db: Db) {
 
       if (existingSession?.sessionId) {
         // Session exists — try to reconnect it
-        console.log("[wa] Reconnecting existing session", existingSession.sessionId);
+        console.log("[wa] Reconnecting existing session, PAT length:", getWasenderPat().length, "sessionId:", existingSession.sessionId);
         const connectRes = await fetch(WASENDER_API + "/whatsapp-sessions/" + existingSession.sessionId + "/connect", {
           method: "POST",
-          headers: { Authorization: "Bearer " + WASENDER_PAT },
+          headers: { Authorization: "Bearer " + getWasenderPat() },
         });
         if (connectRes.ok) {
           const connectData = await connectRes.json() as { data?: { status: string; qrCode?: string } };
@@ -63,7 +63,7 @@ export function whatsappRoutes(db: Db) {
       // Create new session on WaSender
       const r = await fetch(WASENDER_API + "/whatsapp-sessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + WASENDER_PAT },
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + getWasenderPat() },
         body: JSON.stringify({
           name: name || "GoItalIA-" + companyId.slice(0, 8),
           phone_number: phoneNumber,
@@ -107,7 +107,7 @@ export function whatsappRoutes(db: Db) {
       // Connect new session to get QR
       const connectRes = await fetch(WASENDER_API + "/whatsapp-sessions/" + sessionData.id + "/connect", {
         method: "POST",
-        headers: { Authorization: "Bearer " + WASENDER_PAT },
+        headers: { Authorization: "Bearer " + getWasenderPat() },
       });
       const connectData = await connectRes.json() as { data?: { status: string; qrCode?: string } };
 
@@ -138,7 +138,7 @@ export function whatsappRoutes(db: Db) {
     try {
       const data = JSON.parse(decrypt(secret.description));
       const r = await fetch(WASENDER_API + "/whatsapp-sessions/" + data.sessionId + "/qrcode", {
-        headers: { Authorization: "Bearer " + WASENDER_PAT },
+        headers: { Authorization: "Bearer " + getWasenderPat() },
       });
       const qrData = await r.json() as { data?: { qrCode?: string } };
       res.json({ qrCode: qrData.data?.qrCode || null });
@@ -190,8 +190,8 @@ export function whatsappRoutes(db: Db) {
         const sessions = Array.isArray(dec) ? dec : [dec];
         const toRemove = phoneToRemove ? sessions.find((s: any) => s.phoneNumber === phoneToRemove) : sessions[0];
         if (toRemove) {
-          await fetch(WASENDER_API + "/whatsapp-sessions/" + toRemove.sessionId + "/disconnect", { method: "POST", headers: { Authorization: "Bearer " + WASENDER_PAT } }).catch(() => {});
-          await fetch(WASENDER_API + "/whatsapp-sessions/" + toRemove.sessionId, { method: "DELETE", headers: { Authorization: "Bearer " + WASENDER_PAT } }).catch(() => {});
+          await fetch(WASENDER_API + "/whatsapp-sessions/" + toRemove.sessionId + "/disconnect", { method: "POST", headers: { Authorization: "Bearer " + getWasenderPat() } }).catch(() => {});
+          await fetch(WASENDER_API + "/whatsapp-sessions/" + toRemove.sessionId, { method: "DELETE", headers: { Authorization: "Bearer " + getWasenderPat() } }).catch(() => {});
         }
         const filtered = phoneToRemove ? sessions.filter((s: any) => s.phoneNumber !== phoneToRemove) : [];
         if (filtered.length > 0) {
