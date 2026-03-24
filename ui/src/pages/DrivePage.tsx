@@ -77,7 +77,7 @@ export function DrivePage() {
   );
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <HardDrive className="w-5 h-5" />

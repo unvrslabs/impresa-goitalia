@@ -270,7 +270,7 @@ export function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-3xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-5xl mx-auto">
       {/* Header */}
       <div className="glass-card p-4 mb-4 flex items-center gap-3">
         <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "hsl(158 64% 42% / 0.15)" }}>

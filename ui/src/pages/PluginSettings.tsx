@@ -144,7 +144,7 @@ export function PluginSettings() {
   const pluginCapabilities = plugin.manifestJson.capabilities ?? [];
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link to="/instance/settings/plugins">
           <Button variant="outline" size="icon" className="h-8 w-8">

@@ -108,7 +108,7 @@ export function CalendarPage() {
   );
 
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <CalIcon className="w-5 h-5" />
