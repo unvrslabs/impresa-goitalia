@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
-import { Calendar as CalIcon, ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react";
+import { Calendar as CalIcon, ChevronLeft, ChevronRight, Clock, MapPin, Plus, X, Loader2 } from "lucide-react";
 
 interface CalEvent {
   id: string;
@@ -21,6 +21,28 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [showNewEvent, setShowNewEvent] = useState(false);
+  const [newEvent, setNewEvent] = useState({ title: "", description: "", start: "", end: "", location: "", allDay: false });
+  const [creating, setCreating] = useState(false);
+
+  const createEvent = async () => {
+    if (!selectedCompany?.id || !newEvent.title || !newEvent.start || !newEvent.end) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/calendar/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ companyId: selectedCompany.id, ...newEvent }),
+      });
+      if (res.ok) {
+        setShowNewEvent(false);
+        setNewEvent({ title: "", description: "", start: "", end: "", location: "", allDay: false });
+        fetchEvents();
+      }
+    } catch {}
+    setCreating(false);
+  };
 
   useEffect(() => { setBreadcrumbs([{ label: "Calendario" }]); }, [setBreadcrumbs]);
 
@@ -85,11 +107,55 @@ export function CalendarPage() {
           <h1 className="text-xl font-semibold">Calendario</h1>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNewEvent(!showNewEvent)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all mr-2"
+            style={{ background: "linear-gradient(135deg, hsl(158 64% 42% / 0.2), hsl(158 64% 42% / 0.1))", border: "1px solid hsl(158 64% 42% / 0.3)" }}
+          >
+            <Plus className="w-3.5 h-3.5" /> Nuovo evento
+          </button>
           <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-white/10"><ChevronLeft className="w-4 h-4" /></button>
           <span className="text-sm font-medium capitalize min-w-[140px] text-center">{monthName}</span>
           <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-white/10"><ChevronRight className="w-4 h-4" /></button>
         </div>
       </div>
+
+      {/* New event form */}
+      {showNewEvent && (
+        <div className="glass-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Nuovo evento</span>
+            <button onClick={() => setShowNewEvent(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+          </div>
+          <input
+            className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none"
+            placeholder="Titolo evento"
+            value={newEvent.title}
+            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Inizio</label>
+              <input type="datetime-local" className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" value={newEvent.start} onChange={(e) => setNewEvent({ ...newEvent, start: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Fine</label>
+              <input type="datetime-local" className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" value={newEvent.end} onChange={(e) => setNewEvent({ ...newEvent, end: e.target.value })} />
+            </div>
+          </div>
+          <input className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" placeholder="Luogo (opzionale)" value={newEvent.location} onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })} />
+          <input className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" placeholder="Descrizione (opzionale)" value={newEvent.description} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} />
+          <button
+            onClick={createEvent}
+            disabled={creating || !newEvent.title || !newEvent.start || !newEvent.end}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}
+          >
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            {creating ? "Creazione..." : "Crea evento"}
+          </button>
+        </div>
+      )}
 
       {loading ? <div className="text-sm text-muted-foreground p-4">Caricamento...</div> : (
         <>

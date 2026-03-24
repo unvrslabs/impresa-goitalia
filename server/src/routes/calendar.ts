@@ -91,5 +91,47 @@ export function calendarRoutes(db: Db) {
     }
   });
 
+
+  // POST /calendar/events - Create event
+  router.post("/calendar/events", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const { companyId, title, description, start, end, allDay, location } = req.body as {
+      companyId: string; title: string; description?: string; start: string; end: string; allDay?: boolean; location?: string;
+    };
+    if (!companyId || !title || !start || !end) { res.status(400).json({ error: "companyId, title, start, end richiesti" }); return; }
+
+    const token = await getToken(db, companyId);
+    if (!token) { res.status(400).json({ error: "Google non connesso" }); return; }
+
+    const event: Record<string, unknown> = {
+      summary: title,
+      description: description || "",
+      location: location || "",
+    };
+
+    if (allDay) {
+      event.start = { date: start.split("T")[0] };
+      event.end = { date: end.split("T")[0] };
+    } else {
+      event.start = { dateTime: start, timeZone: "Europe/Rome" };
+      event.end = { dateTime: end, timeZone: "Europe/Rome" };
+    }
+
+    try {
+      const r = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify(event),
+      });
+      if (!r.ok) { const err = await r.text(); console.error("Calendar create error:", err); res.status(502).json({ error: "Errore creazione evento" }); return; }
+      const created = await r.json() as { id: string; htmlLink?: string };
+      res.json({ id: created.id, htmlLink: created.htmlLink || "" });
+    } catch (err) {
+      console.error("Calendar create error:", err);
+      res.status(500).json({ error: "Errore creazione evento" });
+    }
+  });
+
   return router;
 }
