@@ -104,6 +104,9 @@ export async function createApp(
       bindHost: opts.bindHost,
     }),
   );
+  // Telegram webhooks — MUST be before auth middleware
+  app.use("/api", telegramWebhookRouterFn(db));
+
   app.use(
     actorMiddleware(db, {
       deploymentMode: opts.deploymentMode,
@@ -130,9 +133,6 @@ export async function createApp(
   if (opts.betterAuthHandler) {
     app.all("/api/auth/*authPath", opts.betterAuthHandler);
   }
-  // Telegram webhooks FIRST (no auth)
-  app.use("/api", telegramWebhookRouterFn(db));
-
   app.use(llmRoutes(db));
 
 
