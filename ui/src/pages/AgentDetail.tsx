@@ -2497,7 +2497,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
   ];
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
       <div className="glass-card p-4 space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.3)" }}>
@@ -2536,9 +2536,9 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
                 </div>
                 <button
                   onClick={() => toggleConnector(svc.key)}
-                  className={"relative inline-flex h-4 w-7 items-center rounded-full transition-colors " + (agentConnectors[svc.key] !== false ? "bg-green-600" : "bg-white/10")}
+                  className={"relative inline-flex h-5 w-9 items-center rounded-full transition-colors " + (agentConnectors[svc.key] !== false ? "bg-green-600" : "bg-white/10")}
                 >
-                  <span className={"inline-block h-3 w-3 rounded-full bg-white transition-transform " + (agentConnectors[svc.key] !== false ? "translate-x-3.5" : "translate-x-0.5")} />
+                  <span className={"inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform " + (agentConnectors[svc.key] !== false ? "translate-x-4" : "translate-x-0.5")} />
                 </button>
               </div>
             ))}
@@ -2580,9 +2580,9 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
                   </div>
                   <button
                     onClick={() => toggleConnector(key)}
-                    className={"relative inline-flex h-4 w-7 items-center rounded-full transition-colors " + (agentConnectors[key] !== false ? "bg-green-600" : "bg-white/10")}
+                    className={"relative inline-flex h-5 w-9 items-center rounded-full transition-colors " + (agentConnectors[key] !== false ? "bg-green-600" : "bg-white/10")}
                   >
-                    <span className={"inline-block h-3 w-3 rounded-full bg-white transition-transform " + (agentConnectors[key] !== false ? "translate-x-3.5" : "translate-x-0.5")} />
+                    <span className={"inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform " + (agentConnectors[key] !== false ? "translate-x-4" : "translate-x-0.5")} />
                   </button>
                 </div>
               );
@@ -2621,9 +2621,9 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
               </div>
               <button
                 onClick={() => toggleConnector("whatsapp")}
-                className={"relative inline-flex h-4 w-7 items-center rounded-full transition-colors " + (agentConnectors.whatsapp !== false ? "bg-green-600" : "bg-white/10")}
+                className={"relative inline-flex h-5 w-9 items-center rounded-full transition-colors " + (agentConnectors.whatsapp !== false ? "bg-green-600" : "bg-white/10")}
               >
-                <span className={"inline-block h-3 w-3 rounded-full bg-white transition-transform " + (agentConnectors.whatsapp !== false ? "translate-x-3.5" : "translate-x-0.5")} />
+                <span className={"inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform " + (agentConnectors.whatsapp !== false ? "translate-x-4" : "translate-x-0.5")} />
               </button>
             </div>
           </div>
@@ -2658,8 +2658,8 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="url(#ig-t)"><defs><linearGradient id="ig-t" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#feda75"/><stop offset="50%" stopColor="#d62976"/><stop offset="100%" stopColor="#4f5bd5"/></linearGradient></defs><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8z"/></svg>
                     <div className="text-xs font-medium">@{ig.username}</div>
                   </div>
-                  <button onClick={() => toggleConnector(key)} className={"relative inline-flex h-4 w-7 items-center rounded-full transition-colors " + (agentConnectors[key] !== false ? "bg-green-600" : "bg-white/10")}>
-                    <span className={"inline-block h-3 w-3 rounded-full bg-white transition-transform " + (agentConnectors[key] !== false ? "translate-x-3.5" : "translate-x-0.5")} />
+                  <button onClick={() => toggleConnector(key)} className={"relative inline-flex h-5 w-9 items-center rounded-full transition-colors " + (agentConnectors[key] !== false ? "bg-green-600" : "bg-white/10")}>
+                    <span className={"inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform " + (agentConnectors[key] !== false ? "translate-x-4" : "translate-x-0.5")} />
                   </button>
                 </div>
               );
@@ -2673,8 +2673,8 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                     <div className="text-xs font-medium">{p.name}</div>
                   </div>
-                  <button onClick={() => toggleConnector(key)} className={"relative inline-flex h-4 w-7 items-center rounded-full transition-colors " + (agentConnectors[key] !== false ? "bg-green-600" : "bg-white/10")}>
-                    <span className={"inline-block h-3 w-3 rounded-full bg-white transition-transform " + (agentConnectors[key] !== false ? "translate-x-3.5" : "translate-x-0.5")} />
+                  <button onClick={() => toggleConnector(key)} className={"relative inline-flex h-5 w-9 items-center rounded-full transition-colors " + (agentConnectors[key] !== false ? "bg-green-600" : "bg-white/10")}>
+                    <span className={"inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform " + (agentConnectors[key] !== false ? "translate-x-4" : "translate-x-0.5")} />
                   </button>
                 </div>
               );
@@ -2713,9 +2713,9 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
               </div>
               <button
                 onClick={() => toggleConnector("linkedin")}
-                className={"relative inline-flex h-4 w-7 items-center rounded-full transition-colors " + (agentConnectors.linkedin !== false ? "bg-green-600" : "bg-white/10")}
+                className={"relative inline-flex h-5 w-9 items-center rounded-full transition-colors " + (agentConnectors.linkedin !== false ? "bg-green-600" : "bg-white/10")}
               >
-                <span className={"inline-block h-3 w-3 rounded-full bg-white transition-transform " + (agentConnectors.linkedin !== false ? "translate-x-3.5" : "translate-x-0.5")} />
+                <span className={"inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform " + (agentConnectors.linkedin !== false ? "translate-x-4" : "translate-x-0.5")} />
               </button>
             </div>
           </div>
