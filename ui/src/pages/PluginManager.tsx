@@ -253,7 +253,8 @@ export function PluginManager() {
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold">Vocali AI</h2>
         </div>
-        <div className={glass.card} style={glass.cardStyle}>
+        <div className={glass.card + " relative"} style={glass.cardStyle}>
+          {voiceEnabled && <button className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-all" title="Disconnetti" onClick={async () => { await fetch("/api/voice/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setVoiceEnabled(false); }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(34, 197, 94, 0.15)", border: "1px solid rgba(34, 197, 94, 0.3)" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
@@ -269,10 +270,7 @@ export function PluginManager() {
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Attivo</span>
                 <span className="text-xs text-muted-foreground">OpenAI Whisper</span>
               </div>
-              <button className="text-red-400/50 hover:text-red-400 transition-colors" onClick={async () => {
-                await fetch("/api/voice/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" });
-                setVoiceEnabled(false);
-              }} title="Disattiva">✕</button>
+              <button className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-all" onClick={async () => { await fetch("/api/voice/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setVoiceEnabled(false); }} title="Disattiva"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           ) : showVoiceSetup ? (
             <div className="space-y-3">
@@ -355,7 +353,7 @@ export function PluginManager() {
                       <span>{email}</span>
                     </div>
                     <button
-                      className="text-red-400/50 hover:text-red-400 transition-colors"
+                      className="w-5 h-5 rounded-full flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-all shrink-0"
                       onClick={async () => {
                         await fetch("/api/oauth/google/disconnect?companyId=" + selectedCompany?.id + "&email=" + encodeURIComponent(email as string), { credentials: "include" });
                         const newAccounts = (googleStatus.accounts || []).filter((a) => a !== email);
@@ -437,7 +435,7 @@ export function PluginManager() {
                         await fetch("/api/telegram/disconnect?companyId=" + selectedCompany?.id + "&bot=" + bot.username, { method: "POST", credentials: "include" });
                         const newBots = (telegramStatus.bots || []).filter((b) => b.username !== bot.username);
                         setTelegramStatus(newBots.length > 0 ? { connected: true, bots: newBots } : { connected: false });
-                      }} title="Disconnetti">✕</button>
+                      }} title="Disconnetti"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                     </div>
                   </div>
                 ))}
@@ -509,7 +507,7 @@ export function PluginManager() {
                         await fetch("/api/whatsapp/disconnect?companyId=" + selectedCompany?.id + "&phone=" + encodeURIComponent(num.phoneNumber), { method: "POST", credentials: "include" });
                         const newNums = (waStatus.numbers || []).filter((n) => n.phoneNumber !== num.phoneNumber);
                         setWaStatus(newNums.length > 0 ? { connected: true, numbers: newNums } : { connected: false });
-                      }} title="Disconnetti">✕</button>
+                      }} title="Disconnetti"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                     </div>
                   </div>
                 ))}
