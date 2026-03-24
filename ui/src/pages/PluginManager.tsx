@@ -269,10 +269,10 @@ export function PluginManager() {
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Attivo</span>
                 <span className="text-xs text-muted-foreground">OpenAI Whisper</span>
               </div>
-              <button className="text-xs text-red-400/70 hover:text-red-400" onClick={async () => {
+              <button className="text-red-400/50 hover:text-red-400 transition-colors" onClick={async () => {
                 await fetch("/api/voice/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" });
                 setVoiceEnabled(false);
-              }}>Disattiva</button>
+              }} title="Disattiva">✕</button>
             </div>
           ) : showVoiceSetup ? (
             <div className="space-y-3">
