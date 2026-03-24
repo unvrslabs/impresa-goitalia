@@ -311,7 +311,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
 
       // Save user message to DB
       if (actor.userId) {
-        await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, agent_id, role, content) VALUES (\${companyId}, \${actor.userId}, \${resolvedAgentId || null}, 'user', \${message})`);
+        await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, role, content) VALUES (${companyId}, ${actor.userId}, 'user', ${message})`);
       }
 
       // Multi-turn tool loop
@@ -396,7 +396,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
 
       // Save assistant response to DB
       if (actor?.userId && finalText) {
-        await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, agent_id, role, content) VALUES (\${companyId}, \${actor.userId}, \${resolvedAgentId || null}, 'assistant', \${finalText})`);
+        await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, role, content) VALUES (${companyId}, ${actor.userId}, 'assistant', ${finalText})`);
       }
 
       res.write("data: [DONE]\n\n");
