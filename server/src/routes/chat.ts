@@ -304,6 +304,55 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
         }
       }
 
+      // Build dynamic context for Direttore
+      let dynamicContext = "";
+      try {
+        // Get all agents
+        const companyAgents = await db.select({
+          id: agents.id,
+          name: agents.name,
+          title: agents.title,
+          role: agents.role,
+          status: agents.status,
+        }).from(agents).where(eq(agents.companyId, companyId));
+
+        // Get connector status
+        const secrets = await db.select({ name: companySecrets.name }).from(companySecrets).where(eq(companySecrets.companyId, companyId));
+        const secretNames = secrets.map((s) => s.name);
+        const hasGoogle = secretNames.includes("google_oauth_tokens");
+        const hasTelegram = secretNames.includes("telegram_bots");
+        const hasClaudeKey = secretNames.includes("claude_api_key");
+
+        dynamicContext = "\n\n--- STATO ATTUALE DELL'IMPRESA ---\n";
+        
+        if (companyAgents.length > 0) {
+          dynamicContext += "Agenti:\n";
+          for (const a of companyAgents) {
+            dynamicContext += "- " + a.name + " (" + (a.title || a.role || "") + ") — id: " + a.id + " — stato: " + (a.status || "idle") + "\n";
+          }
+        } else {
+          dynamicContext += "Nessun agente creato.\n";
+        }
+
+        dynamicContext += "\nConnettori attivi:\n";
+        if (hasGoogle) dynamicContext += "- Google Workspace (Gmail, Calendar, Drive): connesso\n";
+        if (hasTelegram) dynamicContext += "- Telegram Bot: connesso\n";
+        if (!hasGoogle && !hasTelegram) dynamicContext += "- Nessun connettore attivo\n";
+
+        dynamicContext += "\nConnettori disponibili ma non attivi:\n";
+        if (!hasGoogle) dynamicContext += "- Google Workspace (vai su Plugin per collegare)\n";
+        if (!hasTelegram) dynamicContext += "- Telegram Bot (vai su Plugin per collegare)\n";
+        dynamicContext += "- Microsoft 365 (prossimamente)\n";
+
+        if (!hasClaudeKey) dynamicContext += "\n⚠️ API key Claude NON configurata!\n";
+
+        dynamicContext += "--- FINE STATO ---\n\nUsa queste informazioni per rispondere. NON creare agenti duplicati. Se l'utente chiede qualcosa che richiede un connettore non attivo, suggerisci di attivarlo da Plugin.";
+      } catch (e) {
+        console.error("Dynamic context error:", e);
+      }
+
+      systemPrompt += dynamicContext;
+
       // Build messages from history
       type ApiMessage = { role: "user" | "assistant"; content: unknown };
       const messages: ApiMessage[] = [];
