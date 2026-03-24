@@ -100,7 +100,7 @@ export function projectsPmiRoutes(db: Db) {
       
       // If local and no drive, save the folder path
       if (storageType === "local") {
-        const dir = path.join(process.cwd(), "data/project-files", id);
+        const dir = path.join(process.cwd(), "data/project-files", id as string);
         fs.mkdirSync(dir, { recursive: true });
       }
 
@@ -204,7 +204,7 @@ export function projectsPmiRoutes(db: Db) {
 
       // Local storage
       const fileId = crypto.randomUUID();
-      const dir = path.join(process.cwd(), "data/project-files", id);
+      const dir = path.join(process.cwd(), "data/project-files", id as string);
       fs.mkdirSync(dir, { recursive: true });
       const ext = path.extname(file.originalname);
       const filename = fileId + ext;
