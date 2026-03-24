@@ -15,6 +15,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/drive.readonly",
+  "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 
 // Encrypt/decrypt using same key as onboarding
@@ -125,6 +126,7 @@ export function googleOAuthRoutes(db: Db) {
         headers: { Authorization: "Bearer " + tokens.access_token },
       });
       const userInfo = await userInfoRes.json() as { email?: string };
+      console.log("[google-oauth] userInfo:", JSON.stringify(userInfo));
 
       // Save encrypted tokens
       const tokenData = JSON.stringify({
@@ -183,7 +185,20 @@ export function googleOAuthRoutes(db: Db) {
 
     try {
       const tokenData = JSON.parse(decrypt(secret.description));
-      res.json({ connected: true, email: tokenData.email });
+      let email = tokenData.email;
+      // If email missing, try to fetch it using access token
+      if (!email && tokenData.access_token) {
+        try {
+          const infoRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+            headers: { Authorization: "Bearer " + tokenData.access_token },
+          });
+          if (infoRes.ok) {
+            const info = await infoRes.json() as { email?: string };
+            email = info.email;
+          }
+        } catch {}
+      }
+      res.json({ connected: true, email: email || "Account Google" });
     } catch {
       res.json({ connected: false });
     }
