@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "@/lib/router";
 import { NavLink, useLocation } from "@/lib/router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Plus } from "lucide-react";
@@ -41,6 +42,8 @@ function sortByHierarchy(agents: Agent[]): Agent[] {
 
 export function SidebarAgents() {
   const [open, setOpen] = useState(true);
+  const [showAgentPopup, setShowAgentPopup] = useState(false);
+  const navigate = useNavigate();
   const { selectedCompanyId } = useCompany();
   const { openNewAgent } = useDialog();
   const { isMobile, setSidebarOpen } = useSidebar();
@@ -97,7 +100,7 @@ export function SidebarAgents() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              openNewAgent();
+              setShowAgentPopup(true);
             }}
             className="flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent/50 transition-colors"
             aria-label="New agent"
@@ -154,6 +157,32 @@ export function SidebarAgents() {
           })}
         </div>
       </CollapsibleContent>
+    </Collapsible>
+
+      {/* Popup: go to chat to create agent */}
+      {showAgentPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowAgentPopup(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative glass-card p-6 mx-4 max-w-sm space-y-4 text-center" onClick={(e) => e.stopPropagation()} style={{ background: "linear-gradient(135deg, rgba(20,30,40,0.98), rgba(15,25,35,0.98))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "1rem" }}>
+            <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h3 className="text-base font-semibold">Crea un nuovo agente</h3>
+            <p className="text-sm text-muted-foreground">Vai in Chat con il Direttore AI e chiedigli di creare un agente. Descrivi cosa deve fare e lui lo configurerà per te.</p>
+            <button
+              onClick={() => {
+                setShowAgentPopup(false);
+                navigate("/" + (selectedCompanyId ? "" : "") + "chat?msg=" + encodeURIComponent("Crea un nuovo agente per la mia impresa."));
+                window.location.href = "/" + (document.location.pathname.split("/")[1] || "") + "/chat?msg=" + encodeURIComponent("Crea un nuovo agente per la mia impresa.");
+              }}
+              className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-all"
+              style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", boxShadow: "0 4px 20px hsl(158 64% 42% / 0.3)" }}
+            >
+              Vai alla Chat
+            </button>
+          </div>
+        </div>
+      )}
     </Collapsible>
   );
 }

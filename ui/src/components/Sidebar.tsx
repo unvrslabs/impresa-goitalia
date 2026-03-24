@@ -37,6 +37,14 @@ import { PluginSlotOutlet } from "@/plugins/slots";
 import { CompanyPatternIcon } from "./CompanyPatternIcon";
 import { useState, useEffect } from "react";
 
+const chatPulseStyle = `
+@keyframes chatPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; color: hsl(158 64% 52%); }
+}
+.chat-pulse { animation: chatPulse 1s ease-in-out infinite; }
+`;
+
 export function Sidebar() {
   const { openNewIssue } = useDialog();
   const { companies, selectedCompanyId, selectedCompany, setSelectedCompanyId } = useCompany();
