@@ -103,7 +103,7 @@ export function SocialPage() {
   );
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Share2 className="w-5 h-5" />
@@ -140,12 +140,12 @@ export function SocialPage() {
       {filtered.length === 0 ? (
         <div className="glass-card p-6 text-center text-sm text-muted-foreground">Nessun post trovato. Collega i social da Plugin e pubblica contenuti.</div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {filtered.map((post) => (
             <div key={post.id} className="glass-card overflow-hidden">
               {/* Media */}
               {post.mediaUrl && (
-                <div className="relative aspect-square bg-black/20">
+                <div className="relative aspect-[4/3] bg-black/20">
                   {post.type === "video" ? (
                     <video src={post.mediaUrl} className="w-full h-full object-cover" controls />
                   ) : (
@@ -160,7 +160,7 @@ export function SocialPage() {
               )}
 
               {/* Content */}
-              <div className="p-3 space-y-2">
+              <div className="p-2.5 space-y-1.5">
                 {!post.mediaUrl && (
                   <div className={"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border " + platformColors[post.platform]}>
                     {platformIcons[post.platform]}
@@ -168,7 +168,7 @@ export function SocialPage() {
                   </div>
                 )}
                 <div className="text-xs text-muted-foreground">{post.accountName}</div>
-                {post.text && <p className="text-sm line-clamp-3">{post.text}</p>}
+                {post.text && <p className="text-xs line-clamp-2">{post.text}</p>}
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                   <span>{formatDate(post.timestamp)}</span>
                   <div className="flex items-center gap-3">
