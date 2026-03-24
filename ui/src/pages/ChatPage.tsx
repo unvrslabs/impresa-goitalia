@@ -40,6 +40,26 @@ export function ChatPage() {
     setBreadcrumbs([{ label: "Chat" }]);
   }, [setBreadcrumbs]);
 
+  // Load chat history from DB
+  useEffect(() => {
+    if (!selectedCompany?.id) return;
+    fetch("/api/chat/history?companyId=" + selectedCompany.id, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.messages?.length > 0) {
+          const loaded = data.messages.map((m: any) => ({
+            id: m.id || crypto.randomUUID(),
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.created_at),
+          }));
+          setMessages(loaded);
+        }
+        setHistoryLoaded(true);
+      })
+      .catch(() => { setHistoryLoaded(true); });
+  }, [selectedCompany?.id]);
+
   // Auto-start onboarding conversation
   useEffect(() => {
     if (isOnboarding && !autoStarted && ceoAgent && messages.length === 0 && !isStreaming && historyLoaded) {
