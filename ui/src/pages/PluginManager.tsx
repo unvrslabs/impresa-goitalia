@@ -65,6 +65,7 @@ export function PluginManager() {
   const [waConnecting, setWaConnecting] = useState(false);
   const [waQrCode, setWaQrCode] = useState<string | null>(null);
   const [showWaForm, setShowWaForm] = useState(false);
+  const [linkedinStatus, setLinkedinStatus] = useState<{ connected: boolean; name?: string; email?: string } | null>(null);
   const [metaStatus, setMetaStatus] = useState<{ connected: boolean; userName?: string; pages?: Array<{ id: string; name: string }>; instagram?: Array<{ id: string; username: string; pageName: string }> } | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [showVoiceSetup, setShowVoiceSetup] = useState(false);
@@ -94,6 +95,10 @@ export function PluginManager() {
       .then((r) => r.json())
       .then((d) => { const m: Record<string, boolean> = {}; for (const [k, v] of Object.entries(d.numbers || {})) { m[k] = (v as any).autoReply || false; } setWaAutoReply(m); })
       .catch(() => {});
+    fetch("/api/oauth/linkedin/status?companyId=" + selectedCompany.id, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setLinkedinStatus(d))
+      .catch(() => setLinkedinStatus({ connected: false }));
     fetch("/api/oauth/meta/status?companyId=" + selectedCompany.id, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setMetaStatus(d))
@@ -628,6 +633,38 @@ export function PluginManager() {
               </div>
             ) : (
               <button onClick={() => setShowWaForm(true)} className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all" style={{ background: "rgba(66, 133, 244, 0.2)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.9)" }}>Collega WhatsApp</button>
+            )}
+          </div>
+
+          {/* LinkedIn */}
+          <div className={glass.card} style={glass.cardStyle}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(0, 119, 181, 0.15)", border: "1px solid rgba(0, 119, 181, 0.3)" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#0077B5"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">LinkedIn</div>
+                <div className="text-xs text-muted-foreground">Pubblica e gestisci il profilo LinkedIn</div>
+              </div>
+            </div>
+            {linkedinStatus?.connected ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
+                  <span className="text-xs text-muted-foreground">{linkedinStatus.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a href={"/" + (selectedCompany?.issuePrefix || "") + "/chat?msg=" + encodeURIComponent("Ho collegato LinkedIn. Crea un agente per gestire il profilo LinkedIn.")} className="text-xs px-3 py-1.5 rounded-lg transition-all no-underline" style={{ background: "linear-gradient(135deg, hsl(158 64% 42% / 0.2), hsl(158 64% 42% / 0.1))", border: "1px solid hsl(158 64% 42% / 0.3)", color: "rgba(255,255,255,0.8)" }}>
+                    Crea agente
+                  </a>
+                  <button className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-all" onClick={async () => {
+                    await fetch("/api/oauth/linkedin/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
+                    setLinkedinStatus({ connected: false });
+                  }} title="Disconnetti"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => { window.location.href = "/api/oauth/linkedin/connect?companyId=" + selectedCompany?.id + "&prefix=" + (selectedCompany?.issuePrefix || ""); }} className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all" style={{ background: "rgba(66, 133, 244, 0.2)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.9)" }}>Collega LinkedIn</button>
             )}
           </div>
 

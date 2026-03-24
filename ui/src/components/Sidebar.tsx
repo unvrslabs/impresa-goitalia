@@ -11,6 +11,7 @@ import {
   HardDrive,
   MessageSquare,
   Phone,
+  Share2 as Share2Icon,
   Share2,
   Plus,
   ChevronDown,
@@ -48,6 +49,7 @@ export function Sidebar() {
   const [hasGoogle, setHasGoogle] = useState(false);
   const [hasTelegram, setHasTelegram] = useState(false);
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
+  const [hasSocial, setHasSocial] = useState(false);
   const [telegramUnread, setTelegramUnread] = useState(0);
 
   useEffect(() => {
@@ -65,6 +67,10 @@ export function Sidebar() {
         .then((r) => r.json())
         .then((d) => setHasWhatsApp(d.connected || false))
         .catch(() => {});
+      Promise.all([
+        fetch("/api/oauth/meta/status?companyId=" + selectedCompanyId, { credentials: "include" }).then((r) => r.json()).catch(() => ({ connected: false })),
+        fetch("/api/oauth/linkedin/status?companyId=" + selectedCompanyId, { credentials: "include" }).then((r) => r.json()).catch(() => ({ connected: false })),
+      ]).then(([meta, li]) => setHasSocial(meta.connected || li.connected));
     };
     checkConnectors();
     const connectorInterval = setInterval(checkConnectors, 10000);
@@ -149,7 +155,7 @@ export function Sidebar() {
         {/* Top items */}
         <div className="flex flex-col gap-0.5">
           {!isOnboarding && <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />}
-          {!isOnboarding && <SidebarNavItem to="/org" label="Organigramma" icon={Share2} />}
+          {!isOnboarding && <SidebarNavItem to="/org" label="Organigramma" icon={Share2Icon} />}
           {!isOnboarding && !isClaudeApi && <SidebarNavItem
             to="/inbox"
             label="Inbox"
@@ -182,6 +188,7 @@ export function Sidebar() {
           <SidebarNavItem to="/chat" label="Chat" icon={MessageCircle} />
           {hasGoogle && <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />}
           {hasWhatsApp && <SidebarNavItem to="/whatsapp" label="WhatsApp" icon={Phone} />}
+          {hasSocial && <SidebarNavItem to="/social" label="Social" icon={Share2Icon} />}
           {hasTelegram && <SidebarNavItem to="/telegram" label="Telegram" icon={MessageSquare} badge={telegramUnread > 0 ? telegramUnread : undefined} />}
           {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
           {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}

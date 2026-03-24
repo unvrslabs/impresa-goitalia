@@ -14,6 +14,7 @@ import { CalendarPage } from "./pages/CalendarPage";
 import { DrivePage } from "./pages/DrivePage";
 import { TelegramPage } from "./pages/TelegramPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
+import { SocialPage } from "./pages/SocialPage";
 import { ClaudeKeyPage } from "./pages/ClaudeKeyPage";
 import { Companies } from "./pages/Companies";
 import { Agents } from "./pages/Agents";
@@ -135,6 +136,7 @@ function boardRoutes() {
       <Route path="documenti" element={<DrivePage />} />
       <Route path="telegram" element={<TelegramPage />} />
       <Route path="whatsapp" element={<WhatsAppPage />} />
+      <Route path="social" element={<SocialPage />} />
       <Route path="api-claude" element={<ClaudeKeyPage />} />
       <Route path="onboarding" element={<OnboardingRoutePage />} />
       <Route path="companies" element={<Companies />} />
@@ -346,6 +348,7 @@ export function App() {
           <Route path="documenti" element={<UnprefixedBoardRedirect />} />
           <Route path="telegram" element={<UnprefixedBoardRedirect />} />
           <Route path="whatsapp" element={<UnprefixedBoardRedirect />} />
+          <Route path="social" element={<UnprefixedBoardRedirect />} />
           <Route path="settings" element={<LegacySettingsRedirect />} />
           <Route path="settings/*" element={<LegacySettingsRedirect />} />
           <Route path="agents" element={<UnprefixedBoardRedirect />} />
