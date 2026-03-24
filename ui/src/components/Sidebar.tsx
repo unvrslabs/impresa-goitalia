@@ -32,7 +32,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { useInboxBadge } from "../hooks/useInboxBadge";
 import { PluginSlotOutlet } from "@/plugins/slots";
 import { CompanyPatternIcon } from "./CompanyPatternIcon";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function Sidebar() {
   const { openNewIssue } = useDialog();
@@ -42,6 +42,21 @@ export function Sidebar() {
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
+  const [mailUnread, setMailUnread] = useState(0);
+
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+    const fetchUnread = () => {
+      fetch("/api/gmail/unread-count?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setMailUnread(d.count || 0))
+        .catch(() => {});
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [selectedCompanyId]);
+
   const isOnboarding = !!selectedCompanyId && (sidebarAgents ?? []).length > 0 && (sidebarAgents ?? []).every((a: any) => a.adapterType === "claude_api") && (sidebarAgents ?? []).filter((a: any) => a.role !== "ceo").length === 0;
   const inboxBadge = useInboxBadge(selectedCompanyId);
   const queryClient = useQueryClient();
@@ -129,7 +144,7 @@ export function Sidebar() {
         {/* Lavoro */}
         <SidebarSection label="Lavoro">
           <SidebarNavItem to="/chat" label="Chat" icon={MessageCircle} />
-          <SidebarNavItem to="/mail" label="Mail" icon={Mail} />
+          <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />
           <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />
           <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />
           {!isOnboarding && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}

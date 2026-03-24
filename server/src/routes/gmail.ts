@@ -127,7 +127,7 @@ export function gmailRoutes(db: Db) {
     try {
       // Get message list
       const listRes = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}${label === "STARRED" ? "&q=is:starred" : "&labelIds=" + label}${pageToken ? "&pageToken=" + pageToken : ""}`,
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}${label === "STARRED" ? "&q=is:starred" : label === "ARCHIVE" ? "&q=-in:inbox+-in:trash+-in:spam+in:anywhere" : "&labelIds=" + label}${pageToken ? "&pageToken=" + pageToken : ""}`,
         { headers: { Authorization: "Bearer " + token.access_token } }
       );
       if (!listRes.ok) {
@@ -414,6 +414,41 @@ Scrivi SOLO il testo della risposta, senza oggetto, senza "Gentile..." se non ne
     });
     if (!r.ok) { res.status(502).json({ error: "Errore" }); return; }
     res.json({ success: true });
+  });
+
+
+  // GET /gmail/unread-count?companyId=xxx
+  router.get("/gmail/unread-count", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const companyId = req.query.companyId as string;
+    if (!companyId) { res.json({ count: 0 }); return; }
+    const token = await getGmailToken(db, companyId);
+    if (!token) { res.json({ count: 0 }); return; }
+    try {
+      const r = await fetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/labels/UNREAD",
+        { headers: { Authorization: "Bearer " + token.access_token } }
+      );
+      if (!r.ok) {
+        // Fallback: count via messages
+        const listRes = await fetch(
+          "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=1&labelIds=INBOX&labelIds=UNREAD",
+          { headers: { Authorization: "Bearer " + token.access_token } }
+        );
+        if (listRes.ok) {
+          const data = await listRes.json() as { resultSizeEstimate?: number };
+          res.json({ count: data.resultSizeEstimate || 0 });
+        } else {
+          res.json({ count: 0 });
+        }
+        return;
+      }
+      const data = await r.json() as { messagesUnread?: number };
+      res.json({ count: data.messagesUnread || 0 });
+    } catch {
+      res.json({ count: 0 });
+    }
   });
 
   return router;

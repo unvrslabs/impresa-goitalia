@@ -36,12 +36,13 @@ export function MailPage() {
     setBreadcrumbs([{ label: "Mail" }]);
   }, [setBreadcrumbs]);
 
-  const fetchMail = async () => {
+  const fetchMail = async (filter?: string) => {
     if (!selectedCompany?.id) return;
+    const useFilter = filter || activeFilter;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/gmail/messages?companyId=" + selectedCompany.id + "&label=" + activeFilter, { credentials: "include" });
+      const res = await fetch("/api/gmail/messages?companyId=" + selectedCompany.id + "&label=" + useFilter, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) { setError(data.error); setLoading(false); return; }
       setMessages(data.messages || []);
@@ -65,7 +66,14 @@ export function MailPage() {
     setLoadingMore(false);
   };
 
-  useEffect(() => { fetchMail(); }, [selectedCompany?.id, activeFilter]);
+  useEffect(() => { fetchMail(activeFilter); }, [selectedCompany?.id, activeFilter]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!selectedCompany?.id) return;
+    const interval = setInterval(() => { fetchMail(activeFilter); }, 30000);
+    return () => clearInterval(interval);
+  }, [selectedCompany?.id, activeFilter]);
 
   const generateReply = async (msg: GmailMessage) => {
     if (!selectedCompany?.id) return;
@@ -147,6 +155,8 @@ export function MailPage() {
     setMessages([]);
     setSelectedMessage(null);
     setNextPageToken(null);
+    // Direct fetch with new filter
+    fetchMail(filter);
   };
 
   const formatDate = (dateStr: string) => {
@@ -186,7 +196,7 @@ export function MailPage() {
           {email && <span className="text-xs text-muted-foreground">{email}</span>}
         </div>
         <button
-          onClick={fetchMail}
+          onClick={() => fetchMail()}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
         >
@@ -200,6 +210,7 @@ export function MailPage() {
           { id: "INBOX", label: "Inbox" },
           { id: "STARRED", label: "Preferiti" },
           { id: "SENT", label: "Inviate" },
+          { id: "ARCHIVE", label: "Archiviate" },
           { id: "TRASH", label: "Cestino" },
         ].map((tab) => (
           <button
