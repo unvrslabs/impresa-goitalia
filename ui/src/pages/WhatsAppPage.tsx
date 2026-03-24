@@ -137,7 +137,7 @@ export function WhatsAppPage() {
     try {
       const res = await fetch("/api/whatsapp/generate-reply", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ companyId: selectedCompany.id, messageText: msg.message_text, fromName: msg.from_name, remoteJid: msg.remote_jid }),
+        body: JSON.stringify({ companyId: selectedCompany.id, messageText: msg.message_text, fromName: msg.from_name, remoteJid: msg.remote_jid, mediaUrl: msg.media_url, messageType: msg.message_type }),
       });
       const data = await res.json();
       if (res.ok) { setReplyText(data.reply); inputRef.current?.focus(); }

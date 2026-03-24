@@ -333,8 +333,8 @@ export function whatsappRoutes(db: Db) {
   router.post("/whatsapp/generate-reply", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
-    const { companyId, messageText, fromName, remoteJid } = req.body as { companyId: string; messageText: string; fromName: string; remoteJid?: string };
-    if (!companyId || !messageText) { res.status(400).json({ error: "Parametri mancanti" }); return; }
+    const { companyId, messageText, fromName, remoteJid, mediaUrl, messageType } = req.body as { companyId: string; messageText: string; fromName: string; remoteJid?: string; mediaUrl?: string; messageType?: string };
+    if (!companyId || (!messageText && !mediaUrl)) { res.status(400).json({ error: "Parametri mancanti" }); return; }
 
     const apiKeySecret = await db.select().from(companySecrets)
       .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "claude_api_key")))
@@ -359,14 +359,38 @@ export function whatsappRoutes(db: Db) {
     }
 
     try {
+      // If last message has an image, add it to the request with vision
+      let finalMessages = history;
+      if (mediaUrl && messageType === "image") {
+        try {
+          const fs = await import("node:fs");
+          const path = await import("node:path");
+          const localPath = mediaUrl.replace("/api/wa-media/", "");
+          const filePath = path.join(process.cwd(), "data/wa-media", localPath);
+          if (fs.existsSync(filePath)) {
+            const imgBuffer = fs.readFileSync(filePath);
+            const base64 = imgBuffer.toString("base64");
+            const mediaType = filePath.endsWith(".png") ? "image/png" : "image/jpeg";
+            // Replace last message with image + text
+            finalMessages = [...history.slice(0, -1), {
+              role: "user" as const,
+              content: [
+                { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+                { type: "text", text: messageText || "L'utente ha inviato questa immagine. Descrivi cosa vedi e rispondi in modo appropriato." },
+              ],
+            }];
+          }
+        } catch (err) { console.error("[wa] image read error:", err); }
+      }
+
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1024,
-          system: "Sei un assistente di customer service professionale. Rispondi in italiano, in modo conciso e cordiale. Rispondi specificamente all'ultimo messaggio tenendo conto del contesto.",
-          messages: history,
+          system: "Sei un assistente di customer service professionale. Rispondi in italiano, in modo conciso e cordiale. Se ti viene mostrata un\'immagine, descrivila e rispondi in modo contestuale.",
+          messages: finalMessages,
         }),
       });
       if (!r.ok) { res.status(502).json({ error: "Errore AI" }); return; }
@@ -625,8 +649,8 @@ export function whatsappWebhookRouter(db: Db) {
   router.post("/whatsapp/generate-reply", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
-    const { companyId, messageText, fromName, remoteJid } = req.body as { companyId: string; messageText: string; fromName: string; remoteJid?: string };
-    if (!companyId || !messageText) { res.status(400).json({ error: "Parametri mancanti" }); return; }
+    const { companyId, messageText, fromName, remoteJid, mediaUrl, messageType } = req.body as { companyId: string; messageText: string; fromName: string; remoteJid?: string; mediaUrl?: string; messageType?: string };
+    if (!companyId || (!messageText && !mediaUrl)) { res.status(400).json({ error: "Parametri mancanti" }); return; }
 
     const apiKeySecret = await db.select().from(companySecrets)
       .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "claude_api_key")))
@@ -651,14 +675,38 @@ export function whatsappWebhookRouter(db: Db) {
     }
 
     try {
+      // If last message has an image, add it to the request with vision
+      let finalMessages = history;
+      if (mediaUrl && messageType === "image") {
+        try {
+          const fs = await import("node:fs");
+          const path = await import("node:path");
+          const localPath = mediaUrl.replace("/api/wa-media/", "");
+          const filePath = path.join(process.cwd(), "data/wa-media", localPath);
+          if (fs.existsSync(filePath)) {
+            const imgBuffer = fs.readFileSync(filePath);
+            const base64 = imgBuffer.toString("base64");
+            const mediaType = filePath.endsWith(".png") ? "image/png" : "image/jpeg";
+            // Replace last message with image + text
+            finalMessages = [...history.slice(0, -1), {
+              role: "user" as const,
+              content: [
+                { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+                { type: "text", text: messageText || "L'utente ha inviato questa immagine. Descrivi cosa vedi e rispondi in modo appropriato." },
+              ],
+            }];
+          }
+        } catch (err) { console.error("[wa] image read error:", err); }
+      }
+
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1024,
-          system: "Sei un assistente di customer service professionale. Rispondi in italiano, in modo conciso e cordiale. Rispondi specificamente all'ultimo messaggio tenendo conto del contesto.",
-          messages: history,
+          system: "Sei un assistente di customer service professionale. Rispondi in italiano, in modo conciso e cordiale. Se ti viene mostrata un\'immagine, descrivila e rispondi in modo contestuale.",
+          messages: finalMessages,
         }),
       });
       if (!r.ok) { res.status(502).json({ error: "Errore AI" }); return; }
