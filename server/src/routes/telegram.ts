@@ -143,6 +143,37 @@ export function telegramRoutes(db: Db) {
     res.json({ disconnected: true });
   });
 
+  // POST /telegram/settings - Save auto-reply setting
+  router.post("/telegram/settings", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const { companyId, autoReply } = req.body as { companyId: string; autoReply: boolean };
+    if (!companyId) { res.status(400).json({ error: "companyId richiesto" }); return; }
+    const existing = await db.select().from(companySecrets)
+      .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_settings")))
+      .then((rows) => rows[0]);
+    const settings = JSON.stringify({ autoReply });
+    if (existing) {
+      await db.update(companySecrets).set({ description: settings, updatedAt: new Date() }).where(eq(companySecrets.id, existing.id));
+    } else {
+      await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "telegram_settings", provider: "plain", description: settings });
+    }
+    res.json({ ok: true });
+  });
+
+  // GET /telegram/settings?companyId=xxx
+  router.get("/telegram/settings", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const companyId = req.query.companyId as string;
+    if (!companyId) { res.json({ autoReply: false }); return; }
+    const row = await db.select().from(companySecrets)
+      .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_settings")))
+      .then((rows) => rows[0]);
+    if (!row?.description) { res.json({ autoReply: false }); return; }
+    try { res.json(JSON.parse(row.description)); } catch { res.json({ autoReply: false }); }
+  });
+
   // POST /telegram/webhook/:companyId - Receive messages from Telegram
   router.post("/telegram/webhook/:companyId", async (req, res) => {
     const companyId = req.params.companyId;
@@ -154,6 +185,56 @@ export function telegramRoutes(db: Db) {
         await db.execute(sql`INSERT INTO telegram_messages (company_id, chat_id, from_name, from_username, message_text, direction, telegram_message_id) VALUES (${companyId}, ${msg.chat.id}, ${msg.from?.first_name || ""}, ${msg.from?.username || ""}, ${msg.text}, 'incoming', ${msg.message_id})`);
       } catch (err) {
         console.error("Telegram webhook save error:", err);
+      }
+    }
+
+    // Auto-reply if enabled
+    if (update?.message?.text) {
+      try {
+        const settingsRow = await db.select().from(companySecrets)
+          .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_settings")))
+          .then((rows) => rows[0]);
+        const settings = settingsRow?.description ? JSON.parse(settingsRow.description) : {};
+        
+        if (settings.autoReply) {
+          const token = await getTelegramToken(db, companyId);
+          const apiKeySecret = await db.select().from(companySecrets)
+            .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "claude_api_key")))
+            .then((rows) => rows[0]);
+          
+          if (token && apiKeySecret?.description) {
+            const claudeKey = decrypt(apiKeySecret.description);
+            const msg = update.message;
+            
+            const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2023-06-01" },
+              body: JSON.stringify({
+                model: "claude-haiku-4-20250414",
+                max_tokens: 512,
+                system: "Sei un assistente di customer service. Rispondi in italiano, in modo breve e cordiale. Max 2-3 frasi.",
+                messages: [{ role: "user", content: msg.text }],
+              }),
+            });
+            
+            if (claudeRes.ok) {
+              const data = await claudeRes.json() as { content?: Array<{ text?: string }> };
+              const reply = data.content?.map((c: any) => c.text).join("") || "";
+              
+              if (reply) {
+                await fetch(TELEGRAM_API + token + "/sendMessage", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ chat_id: msg.chat.id, text: reply }),
+                });
+                
+                await db.execute(sql`INSERT INTO telegram_messages (company_id, chat_id, from_name, message_text, direction, telegram_message_id) VALUES (${companyId}, ${msg.chat.id}, 'Bot', ${reply}, 'outgoing', 0)`);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Telegram auto-reply error:", err);
       }
     }
 
