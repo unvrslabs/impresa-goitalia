@@ -925,7 +925,7 @@ export function AgentDetail() {
               { value: "instructions", label: "Istruzioni", icon: <FileText className="h-4 w-4" /> },
               { value: "skills", label: (agent.adapterType as string) === "claude_api" ? "Connettori" : "Competenze", icon: <Boxes className="h-4 w-4" /> },
               ...((agent.adapterType as string) !== "claude_api" ? [{ value: "configuration", label: "Configurazione", icon: <Settings className="h-4 w-4" /> }] : []),
-              { value: "runs", label: "Esecuzioni", icon: <Play className="h-4 w-4" /> },
+              ...((agent.adapterType as string) !== "claude_api" ? [{ value: "runs", label: "Esecuzioni", icon: <Play className="h-4 w-4" /> }] : []),
               { value: "budget", label: "Budget", icon: <Wallet className="h-4 w-4" /> },
             ]}
             value={activeView}
