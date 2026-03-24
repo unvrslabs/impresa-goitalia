@@ -301,14 +301,11 @@ export function PluginManager() {
                   </div>
                   <button
                     onClick={async () => {
-                      if (!telegramAutoReply) {
-                        // Show message to create agent first
-                        return;
-                      }
-                      setTelegramAutoReply(false);
+                      const newVal = !telegramAutoReply;
+                      setTelegramAutoReply(newVal);
                       await fetch("/api/telegram/settings", {
                         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-                        body: JSON.stringify({ companyId: selectedCompany?.id, autoReply: false }),
+                        body: JSON.stringify({ companyId: selectedCompany?.id, autoReply: newVal }),
                       });
                     }}
                     className={"relative inline-flex h-5 w-9 items-center rounded-full transition-colors " + (telegramAutoReply ? "bg-green-600" : "bg-white/10")}
