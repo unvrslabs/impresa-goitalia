@@ -6,6 +6,7 @@ import {
   SquarePen,
   Target,
   MessageCircle,
+  Mail,
   Share2,
   Plus,
   ChevronDown,
@@ -126,6 +127,7 @@ export function Sidebar() {
         {/* Lavoro */}
         <SidebarSection label="Lavoro">
           <SidebarNavItem to="/chat" label="Chat" icon={MessageCircle} />
+          <SidebarNavItem to="/mail" label="Mail" icon={Mail} />
           {!isOnboarding && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}
           {!isOnboarding && <SidebarNavItem to="/goals" label="Obiettivi" icon={Target} />}
         </SidebarSection>

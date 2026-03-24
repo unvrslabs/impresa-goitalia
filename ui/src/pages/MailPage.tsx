@@ -1,0 +1,238 @@
+import { useState, useEffect } from "react";
+import { useCompany } from "../context/CompanyContext";
+import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { Mail, Inbox, RefreshCw, Sparkles, Send, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+
+interface GmailMessage {
+  id: string;
+  threadId: string;
+  from: string;
+  to: string;
+  subject: string;
+  snippet: string;
+  body: string;
+  date: string;
+  isUnread: boolean;
+}
+
+export function MailPage() {
+  const { selectedCompany } = useCompany();
+  const { setBreadcrumbs } = useBreadcrumbs();
+  const [messages, setMessages] = useState<GmailMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [selectedMessage, setSelectedMessage] = useState<GmailMessage | null>(null);
+  const [generatingReply, setGeneratingReply] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState<{ messageId: string; text: string; subject: string; to: string } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBreadcrumbs([{ label: "Mail" }]);
+  }, [setBreadcrumbs]);
+
+  const fetchMail = async () => {
+    if (!selectedCompany?.id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/gmail/messages?companyId=" + selectedCompany.id, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setLoading(false); return; }
+      setMessages(data.messages || []);
+      setEmail(data.email || "");
+    } catch { setError("Errore di connessione"); }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchMail(); }, [selectedCompany?.id]);
+
+  const generateReply = async (msg: GmailMessage) => {
+    if (!selectedCompany?.id) return;
+    setGeneratingReply(msg.id);
+    try {
+      const res = await fetch("/api/gmail/generate-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ companyId: selectedCompany.id, messageId: msg.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setGeneratingReply(null); return; }
+      setReplyDraft({
+        messageId: msg.id,
+        text: data.reply,
+        subject: data.originalSubject,
+        to: msg.from.replace(/.*</, "").replace(/>.*/, ""),
+      });
+    } catch { setError("Errore generazione risposta"); }
+    setGeneratingReply(null);
+  };
+
+  const sendReply = async () => {
+    if (!selectedCompany?.id || !replyDraft) return;
+    setSending(true);
+    try {
+      const msg = messages.find((m) => m.id === replyDraft.messageId);
+      const res = await fetch("/api/gmail/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          companyId: selectedCompany.id,
+          to: replyDraft.to,
+          subject: replyDraft.subject,
+          body: replyDraft.text,
+          threadId: msg?.threadId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setSending(false); return; }
+      setSendSuccess(replyDraft.to);
+      setReplyDraft(null);
+      setTimeout(() => setSendSuccess(null), 3000);
+    } catch { setError("Errore invio"); }
+    setSending(false);
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      const now = new Date();
+      if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+    } catch { return dateStr; }
+  };
+
+  const formatFrom = (from: string) => {
+    const match = from.match(/^"?([^"<]+)"?\s*</);
+    return match ? match[1].trim() : from.split("@")[0];
+  };
+
+  if (loading) return <div className="p-6 text-sm text-muted-foreground">Caricamento email...</div>;
+  if (error && !messages.length) return (
+    <div className="p-6">
+      <div className="glass-card p-6 text-center space-y-3">
+        <Mail className="w-10 h-10 mx-auto text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">{error}</p>
+        <a href={`/${selectedCompany?.issuePrefix || ""}/plugins`} className="text-sm text-green-400 hover:underline">
+          Vai su Plugin per collegare Google
+        </a>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-4xl space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Inbox className="w-5 h-5" />
+          <h1 className="text-xl font-semibold">Mail</h1>
+          {email && <span className="text-xs text-muted-foreground">{email}</span>}
+        </div>
+        <button
+          onClick={fetchMail}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Aggiorna
+        </button>
+      </div>
+
+      {/* Success toast */}
+      {sendSuccess && (
+        <div className="rounded-xl px-4 py-3 text-sm" style={{ background: "rgba(34, 197, 94, 0.15)", border: "1px solid rgba(34, 197, 94, 0.3)", color: "rgb(134, 239, 172)" }}>
+          Email inviata a {sendSuccess}
+        </div>
+      )}
+
+      {/* Reply draft modal */}
+      {replyDraft && (
+        <div className="glass-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-medium">Risposta generata dall'AI</span>
+            </div>
+            <button onClick={() => setReplyDraft(null)} className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="text-xs text-muted-foreground">A: {replyDraft.to} — Re: {replyDraft.subject}</div>
+          <textarea
+            className="w-full min-h-[150px] rounded-xl border border-white/10 bg-transparent px-3 py-2 text-sm outline-none resize-y"
+            value={replyDraft.text}
+            onChange={(e) => setReplyDraft({ ...replyDraft, text: e.target.value })}
+          />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={sendReply}
+              disabled={sending}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
+              style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {sending ? "Invio..." : "Approva e Invia"}
+            </button>
+            <button onClick={() => setReplyDraft(null)} className="text-xs text-muted-foreground hover:text-foreground">
+              Annulla
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Email list */}
+      {messages.length === 0 ? (
+        <div className="glass-card p-6 text-center text-sm text-muted-foreground">Nessuna email nella inbox.</div>
+      ) : (
+        <div className="glass-card overflow-hidden divide-y divide-white/5">
+          {messages.map((msg) => (
+            <div key={msg.id}>
+              <button
+                className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
+                onClick={() => setSelectedMessage(selectedMessage?.id === msg.id ? null : msg)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {msg.isUnread && <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+                      <span className={"text-sm truncate " + (msg.isUnread ? "font-semibold" : "font-normal")}>{formatFrom(msg.from)}</span>
+                      <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatDate(msg.date)}</span>
+                    </div>
+                    <div className={"text-sm truncate mt-0.5 " + (msg.isUnread ? "font-medium" : "text-muted-foreground")}>{msg.subject || "(nessun oggetto)"}</div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">{msg.snippet}</div>
+                  </div>
+                  {selectedMessage?.id === msg.id ? <ChevronUp className="w-4 h-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {selectedMessage?.id === msg.id && (
+                <div className="px-4 pb-4 space-y-3" style={{ background: "rgba(255,255,255,0.02)" }}>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>Da: {msg.from}</div>
+                    <div>A: {msg.to}</div>
+                    <div>Data: {msg.date}</div>
+                  </div>
+                  <div className="text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto" style={{ color: "rgba(255,255,255,0.85)" }}>
+                    {msg.body || msg.snippet}
+                  </div>
+                  <button
+                    onClick={() => generateReply(msg)}
+                    disabled={generatingReply === msg.id}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
+                    style={{ background: "linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1))", border: "1px solid rgba(251, 191, 36, 0.3)", color: "rgba(255,255,255,0.9)" }}
+                  >
+                    {generatingReply === msg.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {generatingReply === msg.id ? "Generazione in corso..." : "Genera risposta AI"}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
