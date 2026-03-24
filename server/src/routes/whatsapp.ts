@@ -12,7 +12,7 @@ const WASENDER_PAT = process.env.WASENDER_PAT || "";
 export function whatsappRoutes(db: Db) {
   const router = Router();
 
-  // POST /whatsapp/connect — Create session + get QR
+  // POST /whatsapp/connect — Create or reconnect session + get QR
   router.post("/whatsapp/connect", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
@@ -22,7 +22,45 @@ export function whatsappRoutes(db: Db) {
     try {
       const webhookUrl = (process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL || "https://impresa.goitalia.eu") + "/wa-hook/" + companyId;
 
-      // Create session on WaSender
+      // Check if session already exists in DB
+      const existingSecret = await db.select().from(companySecrets)
+        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "whatsapp_sessions")))
+        .then((rows) => rows[0]);
+
+      let sessions: any[] = [];
+      if (existingSecret?.description) {
+        try { const dec = JSON.parse(decrypt(existingSecret.description)); sessions = Array.isArray(dec) ? dec : [dec]; } catch {}
+      }
+
+      // Find existing session for this phone number
+      const existingSession = sessions.find((s: any) => s.phoneNumber === phoneNumber);
+
+      if (existingSession?.sessionId) {
+        // Session exists — try to reconnect it
+        console.log("[wa] Reconnecting existing session", existingSession.sessionId);
+        const connectRes = await fetch(WASENDER_API + "/whatsapp-sessions/" + existingSession.sessionId + "/connect", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + WASENDER_PAT },
+        });
+        if (connectRes.ok) {
+          const connectData = await connectRes.json() as { data?: { status: string; qrCode?: string } };
+          if (connectData.data?.status === "connected") {
+            res.json({ connected: true, sessionId: existingSession.sessionId });
+          } else {
+            res.json({
+              connected: false,
+              sessionId: existingSession.sessionId,
+              qrCode: connectData.data?.qrCode || null,
+              status: connectData.data?.status || "need_scan",
+            });
+          }
+          return;
+        }
+        // If reconnect failed, session might be deleted on WaSender — create new one
+        console.log("[wa] Reconnect failed, creating new session");
+      }
+
+      // Create new session on WaSender
       const r = await fetch(WASENDER_API + "/whatsapp-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + WASENDER_PAT },
@@ -49,44 +87,29 @@ export function whatsappRoutes(db: Db) {
       if (!sessionData) { res.status(502).json({ error: "Risposta WaSender non valida" }); return; }
 
       // Save session info
-      const secretData = encrypt(JSON.stringify({
+      const newSession = {
         sessionId: sessionData.id,
         apiKey: sessionData.api_key,
         webhookSecret: sessionData.webhook_secret,
         phoneNumber,
-      }));
+      };
 
-      // Save as array (multi-number support)
-      const existing = await db.select().from(companySecrets)
-        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "whatsapp_sessions")))
-        .then((rows) => rows[0]);
-
-      let sessions: any[] = [];
-      if (existing?.description) {
-        try { const dec = JSON.parse(decrypt(existing.description)); sessions = Array.isArray(dec) ? dec : [dec]; } catch {}
-      }
-      const newSession = JSON.parse(decrypt(secretData));
-      // Replace if same phone, otherwise append
       const idx = sessions.findIndex((s: any) => s.phoneNumber === phoneNumber);
       if (idx >= 0) { sessions[idx] = newSession; } else { sessions.push(newSession); }
       const encSessions = encrypt(JSON.stringify(sessions));
 
-      if (existing) {
-        await db.update(companySecrets).set({ description: encSessions, updatedAt: new Date() }).where(eq(companySecrets.id, existing.id));
+      if (existingSecret) {
+        await db.update(companySecrets).set({ description: encSessions, updatedAt: new Date() }).where(eq(companySecrets.id, existingSecret.id));
       } else {
         await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "whatsapp_sessions", provider: "encrypted", description: encSessions });
       }
 
-      // Connect session to get QR
+      // Connect new session to get QR
       const connectRes = await fetch(WASENDER_API + "/whatsapp-sessions/" + sessionData.id + "/connect", {
         method: "POST",
         headers: { Authorization: "Bearer " + WASENDER_PAT },
       });
-
       const connectData = await connectRes.json() as { data?: { status: string; qrCode?: string } };
-
-      // whatsapp_messages table created via migration
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS wa_messages_company_idx ON whatsapp_messages(company_id, created_at DESC)`);
 
       res.json({
         connected: false,
@@ -398,7 +421,7 @@ export function whatsappWebhookRouter(db: Db) {
   router.post("/:companyId", async (req, res) => {
     const companyId = req.params.companyId;
     const event = req.body;
-    console.info("[wa-webhook]", companyId, event?.event, event?.data?.messages?.messageBody?.substring(0, 30));
+    console.log("[wa-webhook]", companyId, event?.event, JSON.stringify(event?.data?.messages || event?.data || {}).substring(0, 500));
     res.json({ ok: true });
 
     if (event?.event === "messages.received" && event?.data?.messages) {
