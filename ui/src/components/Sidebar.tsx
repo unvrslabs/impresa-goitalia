@@ -20,7 +20,7 @@ import {
   ShieldCheck,
   Key,
   LogOut,
-} from "lucide-react";
+, FolderOpen } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
 import { SidebarNavItem } from "./SidebarNavItem";
@@ -214,6 +214,7 @@ export function Sidebar() {
           {hasSocial && <SidebarNavItem to="/social" label="Social" icon={Share2Icon} />}
           {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
           {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}
+          <SidebarNavItem to="/progetti" label="Progetti" icon={FolderOpen} />
           {!isOnboarding && !isClaudeApi && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}
           {!isOnboarding && !isClaudeApi && <SidebarNavItem to="/goals" label="Obiettivi" icon={Target} />}
         </SidebarSection>
