@@ -133,67 +133,17 @@ export function ProjectsPmi() {
           <FolderOpen className="w-5 h-5" />
           <h1 className="text-xl font-semibold">Progetti</h1>
         </div>
-        <button onClick={() => setShowNewForm(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))" }}>
-          <Plus className="w-3.5 h-3.5" /> Nuovo progetto
-        </button>
+
       </div>
 
-      {/* New project form */}
-      {showNewForm && (
-        <div className="glass-card p-4 mb-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Nuovo progetto</h3>
-            <button onClick={() => setShowNewForm(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
-          </div>
-          <input className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }} placeholder="Nome progetto" value={newName} onChange={(e) => setNewName(e.target.value)} />
-          <input className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }} placeholder="Descrizione (opzionale)" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
-          <p className="text-[10px] text-muted-foreground">
-            {selectedCompany?.id ? "I file verranno salvati su Google Drive se connesso, altrimenti in locale." : ""}
-          </p>
-          <button onClick={createProject} disabled={creating || !newName.trim()} className="px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-30" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))" }}>
-            {creating ? "Creazione..." : "Crea progetto"}
-          </button>
-        </div>
-      )}
 
-      <div className="flex flex-1 gap-3 min-h-0">
-        {/* Project list */}
-        <div className="w-72 shrink-0 glass-card overflow-hidden flex flex-col">
-          <div className="px-3 py-2.5 border-b border-white/5 text-xs font-medium text-muted-foreground">
-            {projects.length} Progetti
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {projects.length === 0 ? (
-              <div className="p-4 text-xs text-muted-foreground text-center">Nessun progetto. Creane uno!</div>
-            ) : projects.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedProject(p)}
-                className={"w-full text-left px-3 py-2.5 border-b border-white/5 transition-colors " + (selectedProject?.id === p.id ? "bg-white/10" : "hover:bg-white/5")}
-              >
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4 text-amber-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium truncate">{p.name}</div>
-                    <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <span>{p.storage_type === "drive" ? "Google Drive" : "Locale"}</span>
-                      <span>&middot;</span>
-                      <span>{formatDate(p.created_at)}</span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* File area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {!selectedProject ? (
-            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-              Seleziona un progetto
-            </div>
-          ) : (
+      <div className="flex-1 flex flex-col min-h-0">
+        {!selectedProject ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+            Seleziona un progetto dalla sidebar
+          </div>
+        ) : (
             <>
               {/* Project header */}
               <div className="flex items-center justify-between pb-3">
