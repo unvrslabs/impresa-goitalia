@@ -41,7 +41,7 @@ export function linkedinRoutes(db: Db) {
     const state = crypto.randomBytes(32).toString("hex");
     oauthStates.set(state, { companyId, userId: actor.userId, prefix, expiresAt: Date.now() + 600000 });
 
-    const scopes = "openid profile email w_member_social";
+    const scopes = "openid profile email w_member_social r_member_social";
     const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scopes)}&state=${state}`;
     res.redirect(authUrl);
   });

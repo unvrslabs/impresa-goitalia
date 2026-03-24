@@ -118,29 +118,30 @@ export function socialRoutes(db: Db) {
       if (liSecret?.description) {
         try {
           const li = JSON.parse(decrypt(liSecret.description));
-          // Get posts from LinkedIn (Posts API v2)
+          // Get posts from LinkedIn (v2/shares - works with w_member_social)
           const authorUrn = "urn:li:person:" + li.sub;
-          const r = await fetch(`https://api.linkedin.com/rest/posts?author=${encodeURIComponent(authorUrn)}&q=author&count=20`, {
-            headers: { Authorization: "Bearer " + li.accessToken, "LinkedIn-Version": "202601", "X-Restli-Protocol-Version": "2.0.0" },
+          const r = await fetch(`https://api.linkedin.com/v2/shares?q=owners&owners=${encodeURIComponent(authorUrn)}&count=20`, {
+            headers: { Authorization: "Bearer " + li.accessToken, "X-Restli-Protocol-Version": "2.0.0" },
           });
-          const liRespText = r.ok ? "" : await r.text();
           if (r.ok) {
             const data = await r.json() as { elements?: any[] };
             for (const post of (data.elements || [])) {
-              const text = post.commentary || "";
-              const contentType = post.content?.media?.title ? "image" : "text";
+              const text = post.text?.text || post.specificContent?.["com.linkedin.ugc.ShareContent"]?.shareCommentary?.text || "";
+              const media = post.content?.contentEntities?.[0];
               posts.push({
-                id: "li_" + (post.id || post.urn || ""),
+                id: "li_" + (post.id || post.activity || ""),
                 platform: "linkedin",
-                type: contentType,
+                type: media?.entityLocation ? "image" : "text",
                 text,
-                permalink: `https://www.linkedin.com/feed/update/${post.id || post.urn || ""}`,
-                timestamp: new Date(post.createdAt || post.publishedAt || Date.now()).toISOString(),
+                mediaUrl: media?.entityLocation || undefined,
+                permalink: `https://www.linkedin.com/feed/update/${post.activity || post.id || ""}`,
+                timestamp: new Date(post.created?.time || post.lastModified?.time || Date.now()).toISOString(),
                 accountName: li.name || "LinkedIn",
               });
             }
           } else {
-            console.error("LinkedIn fetch posts error:", r.status, liRespText);
+            const errText = await r.text();
+            console.error("LinkedIn fetch posts error:", r.status, errText);
           }
         } catch (err) { console.error("LinkedIn fetch error:", err); }
       }
