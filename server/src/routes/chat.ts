@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { companySecrets, agents, companyMemberships, companies, issues } from "@goitalia/db";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
+import { eq, and, inArray, desc, sql, asc } from "drizzle-orm";
 import { decryptSecret } from "./onboarding.js";
 import { randomUUID } from "node:crypto";
 
@@ -187,6 +187,37 @@ async function executeChatTool(
 export function chatRoutes(db: Db) {
   const router = Router();
 
+  // GET /chat/history?companyId=xxx&limit=50 - Load chat history
+  router.get("/chat/history", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const companyId = req.query.companyId as string;
+    const limit = parseInt(req.query.limit as string) || 50;
+    if (!companyId) { res.json({ messages: [] }); return; }
+    try {
+      const rows = await db.execute(sql`
+        SELECT id, role, content, created_at FROM chat_messages 
+        WHERE company_id = ${companyId} AND user_id = ${actor.userId}
+        ORDER BY created_at ASC
+        LIMIT ${limit}
+      `);
+      res.json({ messages: rows || [] });
+    } catch (err) {
+      console.error("Chat history error:", err);
+      res.json({ messages: [] });
+    }
+  });
+
+  // DELETE /chat/history?companyId=xxx - Clear chat history
+  router.delete("/chat/history", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const companyId = req.query.companyId as string;
+    if (!companyId) { res.json({ cleared: true }); return; }
+    await db.execute(sql`DELETE FROM chat_messages WHERE company_id = ${companyId} AND user_id = ${actor.userId}`);
+    res.json({ cleared: true });
+  });
+
   router.post("/chat", async (req, res) => {
     try {
       const actor = req.actor as { type?: string; userId?: string; companyIds?: string[] } | undefined;
@@ -278,6 +309,11 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
       }
       messages.push({ role: "user", content: message });
 
+      // Save user message to DB
+      if (actor.userId) {
+        await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, agent_id, role, content) VALUES (\${companyId}, \${actor.userId}, \${resolvedAgentId || null}, 'user', \${message})`);
+      }
+
       // Multi-turn tool loop
       const MAX_TURNS = 8;
       let finalText = "";
@@ -356,6 +392,11 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
         }
 
         messages.push({ role: "user", content: toolResults });
+      }
+
+      // Save assistant response to DB
+      if (actor?.userId && finalText) {
+        await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, agent_id, role, content) VALUES (\${companyId}, \${actor.userId}, \${resolvedAgentId || null}, 'assistant', \${finalText})`);
       }
 
       res.write("data: [DONE]\n\n");
