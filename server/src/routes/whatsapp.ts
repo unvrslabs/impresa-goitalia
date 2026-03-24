@@ -293,7 +293,7 @@ export function whatsappRoutes(db: Db) {
 export function whatsappWebhookRouter(db: Db) {
   const router = Router();
 
-  router.post("/whatsapp/:companyId", async (req, res) => {
+  router.post("/:companyId", async (req, res) => {
     const companyId = req.params.companyId;
     const event = req.body;
     console.log("[wa-webhook]", companyId, event?.event, event?.data?.messages?.messageBody?.substring(0, 30));
