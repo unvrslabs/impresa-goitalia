@@ -360,7 +360,7 @@ export function whatsappRoutes(db: Db) {
 
     try {
       // If last message has an image, add it to the request with vision
-      let finalMessages = history;
+      let finalMessages: any = history;
       if (mediaUrl && messageType === "image") {
         try {
           const fs = await import("node:fs");
@@ -676,7 +676,7 @@ export function whatsappWebhookRouter(db: Db) {
 
     try {
       // If last message has an image, add it to the request with vision
-      let finalMessages = history;
+      let finalMessages: any = history;
       if (mediaUrl && messageType === "image") {
         try {
           const fs = await import("node:fs");
