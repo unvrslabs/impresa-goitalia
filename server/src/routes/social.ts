@@ -118,31 +118,29 @@ export function socialRoutes(db: Db) {
       if (liSecret?.description) {
         try {
           const li = JSON.parse(decrypt(liSecret.description));
-          // Get posts from LinkedIn
-          const r = await fetch(`https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(urn%3Ali%3Aperson%3A${li.sub})&count=20`, {
-            headers: { Authorization: "Bearer " + li.accessToken, "X-Restli-Protocol-Version": "2.0.0" },
+          // Get posts from LinkedIn (Posts API v2)
+          const authorUrn = "urn:li:person:" + li.sub;
+          const r = await fetch(`https://api.linkedin.com/rest/posts?author=${encodeURIComponent(authorUrn)}&q=author&count=20`, {
+            headers: { Authorization: "Bearer " + li.accessToken, "LinkedIn-Version": "202601", "X-Restli-Protocol-Version": "2.0.0" },
           });
+          const liRespText = r.ok ? "" : await r.text();
           if (r.ok) {
             const data = await r.json() as { elements?: any[] };
             for (const post of (data.elements || [])) {
-              const text = post.specificContent?.["com.linkedin.ugc.ShareContent"]?.shareCommentary?.text || "";
-              const media = post.specificContent?.["com.linkedin.ugc.ShareContent"]?.shareMediaCategory;
-              let mediaUrl = "";
-              const mediaItems = post.specificContent?.["com.linkedin.ugc.ShareContent"]?.media || [];
-              if (mediaItems.length > 0) {
-                mediaUrl = mediaItems[0].originalUrl || mediaItems[0].thumbnails?.[0]?.url || "";
-              }
+              const text = post.commentary || "";
+              const contentType = post.content?.media?.title ? "image" : "text";
               posts.push({
-                id: "li_" + post.id,
+                id: "li_" + (post.id || post.urn || ""),
                 platform: "linkedin",
-                type: media === "VIDEO" ? "video" : media === "IMAGE" ? "image" : "text",
+                type: contentType,
                 text,
-                mediaUrl: mediaUrl || undefined,
-                permalink: `https://www.linkedin.com/feed/update/${post.id}`,
-                timestamp: new Date(post.created?.time || Date.now()).toISOString(),
+                permalink: `https://www.linkedin.com/feed/update/${post.id || post.urn || ""}`,
+                timestamp: new Date(post.createdAt || post.publishedAt || Date.now()).toISOString(),
                 accountName: li.name || "LinkedIn",
               });
             }
+          } else {
+            console.error("LinkedIn fetch posts error:", r.status, liRespText);
           }
         } catch (err) { console.error("LinkedIn fetch error:", err); }
       }
