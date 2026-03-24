@@ -33,7 +33,9 @@ async function getToken(db: Db, companyId: string): Promise<string | null> {
     .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "google_oauth_tokens")))
     .then((rows) => rows[0]);
   if (!secret?.description) return null;
-  const tokenData = JSON.parse(decrypt(secret.description));
+  const decrypted = JSON.parse(decrypt(secret.description));
+  const tokenData = Array.isArray(decrypted) ? decrypted[0] : decrypted;
+  if (!tokenData) return null;
   if (tokenData.expires_at && tokenData.expires_at < Date.now() && tokenData.refresh_token) {
     const res = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",

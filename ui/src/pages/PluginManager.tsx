@@ -53,7 +53,7 @@ export function PluginManager() {
   const [uninstallPluginId, setUninstallPluginId] = useState<string | null>(null);
   const [uninstallPluginName, setUninstallPluginName] = useState("");
   const [errorDetailsPlugin, setErrorDetailsPlugin] = useState<PluginRecord | null>(null);
-  const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email?: string; accounts?: Array<{ email: string }> } | null>(null);
+  const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email?: string; accounts?: string[] } | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
@@ -184,31 +184,35 @@ export function PluginManager() {
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                  <span>{googleStatus.email}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    className="text-xs px-3 py-1.5 rounded-lg transition-all"
-                    style={{ background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.8)" }}
-                    onClick={() => {
-                      setGoogleLoading(true);
-                      window.location.href = "/api/oauth/google/connect?companyId=" + selectedCompany?.id + "&prefix=" + (selectedCompany?.issuePrefix || "");
-                    }}
-                  >
-                    + Aggiungi account
-                  </button>
-                  <button
-                    className="text-xs text-red-400/70 hover:text-red-400 transition-colors"
-                    onClick={async () => {
-                      await fetch("/api/oauth/google/disconnect?companyId=" + selectedCompany?.id, { credentials: "include" });
-                      setGoogleStatus({ connected: false });
-                    }}
-                  >
-                    Disconnetti
-                  </button>
-                </div>
+                {(googleStatus.accounts || [googleStatus.email]).map((email) => (
+                  <div key={email} className="flex items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                      <span>{email}</span>
+                    </div>
+                    <button
+                      className="text-red-400/50 hover:text-red-400 transition-colors"
+                      onClick={async () => {
+                        await fetch("/api/oauth/google/disconnect?companyId=" + selectedCompany?.id + "&email=" + encodeURIComponent(email as string), { credentials: "include" });
+                        const newAccounts = (googleStatus.accounts || []).filter((a) => a !== email);
+                        setGoogleStatus(newAccounts.length > 0 ? { connected: true, email: newAccounts[0], accounts: newAccounts } : { connected: false });
+                      }}
+                      title="Disconnetti questo account"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="text-xs px-3 py-1.5 rounded-lg transition-all"
+                  style={{ background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.8)" }}
+                  onClick={() => {
+                    setGoogleLoading(true);
+                    window.location.href = "/api/oauth/google/connect?companyId=" + selectedCompany?.id + "&prefix=" + (selectedCompany?.issuePrefix || "");
+                  }}
+                >
+                  + Aggiungi account
+                </button>
               </div>
             ) : (
               <button

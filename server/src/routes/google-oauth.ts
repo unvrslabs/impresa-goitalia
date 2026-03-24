@@ -128,20 +128,40 @@ export function googleOAuthRoutes(db: Db) {
       const userInfo = await userInfoRes.json() as { email?: string };
       console.log("[google-oauth] userInfo:", JSON.stringify(userInfo));
 
-      // Save encrypted tokens
-      const tokenData = JSON.stringify({
+      // Save encrypted tokens — support multiple accounts
+      const newAccount = {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expires_at: Date.now() + tokens.expires_in * 1000,
-        email: userInfo.email,
-      });
+        email: userInfo.email || "",
+      };
 
-      const encrypted = encrypt(tokenData);
-
-      // Upsert in company_secrets
       const existing = await db.select().from(companySecrets)
         .where(and(eq(companySecrets.companyId, stateData.companyId), eq(companySecrets.name, "google_oauth_tokens")))
         .then((rows) => rows[0]);
+
+      let accounts: Array<typeof newAccount> = [];
+      if (existing?.description) {
+        try {
+          const decrypted = JSON.parse(decrypt(existing.description));
+          // Migrate from single account to array
+          if (Array.isArray(decrypted)) {
+            accounts = decrypted;
+          } else if (decrypted.access_token) {
+            accounts = [decrypted];
+          }
+        } catch {}
+      }
+
+      // Replace if same email, otherwise append
+      const emailIndex = accounts.findIndex((a) => a.email === newAccount.email);
+      if (emailIndex >= 0) {
+        accounts[emailIndex] = newAccount;
+      } else {
+        accounts.push(newAccount);
+      }
+
+      const encrypted = encrypt(JSON.stringify(accounts));
 
       if (existing) {
         await db.update(companySecrets)
@@ -184,21 +204,11 @@ export function googleOAuthRoutes(db: Db) {
     }
 
     try {
-      const tokenData = JSON.parse(decrypt(secret.description));
-      let email = tokenData.email;
-      // If email missing, try to fetch it using access token
-      if (!email && tokenData.access_token) {
-        try {
-          const infoRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-            headers: { Authorization: "Bearer " + tokenData.access_token },
-          });
-          if (infoRes.ok) {
-            const info = await infoRes.json() as { email?: string };
-            email = info.email;
-          }
-        } catch {}
-      }
-      res.json({ connected: true, email: email || "Account Google" });
+      const decrypted = JSON.parse(decrypt(secret.description));
+      // Support both array and single account format
+      const accounts = Array.isArray(decrypted) ? decrypted : [decrypted];
+      const emails = accounts.map((a: any) => a.email || "Account Google");
+      res.json({ connected: true, email: emails[0], accounts: emails });
     } catch {
       res.json({ connected: false });
     }
@@ -212,8 +222,32 @@ export function googleOAuthRoutes(db: Db) {
     const companyId = req.query.companyId as string;
     if (!companyId) { res.status(400).json({ error: "companyId richiesto" }); return; }
 
-    await db.delete(companySecrets)
-      .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "google_oauth_tokens")));
+    const emailToRemove = req.query.email as string || "";
+
+    if (emailToRemove) {
+      // Remove specific account
+      const secret = await db.select().from(companySecrets)
+        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "google_oauth_tokens")))
+        .then((rows) => rows[0]);
+      if (secret?.description) {
+        try {
+          const decrypted = JSON.parse(decrypt(secret.description));
+          const accounts = Array.isArray(decrypted) ? decrypted : [decrypted];
+          const filtered = accounts.filter((a: any) => a.email !== emailToRemove);
+          if (filtered.length > 0) {
+            await db.update(companySecrets)
+              .set({ description: encrypt(JSON.stringify(filtered)), updatedAt: new Date() })
+              .where(eq(companySecrets.id, secret.id));
+          } else {
+            await db.delete(companySecrets).where(eq(companySecrets.id, secret.id));
+          }
+        } catch {}
+      }
+    } else {
+      // Remove all
+      await db.delete(companySecrets)
+        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "google_oauth_tokens")));
+    }
 
     res.json({ disconnected: true });
   });

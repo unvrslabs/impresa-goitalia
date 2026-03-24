@@ -34,7 +34,9 @@ async function getGmailToken(db: Db, companyId: string): Promise<{ access_token:
     .then((rows) => rows[0]);
   if (!secret?.description) return null;
 
-  const tokenData = JSON.parse(decrypt(secret.description));
+  const decrypted = JSON.parse(decrypt(secret.description));
+  const tokenData = Array.isArray(decrypted) ? decrypted[0] : decrypted;
+  if (!tokenData) return null;
   
   // Refresh if expired
   if (tokenData.expires_at && tokenData.expires_at < Date.now() && tokenData.refresh_token) {
