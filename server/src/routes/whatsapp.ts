@@ -452,11 +452,11 @@ export function whatsappWebhookRouter(db: Db) {
                 const decryptRes = await fetch("https://www.wasenderapi.com/api/decrypt-media", {
                   method: "POST",
                   headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.apiKey },
-                  body: JSON.stringify({ messageKeys: msg.key }),
+                  body: JSON.stringify({ data: { messages: msg } }),
                 });
                 if (decryptRes.ok) {
                   const decData = await decryptRes.json() as { data?: { url?: string } };
-                  if (decData.data?.url) {
+                  if (decData.publicUrl || decData.data?.url) {
                     const audioRes = await fetch(decData.data.url);
                     const audioBuffer = await audioRes.arrayBuffer();
                     const openaiKey = decrypt(openaiSecret.description);
@@ -498,16 +498,20 @@ export function whatsappWebhookRouter(db: Db) {
             const sessions = JSON.parse(decrypt(waSecret.description));
             const session = Array.isArray(sessions) ? sessions[0] : sessions;
             if (session?.apiKey) {
+              console.log("[wa-webhook] calling decrypt-media with apiKey length:", session.apiKey?.length, "key id:", msg.key?.id);
               const decryptRes = await fetch("https://www.wasenderapi.com/api/decrypt-media", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.apiKey },
-                body: JSON.stringify({ messageKeys: msg.key }),
+                body: JSON.stringify({ data: { messages: msg } }),
               });
-              if (decryptRes.ok) {
-                const decData = await decryptRes.json() as { data?: { url?: string; mimetype?: string } };
-                if (decData.data?.url) {
+              const decText = await decryptRes.text();
+              console.log("[wa-webhook] decrypt-media response:", decryptRes.status, decText.substring(0, 300));
+              if (decryptRes.ok || decryptRes.status === 200) {
+                let decData: any = {};
+                try { decData = JSON.parse(decText); } catch {}
+                if (decData.publicUrl || decData.data?.url) {
                   // Download the file and save locally
-                  const mediaRes = await fetch(decData.data.url);
+                  const mediaRes = await fetch(decData.publicUrl || decData.data?.url);
                   if (mediaRes.ok) {
                     const buffer = Buffer.from(await mediaRes.arrayBuffer());
                     const ext = messageType === "image" ? ".jpg" : messageType === "video" ? ".mp4" : ".bin";
