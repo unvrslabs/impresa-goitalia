@@ -207,7 +207,6 @@ export function ProjectsPmi() {
               </div>
             </>
           )}
-        </div>
       </div>
     </div>
   );
