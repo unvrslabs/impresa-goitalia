@@ -137,5 +137,23 @@ export function calendarRoutes(db: Db) {
     }
   });
 
+
+  // DELETE /calendar/events/:id?companyId=xxx
+  router.delete("/calendar/events/:id", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const companyId = req.query.companyId as string;
+    if (!companyId) { res.status(400).json({ error: "companyId richiesto" }); return; }
+    const token = await getToken(db, companyId);
+    if (!token) { res.status(400).json({ error: "Google non connesso" }); return; }
+    try {
+      const r = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events/" + req.params.id, {
+        method: "DELETE", headers: { Authorization: "Bearer " + token },
+      });
+      if (!r.ok && r.status !== 204) { res.status(502).json({ error: "Errore eliminazione" }); return; }
+      res.json({ deleted: true });
+    } catch { res.status(500).json({ error: "Errore" }); }
+  });
+
   return router;
 }

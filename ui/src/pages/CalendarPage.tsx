@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
-import { Calendar as CalIcon, ChevronLeft, ChevronRight, Clock, MapPin, Plus, X, Loader2 } from "lucide-react";
+import { Calendar as CalIcon, ChevronLeft, ChevronRight, Clock, MapPin, Plus, X, Loader2, Trash2 } from "lucide-react";
 
 interface CalEvent {
   id: string;
@@ -60,6 +60,14 @@ export function CalendarPage() {
       setEvents(data.events || []);
     } catch { setError("Errore connessione"); }
     setLoading(false);
+  };
+
+  const deleteEvent = async (eventId: string) => {
+    if (!selectedCompany?.id) return;
+    await fetch("/api/calendar/events/" + eventId + "?companyId=" + selectedCompany.id, {
+      method: "DELETE", credentials: "include",
+    });
+    setEvents((prev) => prev.filter((e) => e.id !== eventId));
   };
 
   useEffect(() => { fetchEvents(); }, [selectedCompany?.id, currentMonth]);
@@ -207,6 +215,13 @@ export function CalendarPage() {
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground shrink-0">{new Date(ev.start).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}</div>
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteEvent(ev.id); }}
+                    className="shrink-0 p-1 rounded hover:bg-white/10 text-red-400/50 hover:text-red-400 transition-colors"
+                    title="Elimina evento"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </a>
               ))}
             </div>
