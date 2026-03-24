@@ -160,8 +160,6 @@ export function SidebarAgents() {
       </CollapsibleContent>
     </Collapsible>
 
-      </Collapsible>
-
       {/* Popup: go to chat to create agent */}
       {showAgentPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowAgentPopup(false)}>
