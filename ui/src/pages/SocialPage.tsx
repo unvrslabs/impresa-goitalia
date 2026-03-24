@@ -45,6 +45,25 @@ export function SocialPage() {
   const [publishResult, setPublishResult] = useState<Array<{ platform: string; success: boolean; error?: string }> | null>(null);
   const fileInputRef = { current: null as HTMLInputElement | null };
 
+  
+  const resizeForIG = (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const size = Math.min(img.width, img.height, 1080);
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d")!;
+        const sx = (img.width - size) / 2;
+        const sy = (img.height - size) / 2;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size);
+        canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.9);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handlePublish = async () => {
     if (!selectedCompany?.id || !publishText.trim()) return;
     setPublishing(true);
@@ -54,7 +73,16 @@ export function SocialPage() {
       fd.append("companyId", selectedCompany.id);
       fd.append("text", publishText);
       fd.append("platforms", JSON.stringify(Array.from(publishTargets)));
-      if (publishImage) fd.append("image", publishImage);
+      if (publishImage) {
+        // If Instagram targets, resize to square
+        const hasIG = Array.from(publishTargets).some((t) => t.startsWith("ig_"));
+        if (hasIG) {
+          const resized = await resizeForIG(publishImage);
+          fd.append("image", resized, "post.jpg");
+        } else {
+          fd.append("image", publishImage);
+        }
+      }
       const res = await fetch("/api/social/publish", { method: "POST", credentials: "include", body: fd });
       if (!res.ok) {
         const errText = await res.text();
