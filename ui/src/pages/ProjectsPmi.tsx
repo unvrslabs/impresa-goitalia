@@ -43,6 +43,8 @@ export function ProjectsPmi() {
   const { setBreadcrumbs } = useBreadcrumbs();
   const [projects, setProjects] = useState<PmiProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<PmiProject | null>(null);
+  const searchParams = new URLSearchParams(window.location.search);
+  const urlProjectId = searchParams.get("project");
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewForm, setShowNewForm] = useState(false);
@@ -75,6 +77,13 @@ export function ProjectsPmi() {
     } catch {}
   };
 
+  useEffect(() => {
+    if (urlProjectId && projects.length > 0 && !selectedProject) {
+      const p = projects.find((p) => p.id === urlProjectId);
+      if (p) setSelectedProject(p);
+    }
+  }, [urlProjectId, projects]);
+  
   useEffect(() => { if (selectedProject) fetchFiles(selectedProject); }, [selectedProject]);
 
   const createProject = async () => {
