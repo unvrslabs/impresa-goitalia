@@ -132,6 +132,12 @@ export async function createApp(
   }
   app.use(llmRoutes(db));
 
+  // Telegram webhooks (no auth - called by Telegram servers)
+  const { telegramWebhookRouter } = await import("./routes/telegram.js");
+  if (telegramWebhookRouter) {
+    app.use("/api", telegramWebhookRouter(db));
+  }
+
   // Mount API routes
   const api = Router();
   api.use(boardMutationGuard());
