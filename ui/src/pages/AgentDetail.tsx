@@ -2416,6 +2416,50 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; accounts?: string[] } | null>(null);
   const [telegramStatus, setTelegramStatus] = useState<{ connected: boolean; bots?: Array<{ username: string; name: string }> } | null>(null);
   const { selectedCompany } = useCompany();
+  const [agentConnectors, setAgentConnectors] = useState<Record<string, boolean>>({});
+  const [savingConnectors, setSavingConnectors] = useState(false);
+
+  // Load agent connector settings
+  useEffect(() => {
+    if (!companyId) return;
+    // Find the agent to get its adapterConfig
+    fetch("/api/companies/" + companyId + "/agents", { credentials: "include" })
+      .then((r) => r.json())
+      .then((agents: any[]) => {
+        // We don't have agentId here directly, but we can use window location
+        const path = window.location.pathname;
+        const match = agents.find((a: any) => path.includes(a.id) || path.includes(a.urlKey));
+        if (match) {
+          const config = match.adapterConfig || {};
+          setAgentConnectors(config.connectors || { gmail: true, calendar: true, drive: true, telegram: true });
+        }
+      })
+      .catch(() => {});
+  }, [companyId]);
+
+  const toggleConnector = async (key: string) => {
+    const newVal = { ...agentConnectors, [key]: !agentConnectors[key] };
+    setAgentConnectors(newVal);
+    setSavingConnectors(true);
+    try {
+      // Get current agent config and update connectors
+      const path = window.location.pathname;
+      const agentId = path.split("/agents/")[1]?.split("/")[0];
+      if (agentId) {
+        const res = await fetch("/api/agents/" + agentId + "?companyId=" + companyId, { credentials: "include" });
+        if (res.ok) {
+          const agent = await res.json();
+          const config = agent.adapterConfig || {};
+          config.connectors = newVal;
+          await fetch("/api/agents/" + agentId + "?companyId=" + companyId, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+            body: JSON.stringify({ adapterConfig: config }),
+          });
+        }
+      }
+    } catch {}
+    setSavingConnectors(false);
+  };
 
   useEffect(() => {
     if (!companyId) return;
@@ -2461,14 +2505,24 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
         </div>
 
         {googleStatus?.connected && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2">
-            {services.map((svc) => (
-              <div key={svc.name} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                <div>
+          <div className="space-y-1.5 pt-2">
+            {[
+              { key: "gmail", name: "Gmail", desc: "Email" },
+              { key: "calendar", name: "Calendar", desc: "Eventi" },
+              { key: "drive", name: "Drive", desc: "File e documenti" },
+            ].map((svc) => (
+              <div key={svc.key} className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="flex items-center gap-2">
+                  <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors[svc.key] !== false ? "bg-green-500" : "bg-white/20")} />
                   <div className="text-xs font-medium">{svc.name}</div>
                   <div className="text-[10px] text-muted-foreground">{svc.desc}</div>
                 </div>
+                <button
+                  onClick={() => toggleConnector(svc.key)}
+                  className={"relative inline-flex h-4 w-7 items-center rounded-full transition-colors " + (agentConnectors[svc.key] !== false ? "bg-green-600" : "bg-white/10")}
+                >
+                  <span className={"inline-block h-3 w-3 rounded-full bg-white transition-transform " + (agentConnectors[svc.key] !== false ? "translate-x-3.5" : "translate-x-0.5")} />
+                </button>
               </div>
             ))}
           </div>
@@ -2497,14 +2551,20 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
         </div>
 
         {telegramStatus?.connected && telegramStatus.bots?.length ? (
-          <div className="space-y-1 pt-1">
-            {telegramStatus.bots.map((bot) => (
-              <div key={bot.username} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                <div className="text-xs font-medium">@{bot.username}</div>
-                <div className="text-[10px] text-muted-foreground">{bot.name}</div>
+          <div className="space-y-1.5 pt-2">
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex items-center gap-2">
+                <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors.telegram !== false ? "bg-green-500" : "bg-white/20")} />
+                <div className="text-xs font-medium">Telegram</div>
+                <div className="text-[10px] text-muted-foreground">{telegramStatus.bots.map((b) => "@" + b.username).join(", ")}</div>
               </div>
-            ))}
+              <button
+                onClick={() => toggleConnector("telegram")}
+                className={"relative inline-flex h-4 w-7 items-center rounded-full transition-colors " + (agentConnectors.telegram !== false ? "bg-green-600" : "bg-white/10")}
+              >
+                <span className={"inline-block h-3 w-3 rounded-full bg-white transition-transform " + (agentConnectors.telegram !== false ? "translate-x-3.5" : "translate-x-0.5")} />
+              </button>
+            </div>
           </div>
         ) : null}
       </div>
