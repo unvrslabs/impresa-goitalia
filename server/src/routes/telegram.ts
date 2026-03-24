@@ -350,6 +350,25 @@ export function telegramRoutes(db: Db) {
     try { claudeKey = decrypt(apiKeySecret.description); } catch { res.status(500).json({ error: "Errore decrypt" }); return; }
 
     try {
+
+      // Build content - with image vision if present
+      let userContent: any = `Messaggio da ${fromName}: "${messageText}"\n\nGenera una risposta professionale e concisa.`;
+      if (mediaUrl && messageType === "image") {
+        try {
+          const fs = await import("node:fs");
+          const path = await import("node:path");
+          const localPath = mediaUrl.replace("/api/tg-media/", "");
+          const filePath = path.join(process.cwd(), "data/tg-media", localPath);
+          if (fs.existsSync(filePath)) {
+            const imgBuffer = fs.readFileSync(filePath);
+            const base64 = imgBuffer.toString("base64");
+            userContent = [
+              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
+              { type: "text", text: messageText && messageText !== "[Immagine]" ? messageText : "Lutente ha inviato questa immagine. Descrivi cosa vedi e rispondi." },
+            ];
+          }
+        } catch (err) { console.error("[tg] image read error:", err); }
+      }
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2023-06-01" },
@@ -357,7 +376,7 @@ export function telegramRoutes(db: Db) {
           model: "claude-sonnet-4-20250514",
           max_tokens: 1024,
           system: "Sei un assistente di customer service professionale. Rispondi in italiano, in modo conciso e cordiale. Non inventare informazioni.",
-          messages: [{ role: "user", content: `Messaggio da ${fromName}: "${messageText}"\n\nGenera una risposta professionale e concisa.` }],
+          messages: [{ role: "user", content: userContent }],
         }),
       });
       if (!r.ok) { res.status(502).json({ error: "Errore AI" }); return; }
