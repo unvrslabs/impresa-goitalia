@@ -273,7 +273,7 @@ export function TelegramPage() {
             </div>
 
             {/* Input */}
-            <div className="glass-card p-3 flex items-end gap-2">
+            <div className="glass-card p-3 flex items-end gap-2 mt-3">
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => { const f = e.target.files?.[0]; if (f) sendMedia(f); e.target.value = ""; }} />
               <button onClick={() => fileInputRef.current?.click()} className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 text-muted-foreground hover:text-foreground transition-colors" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <Paperclip className="h-4 w-4" />
