@@ -338,8 +338,8 @@ export function telegramRoutes(db: Db) {
   router.post("/telegram/generate-reply", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
-    const { companyId, messageText, fromName } = req.body as { companyId: string; messageText: string; fromName: string };
-    if (!companyId || !messageText) { res.status(400).json({ error: "Parametri mancanti" }); return; }
+    const { companyId, messageText, fromName, mediaUrl, messageType } = req.body as { companyId: string; messageText: string; fromName: string; mediaUrl?: string; messageType?: string };
+    if (!companyId || (!messageText && !mediaUrl)) { res.status(400).json({ error: "Parametri mancanti" }); return; }
 
     // Get Claude API key
     const apiKeySecret = await db.select().from(companySecrets)
