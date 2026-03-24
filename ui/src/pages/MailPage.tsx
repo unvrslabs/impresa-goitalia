@@ -205,7 +205,7 @@ export function MailPage() {
         <div className="flex items-center gap-3">
           <Inbox className="w-5 h-5" />
           <h1 className="text-xl font-semibold">Mail</h1>
-          {email && <span className="text-xs text-muted-foreground">{email}</span>}
+          {false && <span>{email}</span>}
         </div>
         <button
           onClick={() => fetchMail()}
