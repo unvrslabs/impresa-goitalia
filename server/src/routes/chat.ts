@@ -195,12 +195,7 @@ export function chatRoutes(db: Db) {
     const limit = parseInt(req.query.limit as string) || 50;
     if (!companyId) { res.json({ messages: [] }); return; }
     try {
-      const rows = await db.execute(sql`
-        SELECT id, role, content, created_at FROM chat_messages 
-        WHERE company_id = ${companyId} AND user_id = ${actor.userId}
-        ORDER BY created_at ASC
-        LIMIT ${limit}
-      `);
+      const rows = await db.execute(sql`SELECT id, role, content, created_at FROM chat_messages WHERE company_id = ${companyId} AND user_id = ${actor.userId} ORDER BY created_at ASC LIMIT 50`);
       res.json({ messages: rows || [] });
     } catch (err) {
       console.error("Chat history error:", err);
@@ -311,7 +306,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
 
       // Save user message to DB
       if (actor.userId) {
-        await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, role, content) VALUES (${companyId}, ${actor.userId}, 'user', ${message})`);
+        try { await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, role, content) VALUES (${companyId}, ${actor.userId}, 'user', ${message})`); } catch (e) { console.error("Chat save error:", e); }
       }
 
       // Multi-turn tool loop
@@ -396,7 +391,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
 
       // Save assistant response to DB
       if (actor?.userId && finalText) {
-        await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, role, content) VALUES (${companyId}, ${actor.userId}, 'assistant', ${finalText})`);
+        try { await db.execute(sql`INSERT INTO chat_messages (company_id, user_id, role, content) VALUES (${companyId}, ${actor.userId}, 'assistant', ${finalText})`); } catch (e) { console.error("Chat save error:", e); }
       }
 
       res.write("data: [DONE]\n\n");
