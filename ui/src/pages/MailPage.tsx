@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { Mail, Inbox, RefreshCw, Sparkles, Send, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
@@ -47,10 +47,11 @@ export function MailPage() {
       .catch(() => {});
   }, [selectedCompany?.id]);
 
+  const isFirstLoad = useRef(true);
   const fetchMail = async (filter?: string) => {
     if (!selectedCompany?.id) return;
     const useFilter = filter || activeFilter;
-    setLoading(true);
+    if (isFirstLoad.current) { setLoading(true); isFirstLoad.current = false; }
     setError(null);
     try {
       const res = await fetch("/api/gmail/messages?companyId=" + selectedCompany.id + "&label=" + useFilter + (selectedAccount >= 0 ? "&account=" + selectedAccount : ""), { credentials: "include" });

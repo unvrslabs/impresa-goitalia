@@ -38,13 +38,15 @@ export function TelegramPage() {
 
   useEffect(() => { setBreadcrumbs([{ label: "Telegram" }]); }, [setBreadcrumbs]);
 
+  const isFirstLoad = useRef(true);
   const fetchMessages = async () => {
     if (!selectedCompany?.id) return;
+    if (isFirstLoad.current) { setLoading(true); isFirstLoad.current = false; }
     try {
       const res = await fetch("/api/telegram/messages?companyId=" + selectedCompany.id + "&limit=200", { credentials: "include" });
       const data = await res.json();
       if (!res.ok) { setError(data.error); } else { setMessages((data.messages || []).reverse()); }
-    } catch { setError("Errore connessione"); }
+    } catch { if (messages.length === 0) setError("Errore connessione"); }
     setLoading(false);
   };
 

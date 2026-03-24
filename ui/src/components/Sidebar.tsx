@@ -49,16 +49,18 @@ export function Sidebar() {
 
   useEffect(() => {
     if (!selectedCompanyId) return;
-    // Check Google connection
-    fetch("/api/oauth/google/status?companyId=" + selectedCompanyId, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setHasGoogle(d.connected || false))
-      .catch(() => setHasGoogle(false));
-    // Check Telegram connection
-    fetch("/api/telegram/status?companyId=" + selectedCompanyId, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setHasTelegram(d.connected || false))
-      .catch(() => setHasTelegram(false));
+    const checkConnectors = () => {
+      fetch("/api/oauth/google/status?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setHasGoogle(d.connected || false))
+        .catch(() => {});
+      fetch("/api/telegram/status?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setHasTelegram(d.connected || false))
+        .catch(() => {});
+    };
+    checkConnectors();
+    const connectorInterval = setInterval(checkConnectors, 10000);
 
     const fetchUnread = () => {
       fetch("/api/gmail/unread-count?companyId=" + selectedCompanyId, { credentials: "include" })
@@ -68,7 +70,7 @@ export function Sidebar() {
     };
     fetchUnread();
     const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); clearInterval(connectorInterval); };
   }, [selectedCompanyId]);
 
   const isOnboarding = !!selectedCompanyId && (sidebarAgents ?? []).length > 0 && (sidebarAgents ?? []).every((a: any) => a.adapterType === "claude_api") && (sidebarAgents ?? []).filter((a: any) => a.role !== "ceo").length === 0;
