@@ -9,6 +9,7 @@ import {
   Mail,
   Calendar,
   HardDrive,
+  MessageSquare,
   Share2,
   Plus,
   ChevronDown,
@@ -147,6 +148,7 @@ export function Sidebar() {
           <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />
           <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />
           <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />
+          <SidebarNavItem to="/telegram" label="Telegram" icon={MessageSquare} />
           {!isOnboarding && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}
           {!isOnboarding && <SidebarNavItem to="/goals" label="Obiettivi" icon={Target} />}
         </SidebarSection>

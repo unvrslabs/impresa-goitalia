@@ -17,6 +17,7 @@ import { googleOAuthRoutes } from "./routes/google-oauth.js";
 import { gmailRoutes } from "./routes/gmail.js";
 import { calendarRoutes } from "./routes/calendar.js";
 import { driveRoutes } from "./routes/drive.js";
+import { telegramRoutes } from "./routes/telegram.js";
 import { companySkillRoutes } from "./routes/company-skills.js";
 import { agentRoutes } from "./routes/agents.js";
 import { projectRoutes } from "./routes/projects.js";
@@ -149,6 +150,7 @@ export async function createApp(
   api.use(gmailRoutes(db));
   api.use(calendarRoutes(db));
   api.use(driveRoutes(db));
+  api.use(telegramRoutes(db));
   api.use("/companies", companyRoutes(db, opts.storageService));
   api.use(companySkillRoutes(db));
   api.use(agentRoutes(db));
