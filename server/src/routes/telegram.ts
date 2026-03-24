@@ -211,10 +211,11 @@ export function telegramRoutes(db: Db) {
     try { res.json(JSON.parse(row.description)); } catch { res.json({ autoReply: false }); }
   });
 
-  // POST /telegram/webhook/:companyId - no bot index
-  router.post("/telegram/webhook/:companyId", async (req, res) => {
+  // POST /telegram/webhook/:companyId/:botIndex
+  router.post("/telegram/webhook/:companyId/:botIndex", async (req, res) => {
     const companyId = req.params.companyId;
     const update = req.body;
+    console.log("[telegram-webhook] Received message for company:", companyId, "text:", update?.message?.text);
     if (update?.message?.text) {
       const msg = update.message;
       try {
@@ -268,8 +269,8 @@ export function telegramRoutes(db: Db) {
     res.json({ ok: true });
   });
 
-  // POST /telegram/webhook/:companyId/:botIndex
-  router.post("/telegram/webhook/:companyId/:botIndex", async (req, res) => {
+  // POST /telegram/webhook/:companyId - no bot index
+  router.post("/telegram/webhook/:companyId", async (req, res) => {
     const companyId = req.params.companyId;
     const update = req.body;
     if (update?.message?.text) {
