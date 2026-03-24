@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { companySecrets, agents, companyMemberships, companies, issues } from "@goitalia/db";
 import { eq, and, inArray, desc, sql, asc } from "drizzle-orm";
-import { decryptSecret } from "./onboarding.js";
+import { decrypt as decryptSecret } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
 
 // Tool definitions (same as adapter)

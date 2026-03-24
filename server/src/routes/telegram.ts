@@ -4,29 +4,11 @@ import type { Db } from "@goitalia/db";
 import { companySecrets, agents } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
-
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return crypto.createHash("sha256").update(key).digest();
-}
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const c = crypto.createCipheriv("aes-256-cbc", getKeyHash(), iv);
-  let e = c.update(text, "utf8", "hex"); e += c.final("hex");
-  return iv.toString("hex") + ":" + e;
-}
-function decrypt(text: string): string {
-  const [ivHex, enc] = text.split(":");
-  if (!ivHex || !enc) throw new Error("Invalid");
-  const d = crypto.createDecipheriv("aes-256-cbc", getKeyHash(), Buffer.from(ivHex, "hex"));
-  let r = d.update(enc, "hex", "utf8"); r += d.final("utf8");
-  return r;
-}
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
 // In-memory store for company lookup by bot token hash (for webhook routing)
-const botCompanyMap = new Map<string, string>();
 
 async function getTelegramToken(db: Db, companyId: string, botIndex = 0): Promise<string | null> {
   // Try new format first
@@ -100,21 +82,10 @@ export function telegramRoutes(db: Db) {
       await fetch(TELEGRAM_API + token + "/setWebhook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: webhookUrl }),
+        body: JSON.stringify({ url: webhookUrl, secret_token: crypto.createHash("sha256").update(token).digest("hex").slice(0, 32) }),
       });
 
-      // Create telegram_messages table if not exists
-      await db.execute(sql`CREATE TABLE IF NOT EXISTS telegram_messages (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        company_id UUID NOT NULL,
-        chat_id BIGINT NOT NULL,
-        from_name TEXT,
-        from_username TEXT,
-        message_text TEXT NOT NULL,
-        direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
-        telegram_message_id BIGINT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      )`);
+      // telegram_messages table created via migration
       await db.execute(sql`CREATE INDEX IF NOT EXISTS telegram_messages_company_idx ON telegram_messages(company_id, created_at DESC)`);
 
       res.json({ connected: true, username: botInfo.result?.username, name: botInfo.result?.first_name });
@@ -405,8 +376,32 @@ export function telegramWebhookRouter(db: Db) {
   
   router.post("/telegram/webhook/:companyId/:botIndex", async (req, res) => {
     const companyId = req.params.companyId;
+    const botIndex = parseInt(req.params.botIndex || "0");
+    
+    // Validate Telegram secret token
+    const secretHeader = req.headers["x-telegram-bot-api-secret-token"] as string | undefined;
+    if (secretHeader) {
+      // Verify against stored bot token
+      try {
+        const secret = await db.select().from(companySecrets)
+          .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bots")))
+          .then((r) => r[0]);
+        if (secret?.description) {
+          const bots = JSON.parse(decrypt(secret.description));
+          const botArr = Array.isArray(bots) ? bots : [bots];
+          const bot = botArr[botIndex];
+          if (bot?.token) {
+            const expected = crypto.createHash("sha256").update(bot.token).digest("hex").slice(0, 32);
+            if (secretHeader !== expected) {
+              res.status(403).json({ error: "Invalid secret" });
+              return;
+            }
+          }
+        }
+      } catch {}
+    }
+    
     const update = req.body;
-    console.log("[tg-wh] msg:", update?.message?.text, "from:", update?.message?.from?.first_name);
     res.json({ ok: true });
     // Process async after response
     // Handle voice/audio messages

@@ -4,27 +4,10 @@ import type { Db } from "@goitalia/db";
 import { companySecrets, agents } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 const WASENDER_API = "https://www.wasenderapi.com/api";
 const WASENDER_PAT = process.env.WASENDER_PAT || "";
-
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return crypto.createHash("sha256").update(key).digest();
-}
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const c = crypto.createCipheriv("aes-256-cbc", getKeyHash(), iv);
-  let e = c.update(text, "utf8", "hex"); e += c.final("hex");
-  return iv.toString("hex") + ":" + e;
-}
-function decrypt(text: string): string {
-  const [ivHex, enc] = text.split(":");
-  if (!ivHex || !enc) throw new Error("Invalid");
-  const d = crypto.createDecipheriv("aes-256-cbc", getKeyHash(), Buffer.from(ivHex, "hex"));
-  let r = d.update(enc, "hex", "utf8"); r += d.final("utf8");
-  return r;
-}
 
 export function whatsappRoutes(db: Db) {
   const router = Router();
@@ -102,18 +85,7 @@ export function whatsappRoutes(db: Db) {
 
       const connectData = await connectRes.json() as { data?: { status: string; qrCode?: string } };
 
-      // Create whatsapp_messages table
-      await db.execute(sql`CREATE TABLE IF NOT EXISTS whatsapp_messages (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        company_id UUID NOT NULL,
-        remote_jid TEXT NOT NULL,
-        from_name TEXT,
-        message_text TEXT NOT NULL,
-        direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
-        message_type TEXT DEFAULT 'text',
-        media_url TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      )`);
+      // whatsapp_messages table created via migration
       await db.execute(sql`CREATE INDEX IF NOT EXISTS wa_messages_company_idx ON whatsapp_messages(company_id, created_at DESC)`);
 
       res.json({
@@ -251,9 +223,6 @@ export function whatsappRoutes(db: Db) {
       res.json({ sent: true });
     } catch { res.status(500).json({ error: "Errore invio" }); }
   });
-
-
-
 
   // POST /whatsapp/send-media - Send image/file via WhatsApp
   const waUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
@@ -552,9 +521,6 @@ export function whatsappWebhookRouter(db: Db) {
       }
     }
   });
-
-
-
 
   // GET /whatsapp/unread-count?companyId=xxx
   router.get("/whatsapp/unread-count", async (req, res) => {

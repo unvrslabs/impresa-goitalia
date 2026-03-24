@@ -7,33 +7,15 @@ import { companyService } from "../services/companies.js";
 import { agentService } from "../services/agents.js";
 import { accessService } from "../services/access.js";
 import { logActivity } from "../services/activity-log.js";
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 // --- Encryption helpers for API keys ---
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return createHash("sha256").update(key).digest();
-}
 
-function encrypt(text: string): string {
-  const iv = randomBytes(16);
-  const cipher = createCipheriv("aes-256-cbc", getKeyHash(), iv);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return iv.toString("hex") + ":" + encrypted;
-}
 
-function decrypt(text: string): string {
-  const [ivHex, encryptedHex] = text.split(":");
-  if (!ivHex || !encryptedHex) throw new Error("Invalid encrypted format");
-  const iv = Buffer.from(ivHex, "hex");
-  const decipher = createDecipheriv("aes-256-cbc", getKeyHash(), iv);
-  let decrypted = decipher.update(encryptedHex, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
-}
 
 // --- Rate limiting (simple in-memory) ---
 const activationAttempts = new Map<string, { count: number; resetAt: number }>();
+setInterval(() => { const now = Date.now(); for (const [k, v] of activationAttempts) { if (v.resetAt < now) activationAttempts.delete(k); } }, 600000);
 const MAX_ACTIVATIONS_PER_IP = 5;
 const ACTIVATION_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -436,4 +418,3 @@ REGOLE:
 }
 
 // Export decrypt for use by the adapter
-export { decrypt as decryptSecret };

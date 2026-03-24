@@ -3,6 +3,7 @@ import type { Db } from "@goitalia/db";
 import { companySecrets, companyMemberships } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "node:crypto";
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET || "";
@@ -19,31 +20,12 @@ const SCOPES = [
 ].join(" ");
 
 // Encrypt/decrypt using same key as onboarding
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return crypto.createHash("sha256").update(key).digest();
-}
 
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv("aes-256-cbc", getKeyHash(), iv);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return iv.toString("hex") + ":" + encrypted;
-}
 
-function decrypt(text: string): string {
-  const [ivHex, encryptedHex] = text.split(":");
-  if (!ivHex || !encryptedHex) throw new Error("Invalid encrypted format");
-  const iv = Buffer.from(ivHex, "hex");
-  const decipher = crypto.createDecipheriv("aes-256-cbc", getKeyHash(), iv);
-  let decrypted = decipher.update(encryptedHex, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
-}
 
 // Temporary state store for OAuth flow
 const oauthStates = new Map<string, { companyId: string; userId: string; prefix: string; expiresAt: number }>();
+setInterval(() => { const now = Date.now(); for (const [k, v] of oauthStates) { if (v.expiresAt < now) oauthStates.delete(k); } }, 300000);
 
 export function googleOAuthRoutes(db: Db) {
   const router = Router();

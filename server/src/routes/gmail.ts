@@ -3,30 +3,11 @@ import type { Db } from "@goitalia/db";
 import { companySecrets, agents } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "node:crypto";
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET || "";
 
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return crypto.createHash("sha256").update(key).digest();
-}
-function decrypt(text: string): string {
-  const [ivHex, encryptedHex] = text.split(":");
-  if (!ivHex || !encryptedHex) throw new Error("Invalid encrypted format");
-  const iv = Buffer.from(ivHex, "hex");
-  const decipher = crypto.createDecipheriv("aes-256-cbc", getKeyHash(), iv);
-  let decrypted = decipher.update(encryptedHex, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
-}
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv("aes-256-cbc", getKeyHash(), iv);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return iv.toString("hex") + ":" + encrypted;
-}
 
 async function getGmailToken(db: Db, companyId: string, accountIndex = 0): Promise<{ access_token: string; email: string } | null> {
   const secret = await db.select().from(companySecrets)
@@ -355,7 +336,6 @@ Scrivi SOLO il testo della risposta, senza oggetto, senza "Gentile..." se non ne
     }
   });
 
-
   // POST /gmail/trash - Move to trash
   router.post("/gmail/trash", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
@@ -421,7 +401,6 @@ Scrivi SOLO il testo della risposta, senza oggetto, senza "Gentile..." se non ne
     res.json({ success: true });
   });
 
-
   // GET /gmail/unread-count?companyId=xxx
   router.get("/gmail/unread-count", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
@@ -455,7 +434,6 @@ Scrivi SOLO il testo della risposta, senza oggetto, senza "Gentile..." se non ne
       res.json({ count: 0 });
     }
   });
-
 
   // GET /gmail/accounts?companyId=xxx - List connected accounts
   router.get("/gmail/accounts", async (req, res) => {

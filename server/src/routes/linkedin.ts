@@ -3,30 +3,15 @@ import type { Db } from "@goitalia/db";
 import { companySecrets } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "node:crypto";
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID || "";
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET || "";
 const REDIRECT_URI = (process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL || "https://impresa.goitalia.eu") + "/api/oauth/linkedin/callback";
 
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return crypto.createHash("sha256").update(key).digest();
-}
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const c = crypto.createCipheriv("aes-256-cbc", getKeyHash(), iv);
-  let e = c.update(text, "utf8", "hex"); e += c.final("hex");
-  return iv.toString("hex") + ":" + e;
-}
-function decrypt(text: string): string {
-  const [ivHex, enc] = text.split(":");
-  if (!ivHex || !enc) throw new Error("Invalid");
-  const d = crypto.createDecipheriv("aes-256-cbc", getKeyHash(), Buffer.from(ivHex, "hex"));
-  let r = d.update(enc, "hex", "utf8"); r += d.final("utf8");
-  return r;
-}
-
 const oauthStates = new Map<string, { companyId: string; userId: string; prefix: string; expiresAt: number }>();
+// Cleanup expired states every 5 minutes
+setInterval(() => { const now = Date.now(); for (const [k, v] of oauthStates) { if (v.expiresAt < now) oauthStates.delete(k); } }, 300000);
 
 export function linkedinRoutes(db: Db) {
   const router = Router();

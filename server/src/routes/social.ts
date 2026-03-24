@@ -4,18 +4,7 @@ import type { Db } from "@goitalia/db";
 import { companySecrets } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "node:crypto";
-
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return crypto.createHash("sha256").update(key).digest();
-}
-function decrypt(text: string): string {
-  const [ivHex, enc] = text.split(":");
-  if (!ivHex || !enc) throw new Error("Invalid");
-  const d = crypto.createDecipheriv("aes-256-cbc", getKeyHash(), Buffer.from(ivHex, "hex"));
-  let r = d.update(enc, "hex", "utf8"); r += d.final("utf8");
-  return r;
-}
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 interface SocialPost {
   id: string;
@@ -57,7 +46,7 @@ export function socialRoutes(db: Db) {
           if (!platform || platform === "instagram") {
             for (const ig of (meta.instagram || [])) {
               try {
-                const r = await fetch(`https://graph.facebook.com/v21.0/${ig.id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=20&access_token=${meta.accessToken}`);
+                const r = await fetch(`https://graph.facebook.com/v21.0/${ig.id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=20`, { headers: { Authorization: "Bearer " + meta.accessToken } });
                 if (r.ok) {
                   const data = await r.json() as { data?: any[] };
                   for (const post of (data.data || [])) {
@@ -84,7 +73,7 @@ export function socialRoutes(db: Db) {
           if (!platform || platform === "facebook") {
             for (const page of (meta.pages || [])) {
               try {
-                const r = await fetch(`https://graph.facebook.com/v21.0/${page.id}/posts?fields=id,message,full_picture,permalink_url,created_time,likes.summary(true),comments.summary(true)&limit=20&access_token=${page.accessToken}`);
+                const r = await fetch(`https://graph.facebook.com/v21.0/${page.id}/posts?fields=id,message,full_picture,permalink_url,created_time,likes.summary(true),comments.summary(true)&limit=20`, { headers: { Authorization: "Bearer " + (page.accessToken || meta.accessToken) } });
                 if (r.ok) {
                   const data = await r.json() as { data?: any[] };
                   for (const post of (data.data || [])) {

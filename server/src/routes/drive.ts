@@ -3,27 +3,7 @@ import type { Db } from "@goitalia/db";
 import { companySecrets } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "node:crypto";
-
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return crypto.createHash("sha256").update(key).digest();
-}
-function decrypt(text: string): string {
-  const [ivHex, encryptedHex] = text.split(":");
-  if (!ivHex || !encryptedHex) throw new Error("Invalid");
-  const iv = Buffer.from(ivHex, "hex");
-  const d = crypto.createDecipheriv("aes-256-cbc", getKeyHash(), iv);
-  let r = d.update(encryptedHex, "hex", "utf8");
-  r += d.final("utf8");
-  return r;
-}
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const c = crypto.createCipheriv("aes-256-cbc", getKeyHash(), iv);
-  let e = c.update(text, "utf8", "hex");
-  e += c.final("hex");
-  return iv.toString("hex") + ":" + e;
-}
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET || "";

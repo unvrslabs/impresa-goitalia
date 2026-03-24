@@ -3,6 +3,7 @@ import type { Db } from "@goitalia/db";
 import { companySecrets } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 const META_APP_ID = process.env.META_APP_ID || "";
 const META_APP_SECRET = process.env.META_APP_SECRET || "";
@@ -20,25 +21,9 @@ const SCOPES = [
   "public_profile",
 ].join(",");
 
-function getKeyHash(): Buffer {
-  const key = process.env.GOITALIA_SECRET_KEY || process.env.BETTER_AUTH_SECRET || "goitalia-default-key-change-me";
-  return crypto.createHash("sha256").update(key).digest();
-}
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const c = crypto.createCipheriv("aes-256-cbc", getKeyHash(), iv);
-  let e = c.update(text, "utf8", "hex"); e += c.final("hex");
-  return iv.toString("hex") + ":" + e;
-}
-function decrypt(text: string): string {
-  const [ivHex, enc] = text.split(":");
-  if (!ivHex || !enc) throw new Error("Invalid");
-  const d = crypto.createDecipheriv("aes-256-cbc", getKeyHash(), Buffer.from(ivHex, "hex"));
-  let r = d.update(enc, "hex", "utf8"); r += d.final("utf8");
-  return r;
-}
 
 const oauthStates = new Map<string, { companyId: string; userId: string; prefix: string; expiresAt: number }>();
+setInterval(() => { const now = Date.now(); for (const [k, v] of oauthStates) { if (v.expiresAt < now) oauthStates.delete(k); } }, 300000);
 
 export function metaRoutes(db: Db) {
   const router = Router();

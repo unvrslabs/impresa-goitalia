@@ -69,6 +69,11 @@ export function resolveViteHmrPort(serverPort: number): number {
   return Math.max(1_024, serverPort - 10_000);
 }
 
+// Prevent unhandled promise rejections from crashing the server
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled promise rejection:", reason);
+});
+
 export async function createApp(
   db: Db,
   opts: {
@@ -90,7 +95,26 @@ export async function createApp(
 ) {
   const app = express();
 
-  app.use(express.json({
+  
+  // CORS configuration
+  const allowedOrigins = [
+    "https://impresa.goitalia.eu",
+    "http://localhost:3100",
+    "http://localhost:3102",
+  ];
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With");
+    }
+    if (req.method === "OPTIONS") { res.status(204).end(); return; }
+    next();
+  });
+
+app.use(express.json({
     verify: (req, _res, buf) => {
       (req as unknown as { rawBody: Buffer }).rawBody = buf;
     },

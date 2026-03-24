@@ -17,7 +17,7 @@ import {
   projects,
   projectWorkspaces,
 } from "@goitalia/db";
-import { decryptSecret } from "../routes/onboarding.js";
+import { decrypt as decryptSecret } from "../utils/crypto.js";
 import { conflict, notFound } from "../errors.js";
 import { logger } from "../middleware/logger.js";
 import { publishLiveEvent } from "./live-events.js";
