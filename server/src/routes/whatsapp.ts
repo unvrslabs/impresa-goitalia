@@ -224,8 +224,9 @@ export function whatsappRoutes(db: Db) {
   router.post("/whatsapp/send", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
-    const { companyId, to, text } = req.body as { companyId: string; to: string; text: string };
-    if (!companyId || !to || !text) { res.status(400).json({ error: "Parametri mancanti" }); return; }
+    const { companyId, to, text, remoteJid } = req.body as { companyId: string; to?: string; text: string; remoteJid?: string };
+    const recipient = (to || remoteJid || "").replace("@s.whatsapp.net", "").replace("@g.us", "");
+    if (!companyId || !recipient || !text) { res.status(400).json({ error: "Parametri mancanti" }); return; }
 
     const secret = await db.select().from(companySecrets)
       .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "whatsapp_sessions")))
@@ -240,7 +241,7 @@ export function whatsappRoutes(db: Db) {
       const r = await fetch(WASENDER_API + "/send-message", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + data.apiKey },
-        body: JSON.stringify({ to, text }),
+        body: JSON.stringify({ to: recipient, text }),
       });
       if (!r.ok) { res.status(502).json({ error: "Errore invio" }); return; }
       try {
