@@ -55,7 +55,7 @@ export function PluginManager() {
   const [errorDetailsPlugin, setErrorDetailsPlugin] = useState<PluginRecord | null>(null);
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email?: string; accounts?: string[] } | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [telegramStatus, setTelegramStatus] = useState<{ connected: boolean; username?: string; name?: string } | null>(null);
+  const [telegramStatus, setTelegramStatus] = useState<{ connected: boolean; bots?: Array<{ username: string; name: string }> } | null>(null);
   const [telegramToken, setTelegramToken] = useState("");
   const [telegramConnecting, setTelegramConnecting] = useState(false);
   const [showTelegramForm, setShowTelegramForm] = useState(false);
@@ -91,7 +91,7 @@ export function PluginManager() {
       });
       const data = await res.json();
       if (res.ok) {
-        setTelegramStatus({ connected: true, username: data.username, name: data.name });
+        setTelegramStatus({ connected: true, bots: [...(telegramStatus?.bots || []), { username: data.username, name: data.name }] });
         setShowTelegramForm(false); setTelegramToken("");
       }
     } catch {}
@@ -278,12 +278,21 @@ export function PluginManager() {
                 <div className="text-xs text-muted-foreground">Rispondi ai clienti su Telegram</div>
               </div>
             </div>
-            {telegramStatus?.connected ? (
+            {telegramStatus?.connected && telegramStatus.bots?.length ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
                 </div>
-                <div className="text-xs text-muted-foreground">@{telegramStatus.username} — {telegramStatus.name}</div>
+                {telegramStatus.bots.map((bot) => (
+                  <div key={bot.username} className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">@{bot.username} — {bot.name}</span>
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors" onClick={async () => {
+                      await fetch("/api/telegram/disconnect?companyId=" + selectedCompany?.id + "&bot=" + bot.username, { method: "POST", credentials: "include" });
+                      const newBots = (telegramStatus.bots || []).filter((b) => b.username !== bot.username);
+                      setTelegramStatus(newBots.length > 0 ? { connected: true, bots: newBots } : { connected: false });
+                    }} title="Disconnetti">✕</button>
+                  </div>
+                ))}
                 {/* Auto-reply toggle */}
                 <div className="flex items-center justify-between py-2">
                   <div>
@@ -322,10 +331,11 @@ export function PluginManager() {
                     <span className="text-muted-foreground"> — L'AI risponde automaticamente ai messaggi del bot</span>
                   </div>
                 )}
-                <button className="text-xs text-red-400/70 hover:text-red-400 mt-1" onClick={async () => {
-                  await fetch("/api/telegram/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
-                  setTelegramStatus({ connected: false });
-                }}>Disconnetti</button>
+                <button
+                  className="text-xs px-3 py-1.5 rounded-lg transition-all mt-1"
+                  style={{ background: "rgba(0, 136, 204, 0.15)", border: "1px solid rgba(0, 136, 204, 0.3)", color: "rgba(255,255,255,0.8)" }}
+                  onClick={() => setShowTelegramForm(true)}
+                >+ Aggiungi bot</button>
               </div>
             ) : showTelegramForm ? (
               <div className="space-y-2">

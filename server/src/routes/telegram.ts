@@ -27,12 +27,24 @@ const TELEGRAM_API = "https://api.telegram.org/bot";
 // In-memory store for company lookup by bot token hash (for webhook routing)
 const botCompanyMap = new Map<string, string>();
 
-async function getTelegramToken(db: Db, companyId: string): Promise<string | null> {
+async function getTelegramToken(db: Db, companyId: string, botIndex = 0): Promise<string | null> {
+  // Try new format first
   const secret = await db.select().from(companySecrets)
+    .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bots")))
+    .then((rows) => rows[0]);
+  if (secret?.description) {
+    try {
+      const bots = JSON.parse(decrypt(secret.description));
+      const arr = Array.isArray(bots) ? bots : [bots];
+      return arr[botIndex]?.token || arr[0]?.token || null;
+    } catch { return null; }
+  }
+  // Fallback to old format
+  const old = await db.select().from(companySecrets)
     .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bot_token")))
     .then((rows) => rows[0]);
-  if (!secret?.description) return null;
-  try { return decrypt(secret.description); } catch { return null; }
+  if (!old?.description) return null;
+  try { return decrypt(old.description); } catch { return null; }
 }
 
 export function telegramRoutes(db: Db) {
@@ -51,31 +63,39 @@ export function telegramRoutes(db: Db) {
       if (!r.ok) { res.status(400).json({ error: "Token non valido. Controlla il token da BotFather." }); return; }
       const botInfo = await r.json() as { result?: { username?: string; first_name?: string } };
 
-      // Save encrypted token
-      const encrypted = encrypt(token);
+      const botData = {
+        token,
+        username: botInfo.result?.username || "",
+        name: botInfo.result?.first_name || "",
+      };
+
+      // Load existing bots array
       const existing = await db.select().from(companySecrets)
-        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bot_token")))
+        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bots")))
         .then((rows) => rows[0]);
 
+      let bots: Array<typeof botData> = [];
+      if (existing?.description) {
+        try {
+          const dec = JSON.parse(decrypt(existing.description));
+          bots = Array.isArray(dec) ? dec : [dec];
+        } catch {}
+      }
+
+      // Replace if same username, otherwise append
+      const idx = bots.findIndex((b) => b.username === botData.username);
+      if (idx >= 0) { bots[idx] = botData; } else { bots.push(botData); }
+
+      const encrypted = encrypt(JSON.stringify(bots));
       if (existing) {
         await db.update(companySecrets).set({ description: encrypted, updatedAt: new Date() }).where(eq(companySecrets.id, existing.id));
       } else {
-        await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "telegram_bot_token", provider: "encrypted", description: encrypted });
+        await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "telegram_bots", provider: "encrypted", description: encrypted });
       }
 
-      // Save bot info
-      const infoEncrypted = encrypt(JSON.stringify({ username: botInfo.result?.username, name: botInfo.result?.first_name }));
-      const existingInfo = await db.select().from(companySecrets)
-        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bot_info")))
-        .then((rows) => rows[0]);
-      if (existingInfo) {
-        await db.update(companySecrets).set({ description: infoEncrypted, updatedAt: new Date() }).where(eq(companySecrets.id, existingInfo.id));
-      } else {
-        await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "telegram_bot_info", provider: "encrypted", description: infoEncrypted });
-      }
-
-      // Set webhook
-      const webhookUrl = (process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL || "https://impresa.goitalia.eu") + "/api/telegram/webhook/" + companyId;
+      // Set webhook with bot index
+      const botIndex = bots.findIndex((b) => b.username === botData.username);
+      const webhookUrl = (process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL || "https://impresa.goitalia.eu") + "/api/telegram/webhook/" + companyId + "/" + botIndex;
       await fetch(TELEGRAM_API + token + "/setWebhook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,19 +130,21 @@ export function telegramRoutes(db: Db) {
     const companyId = req.query.companyId as string;
     if (!companyId) { res.json({ connected: false }); return; }
 
-    const token = await getTelegramToken(db, companyId);
-    if (!token) { res.json({ connected: false }); return; }
-
-    // Get bot info
-    const infoSecret = await db.select().from(companySecrets)
-      .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bot_info")))
+    const secret = await db.select().from(companySecrets)
+      .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bots")))
       .then((rows) => rows[0]);
-    let botInfo = { username: "", name: "" };
-    if (infoSecret?.description) {
-      try { botInfo = JSON.parse(decrypt(infoSecret.description)); } catch {}
+    if (!secret?.description) {
+      // Fallback to old format
+      const oldToken = await getTelegramToken(db, companyId);
+      if (!oldToken) { res.json({ connected: false }); return; }
+      res.json({ connected: true, bots: [{ username: "", name: "Bot" }] });
+      return;
     }
-
-    res.json({ connected: true, username: botInfo.username, name: botInfo.name });
+    try {
+      const bots = JSON.parse(decrypt(secret.description));
+      const botList = (Array.isArray(bots) ? bots : [bots]).map((b: any) => ({ username: b.username, name: b.name }));
+      res.json({ connected: botList.length > 0, bots: botList });
+    } catch { res.json({ connected: false }); }
   });
 
   // POST /telegram/disconnect?companyId=xxx
@@ -132,14 +154,29 @@ export function telegramRoutes(db: Db) {
     const companyId = req.query.companyId as string || req.body?.companyId;
     if (!companyId) { res.json({ disconnected: true }); return; }
 
-    // Remove webhook
-    const token = await getTelegramToken(db, companyId);
-    if (token) {
-      await fetch(TELEGRAM_API + token + "/deleteWebhook").catch(() => {});
+    const botUsername = req.query.bot as string || req.body?.bot || "";
+    
+    const secret = await db.select().from(companySecrets)
+      .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bots")))
+      .then((rows) => rows[0]);
+    
+    if (secret?.description) {
+      try {
+        const bots = JSON.parse(decrypt(secret.description));
+        const arr = Array.isArray(bots) ? bots : [bots];
+        const bot = arr.find((b: any) => b.username === botUsername);
+        if (bot?.token) {
+          await fetch(TELEGRAM_API + bot.token + "/deleteWebhook").catch(() => {});
+        }
+        const filtered = arr.filter((b: any) => b.username !== botUsername);
+        if (filtered.length > 0) {
+          await db.update(companySecrets).set({ description: encrypt(JSON.stringify(filtered)), updatedAt: new Date() }).where(eq(companySecrets.id, secret.id));
+        } else {
+          await db.delete(companySecrets).where(eq(companySecrets.id, secret.id));
+        }
+      } catch {}
     }
-
-    await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bot_token")));
-    await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bot_info")));
+    
     res.json({ disconnected: true });
   });
 
@@ -175,8 +212,9 @@ export function telegramRoutes(db: Db) {
   });
 
   // POST /telegram/webhook/:companyId - Receive messages from Telegram
-  router.post("/telegram/webhook/:companyId", async (req, res) => {
+  router.post("/telegram/webhook/:companyId/:botIndex?", async (req, res) => {
     const companyId = req.params.companyId;
+    const botIndex = parseInt((req.params as any).botIndex || "0") || 0;
     const update = req.body;
 
     if (update?.message?.text) {
