@@ -137,7 +137,8 @@ app.use(express.json({
   app.use("/tg-hook", telegramWebhookRouterFn(db));
   app.use("/wa-hook", whatsappWebhookRouter(db));
 
-  // Serve WhatsApp media files
+  // Serve WhatsApp and Telegram media files
+  app.use("/api/tg-media", (await import("express")).default.static("data/tg-media", { maxAge: "1d" }));
   app.use("/api/wa-media", (await import("express")).default.static("data/wa-media", { maxAge: "1d" }));
 
   app.use(

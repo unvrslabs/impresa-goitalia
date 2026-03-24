@@ -13,6 +13,8 @@ interface TgMessage {
   direction: "incoming" | "outgoing";
   created_at: string;
   bot_index: number;
+  message_type?: string;
+  media_url?: string;
 }
 
 interface ChatThread {
@@ -135,7 +137,7 @@ export function TelegramPage() {
     try {
       const res = await fetch("/api/telegram/generate-reply", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ companyId: selectedCompany.id, messageText: msg.message_text, fromName: msg.from_name, chatId: msg.chat_id }),
+        body: JSON.stringify({ companyId: selectedCompany.id, messageText: msg.message_text, fromName: msg.from_name, chatId: msg.chat_id, mediaUrl: msg.media_url, messageType: msg.message_type }),
       });
       const data = await res.json();
       if (res.ok) { setReplyText(data.reply); inputRef.current?.focus(); }
@@ -248,7 +250,13 @@ export function TelegramPage() {
                     {showDate && <div className="text-center text-[10px] text-muted-foreground py-2">{msgDate}</div>}
                     <div className={"flex mb-1 " + (isOut ? "justify-end" : "justify-start")}>
                       <div className={"max-w-[70%] px-3 py-2 rounded-2xl " + (isOut ? "rounded-br-sm bg-green-500/15 border border-green-500/20" : "rounded-bl-sm bg-white/5 border border-white/8")}>
-                        <div className="text-sm">{msg.message_text}</div>
+                        {msg.media_url && msg.message_type === "image" && (
+                        <img src={msg.media_url} alt="" className="max-w-[240px] rounded-lg mb-1" loading="lazy" onLoad={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })} />
+                      )}
+                      {msg.media_url && msg.message_type === "video" && (
+                        <video src={msg.media_url} controls className="max-w-[240px] rounded-lg mb-1" />
+                      )}
+                      {(!msg.media_url || (msg.message_text && msg.message_text !== "[Immagine]" && msg.message_text !== "[Video]" && msg.message_text !== "[Documento]")) && <div className="text-sm">{msg.message_text}</div>}
                         <div className={"text-[10px] mt-0.5 " + (isOut ? "text-green-400/50" : "text-muted-foreground/50")}>{formatTime(msg.created_at)}</div>
                         {!isOut && !autoReply && (
                           <button onClick={() => generateReply(msg)} disabled={generating === msg.id} className="flex items-center gap-1 mt-1 px-2 py-0.5 rounded-lg text-[10px] transition-all" style={{ background: "rgba(251, 191, 36, 0.1)", border: "1px solid rgba(251, 191, 36, 0.2)" }}>

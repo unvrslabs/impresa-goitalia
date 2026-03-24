@@ -469,6 +469,55 @@ export function telegramWebhookRouter(db: Db) {
       } catch (err) { console.error("[tg-wh] voice error:", err); }
       return;
     }
+    // Handle photo/document messages
+    if (update?.message?.photo || update?.message?.document || update?.message?.video) {
+      const msg = update.message;
+      const isPhoto = !!msg.photo;
+      const isVideo = !!msg.video;
+      const messageType = isPhoto ? "image" : isVideo ? "video" : "document";
+      const caption = msg.caption || "";
+      const fileId = isPhoto ? msg.photo[msg.photo.length - 1]?.file_id : isVideo ? msg.video?.file_id : msg.document?.file_id;
+      
+      let mediaUrl = "";
+      if (fileId) {
+        try {
+          const botIdx = parseInt((req.params as any).botIndex || "0") || 0;
+          const botsSecret = await db.select().from(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bots"))).then((r) => r[0]);
+          if (botsSecret?.description) {
+            const bots = JSON.parse(decrypt(botsSecret.description));
+            const botArr = Array.isArray(bots) ? bots : [bots];
+            const token = botArr[botIdx]?.token;
+            if (token) {
+              // Get file path from Telegram
+              const fileRes = await fetch("https://api.telegram.org/bot" + token + "/getFile?file_id=" + fileId);
+              if (fileRes.ok) {
+                const fileData = await fileRes.json() as { result?: { file_path?: string } };
+                if (fileData.result?.file_path) {
+                  // Download file
+                  const dlRes = await fetch("https://api.telegram.org/file/bot" + token + "/" + fileData.result.file_path);
+                  if (dlRes.ok) {
+                    const buffer = Buffer.from(await dlRes.arrayBuffer());
+                    const ext = isPhoto ? ".jpg" : isVideo ? ".mp4" : ".bin";
+                    const filename = crypto.randomUUID() + ext;
+                    const fs = await import("node:fs/promises");
+                    await fs.writeFile("data/tg-media/" + filename, buffer);
+                    mediaUrl = "/api/tg-media/" + filename;
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) { console.error("[tg-wh] media download error:", err); }
+      }
+
+      const text = caption || (messageType === "image" ? "[Immagine]" : messageType === "video" ? "[Video]" : "[Documento]");
+      try {
+        const botIdx = parseInt((req.params as any).botIndex || "0") || 0;
+        await db.execute(sql`INSERT INTO telegram_messages (company_id, chat_id, from_name, from_username, message_text, direction, telegram_message_id, bot_index, message_type, media_url) VALUES (${companyId}, ${String(msg.chat.id)}, ${msg.from?.first_name || ""}, ${msg.from?.username || ""}, ${text}, 'incoming', ${String(msg.message_id)}, ${String(botIdx)}, ${messageType}, ${mediaUrl || null})`);
+      } catch (e) { console.error("[tg-wh] save media err:", e); }
+      return;
+    }
+
     if (!update?.message?.text) return;
     const msg = update.message;
     // Save incoming
