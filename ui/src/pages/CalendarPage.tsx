@@ -120,40 +120,46 @@ export function CalendarPage() {
         </div>
       </div>
 
-      {/* New event form */}
+      {/* New event modal */}
       {showNewEvent && (
-        <div className="glass-card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Nuovo evento</span>
-            <button onClick={() => setShowNewEvent(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-          </div>
-          <input
-            className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none"
-            placeholder="Titolo evento"
-            value={newEvent.title}
-            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground">Inizio</label>
-              <input type="datetime-local" className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" value={newEvent.start} onChange={(e) => setNewEvent({ ...newEvent, start: e.target.value })} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }} onClick={() => setShowNewEvent(false)}>
+          <div className="w-full max-w-md rounded-2xl p-5 space-y-4" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 100%)", backdropFilter: "blur(40px)", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">Nuovo evento</h3>
+              <button onClick={() => setShowNewEvent(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Fine</label>
-              <input type="datetime-local" className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" value={newEvent.end} onChange={(e) => setNewEvent({ ...newEvent, end: e.target.value })} />
+            <input
+              className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-sm outline-none"
+              placeholder="Titolo evento"
+              value={newEvent.title}
+              onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+              autoFocus
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Inizio</label>
+                <input type="datetime-local" className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" value={newEvent.start} onChange={(e) => setNewEvent({ ...newEvent, start: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Fine</label>
+                <input type="datetime-local" className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" value={newEvent.end} onChange={(e) => setNewEvent({ ...newEvent, end: e.target.value })} />
+              </div>
+            </div>
+            <input className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-sm outline-none" placeholder="Luogo (opzionale)" value={newEvent.location} onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })} />
+            <input className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-sm outline-none" placeholder="Descrizione (opzionale)" value={newEvent.description} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} />
+            <div className="flex justify-end gap-3 pt-1">
+              <button onClick={() => setShowNewEvent(false)} className="px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground">Annulla</button>
+              <button
+                onClick={createEvent}
+                disabled={creating || !newEvent.title || !newEvent.start || !newEvent.end}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40"
+                style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}
+              >
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {creating ? "Creazione..." : "Crea evento"}
+              </button>
             </div>
           </div>
-          <input className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" placeholder="Luogo (opzionale)" value={newEvent.location} onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })} />
-          <input className="w-full px-3 py-2 rounded-xl border border-white/10 bg-transparent text-sm outline-none" placeholder="Descrizione (opzionale)" value={newEvent.description} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} />
-          <button
-            onClick={createEvent}
-            disabled={creating || !newEvent.title || !newEvent.start || !newEvent.end}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40"
-            style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}
-          >
-            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {creating ? "Creazione..." : "Crea evento"}
-          </button>
         </div>
       )}
 

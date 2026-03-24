@@ -114,8 +114,10 @@ export function calendarRoutes(db: Db) {
       event.start = { date: start.split("T")[0] };
       event.end = { date: end.split("T")[0] };
     } else {
-      event.start = { dateTime: start, timeZone: "Europe/Rome" };
-      event.end = { dateTime: end, timeZone: "Europe/Rome" };
+      // Ensure proper ISO format with seconds
+      const formatDt = (dt: string) => dt.includes(":") && dt.split(":").length === 2 ? dt + ":00" : dt;
+      event.start = { dateTime: formatDt(start), timeZone: "Europe/Rome" };
+      event.end = { dateTime: formatDt(end), timeZone: "Europe/Rome" };
     }
 
     try {
