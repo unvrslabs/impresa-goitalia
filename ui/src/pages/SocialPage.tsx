@@ -35,9 +35,39 @@ export function SocialPage() {
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [accounts, setAccounts] = useState<Array<{ id: string; platform: string; name: string; icon: string }>>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { setBreadcrumbs([{ label: "Social" }]); }, [setBreadcrumbs]);
+
+  useEffect(() => {
+    if (!selectedCompany?.id) return;
+    fetch("/api/oauth/meta/status?companyId=" + selectedCompany.id, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        const accs: Array<{ id: string; platform: string; name: string; icon: string }> = [];
+        if (d.instagram) {
+          for (const ig of d.instagram) {
+            accs.push({ id: "ig_" + ig.username, platform: "instagram", name: "@" + ig.username, icon: "instagram" });
+          }
+        }
+        if (d.pages) {
+          for (const p of d.pages) {
+            accs.push({ id: "fb_" + p.id, platform: "facebook", name: p.name, icon: "facebook" });
+          }
+        }
+        setAccounts(accs);
+      })
+      .catch(() => {});
+    fetch("/api/oauth/linkedin/status?companyId=" + selectedCompany.id, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.connected) {
+          setAccounts((prev) => [...prev, { id: "li_" + d.name, platform: "linkedin", name: d.name, icon: "linkedin" }]);
+        }
+      })
+      .catch(() => {});
+  }, [selectedCompany?.id]);
 
   const fetchPosts = async () => {
     if (!selectedCompany?.id) return;
@@ -56,7 +86,12 @@ export function SocialPage() {
     catch { return ""; }
   };
 
-  const filtered = filter === "all" ? posts : posts.filter((p) => p.platform === filter);
+  const filtered = filter === "all" ? posts : posts.filter((p) => {
+    if (filter.startsWith("ig_")) return p.platform === "instagram" && p.accountName === filter.replace("ig_", "");
+    if (filter.startsWith("fb_")) return p.platform === "facebook" && p.accountName === filter.replace("fb_", "");
+    if (filter.startsWith("li_")) return p.platform === "linkedin";
+    return p.platform === filter;
+  });
 
   if (loading) return <div className="p-6 text-sm text-muted-foreground">Caricamento post...</div>;
   if (error && !posts.length) return (
@@ -79,22 +114,24 @@ export function SocialPage() {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-1">
-        {[
-          { id: "all", label: "Tutti" },
-          { id: "instagram", label: "Instagram" },
-          { id: "facebook", label: "Facebook" },
-          { id: "linkedin", label: "LinkedIn" },
-        ].map((tab) => (
+      {/* Account filters */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <button
+          onClick={() => setFilter("all")}
+          className={"px-3 py-1.5 rounded-lg text-xs font-medium transition-all " + (filter === "all" ? "text-white" : "text-muted-foreground")}
+          style={filter === "all" ? { background: "linear-gradient(135deg, hsl(158 64% 42% / 0.2), hsl(158 64% 42% / 0.1))", border: "1px solid hsl(158 64% 42% / 0.3)" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          Tutti
+        </button>
+        {accounts.map((acc) => (
           <button
-            key={tab.id}
-            onClick={() => setFilter(tab.id)}
-            className={"px-3 py-1.5 rounded-lg text-xs font-medium transition-all " + (filter === tab.id ? "text-white" : "text-muted-foreground")}
-            style={filter === tab.id ? { background: "linear-gradient(135deg, hsl(158 64% 42% / 0.2), hsl(158 64% 42% / 0.1))", border: "1px solid hsl(158 64% 42% / 0.3)" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            key={acc.id}
+            onClick={() => setFilter(acc.id)}
+            className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all " + (filter === acc.id ? "text-white" : "text-muted-foreground")}
+            style={filter === acc.id ? { background: "linear-gradient(135deg, hsl(158 64% 42% / 0.2), hsl(158 64% 42% / 0.1))", border: "1px solid hsl(158 64% 42% / 0.3)" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
           >
-            {tab.id !== "all" && <span className="mr-1.5">{platformIcons[tab.id]}</span>}
-            {tab.label}
+            {platformIcons[acc.icon]}
+            <span>{acc.name}</span>
           </button>
         ))}
       </div>
