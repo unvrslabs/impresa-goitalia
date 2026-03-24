@@ -106,6 +106,9 @@ export function ChatPage() {
             prev.map((m) => m.id === assistantId && !m.content ? { ...m, content: "Ciao! Sono il tuo Direttore AI. Raccontami della tua impresa." } : m)
           );
         }
+        if (selectedCompanyId) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId) });
+        }
         setIsStreaming(false);
       }).catch(() => { setIsStreaming(false); });
     }
@@ -225,6 +228,10 @@ export function ChatPage() {
       );
     }
 
+    // Refresh sidebar in case agent was created/deleted
+    if (selectedCompanyId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId) });
+    }
     setIsStreaming(false);
     inputRef.current?.focus();
   }
