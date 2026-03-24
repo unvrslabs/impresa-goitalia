@@ -289,7 +289,14 @@ export function telegramRoutes(db: Db) {
     const companyId = req.query.companyId as string;
     if (!companyId) { res.json({ count: 0 }); return; }
     try {
-      const rows = await db.execute(sql`SELECT COUNT(*) as count FROM telegram_messages WHERE company_id = ${companyId} AND direction = 'incoming' AND created_at > COALESCE((SELECT last_read_at FROM read_markers WHERE company_id = ${companyId} AND user_id = ${actor.userId} AND channel = 'telegram' AND chat_id IS NULL), '2000-01-01')`);
+      const rows = await db.execute(sql`
+        SELECT COUNT(*) as count FROM telegram_messages tm
+        WHERE tm.company_id = ${companyId} AND tm.direction = 'incoming'
+        AND tm.created_at > COALESCE(
+          (SELECT last_read_at FROM read_markers WHERE company_id = ${companyId} AND user_id = ${actor.userId} AND channel = 'telegram' AND chat_id = CAST(tm.chat_id AS text)),
+          (SELECT last_read_at FROM read_markers WHERE company_id = ${companyId} AND user_id = ${actor.userId} AND channel = 'telegram' AND chat_id IS NULL),
+          '2000-01-01'
+        )`);
       const count = (rows as any[])[0]?.count || 0;
       res.json({ count: parseInt(String(count)) });
     } catch { res.json({ count: 0 }); }
