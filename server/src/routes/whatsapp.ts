@@ -457,9 +457,43 @@ export function whatsappWebhookRouter(db: Db) {
         } catch (err) { console.error("[wa-webhook] voice error:", err); text = "[Messaggio vocale]"; }
       }
       
+      // Handle image/video/document messages
+      let messageType = "text";
+      let mediaUrl = "";
+      
+      if (!text && (msg.message?.imageMessage || msg.message?.videoMessage || msg.message?.documentMessage || msg.messageType === "image" || msg.messageType === "video" || msg.messageType === "document")) {
+        messageType = msg.message?.imageMessage ? "image" : msg.message?.videoMessage ? "video" : "document";
+        const caption = msg.message?.imageMessage?.caption || msg.message?.videoMessage?.caption || "";
+        if (caption) text = caption;
+        
+        // Try to get media URL via WaSender decrypt-media
+        try {
+          const waSecret = await db.select().from(companySecrets)
+            .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "whatsapp_sessions")))
+            .then((r: any) => r[0]);
+          if (waSecret?.description) {
+            const sessions = JSON.parse(decrypt(waSecret.description));
+            const session = Array.isArray(sessions) ? sessions[0] : sessions;
+            if (session?.apiKey) {
+              const decryptRes = await fetch("https://www.wasenderapi.com/api/decrypt-media", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.apiKey },
+                body: JSON.stringify({ messageKeys: msg.key }),
+              });
+              if (decryptRes.ok) {
+                const decData = await decryptRes.json() as { data?: { url?: string } };
+                if (decData.data?.url) mediaUrl = decData.data.url;
+              }
+            }
+          }
+        } catch (err) { console.error("[wa-webhook] media decrypt error:", err); }
+        
+        if (!text) text = messageType === "image" ? "[Immagine]" : messageType === "video" ? "[Video]" : "[Documento]";
+      }
+      
       if (text) {
         try {
-          await db.execute(sql`INSERT INTO whatsapp_messages (company_id, remote_jid, from_name, message_text, direction) VALUES (${companyId}, ${remoteJid}, ${fromName}, ${text}, ${"incoming"})`);
+          await db.execute(sql`INSERT INTO whatsapp_messages (company_id, remote_jid, from_name, message_text, direction, message_type, media_url) VALUES (${companyId}, ${remoteJid}, ${fromName}, ${text}, ${"incoming"}, ${messageType}, ${mediaUrl || null})`);
         } catch (err) { console.error("[wa-webhook] save error:", err); }
 
         // Auto-reply
