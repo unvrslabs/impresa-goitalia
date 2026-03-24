@@ -17,8 +17,18 @@ export function DrivePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<Array<{ index: number; email: string }>>([]);
+  const [selectedAccount, setSelectedAccount] = useState(0);
 
   useEffect(() => { setBreadcrumbs([{ label: "Documenti" }]); }, [setBreadcrumbs]);
+
+  useEffect(() => {
+    if (!selectedCompany?.id) return;
+    fetch("/api/drive/accounts?companyId=" + selectedCompany.id, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setAccounts(d.accounts || []))
+      .catch(() => {});
+  }, [selectedCompany?.id]);
 
   const currentFolder = folderStack[folderStack.length - 1];
 
@@ -26,6 +36,7 @@ export function DrivePage() {
     if (!selectedCompany?.id) return;
     setLoading(true);
     const params = new URLSearchParams({ companyId: selectedCompany.id });
+    params.set("account", String(selectedAccount));
     if (search) { params.set("q", search); } else { params.set("folderId", folderId || currentFolder.id); }
     try {
       const res = await fetch("/api/drive/files?" + params, { credentials: "include" });
@@ -37,7 +48,7 @@ export function DrivePage() {
     setLoading(false);
   };
 
-  useEffect(() => { if (!searching) fetchFiles(); }, [selectedCompany?.id, currentFolder.id]);
+  useEffect(() => { if (!searching) fetchFiles(); }, [selectedCompany?.id, currentFolder.id, selectedAccount]);
 
   const openFolder = (file: DriveFile) => {
     setSearching(false); setSearchQuery("");
@@ -73,6 +84,23 @@ export function DrivePage() {
           <h1 className="text-xl font-semibold">Documenti</h1>
         </div>
       </div>
+
+      {/* Account selector */}
+      {accounts.length > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Account:</span>
+          {accounts.map((acc) => (
+            <button
+              key={acc.index}
+              onClick={() => { setSelectedAccount(acc.index); setFolderStack([{ id: "root", name: "Il mio Drive" }]); setSearching(false); }}
+              className={"px-2.5 py-1 rounded-lg text-xs font-medium transition-all truncate max-w-[180px] " + (selectedAccount === acc.index ? "text-white" : "text-muted-foreground")}
+              style={selectedAccount === acc.index ? { background: "rgba(66, 133, 244, 0.2)", border: "1px solid rgba(66, 133, 244, 0.3)" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              {acc.email}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Search + Breadcrumb */}
       <div className="flex items-center gap-3">
