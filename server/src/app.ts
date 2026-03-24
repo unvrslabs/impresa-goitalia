@@ -17,7 +17,7 @@ import { googleOAuthRoutes } from "./routes/google-oauth.js";
 import { gmailRoutes } from "./routes/gmail.js";
 import { calendarRoutes } from "./routes/calendar.js";
 import { driveRoutes } from "./routes/drive.js";
-import { telegramRoutes } from "./routes/telegram.js";
+import { telegramRoutes, telegramWebhookRouter as telegramWebhookRouterFn } from "./routes/telegram.js";
 import { companySkillRoutes } from "./routes/company-skills.js";
 import { agentRoutes } from "./routes/agents.js";
 import { projectRoutes } from "./routes/projects.js";
@@ -130,13 +130,12 @@ export async function createApp(
   if (opts.betterAuthHandler) {
     app.all("/api/auth/*authPath", opts.betterAuthHandler);
   }
+  // Telegram webhooks FIRST (no auth)
+  app.use("/api", telegramWebhookRouterFn(db));
+
   app.use(llmRoutes(db));
 
-  // Telegram webhooks (no auth - called by Telegram servers)
-  const { telegramWebhookRouter } = await import("./routes/telegram.js");
-  if (telegramWebhookRouter) {
-    app.use("/api", telegramWebhookRouter(db));
-  }
+
 
   // Mount API routes
   const api = Router();

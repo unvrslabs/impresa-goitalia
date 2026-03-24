@@ -361,6 +361,7 @@ export function telegramWebhookRouter(db: Db) {
   router.post("/telegram/webhook/:companyId", async (req, res) => {
     const companyId = req.params.companyId;
     const update = req.body;
+    console.log("[telegram-webhook-noidx] Received:", companyId, update?.message?.text);
     if (update?.message?.text) {
       const msg = update.message;
       try {
