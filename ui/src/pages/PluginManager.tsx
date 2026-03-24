@@ -163,7 +163,7 @@ export function PluginManager() {
   useEffect(() => {
     setBreadcrumbs([
       { label: selectedCompany?.name ?? "Impresa", href: "/dashboard" },
-      { label: "Plugin" },
+      { label: "Connettori" },
     ]);
   }, [selectedCompany?.name, setBreadcrumbs]);
 
@@ -682,101 +682,6 @@ export function PluginManager() {
           </div>
         </div>
       </div>
-
-      {/* Plugin installati */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Puzzle className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-base font-semibold">Plugin Installati</h2>
-        </div>
-
-        {!installedPlugins.length ? (
-          <div className="glass-card px-5 py-5">
-            <div className="flex flex-col items-center justify-center py-8">
-              <Puzzle className="h-10 w-10 text-muted-foreground/40 mb-4" />
-              <p className="text-sm font-medium">Nessun plugin installato</p>
-              <p className="text-xs text-muted-foreground mt-1">Installa un plugin per estendere le funzionalità.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {installedPlugins.map((plugin) => (
-              <div key={plugin.id} className="glass-card px-5 py-5">
-                <div className="flex items-start gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        to={`/plugins/${plugin.id}`}
-                        className="font-medium hover:underline truncate"
-                      >
-                        {plugin.manifestJson.displayName ?? plugin.packageName}
-                      </Link>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{plugin.packageName} · v{plugin.manifestJson.version ?? plugin.version}</p>
-                    <p className="text-sm text-muted-foreground truncate mt-1">{plugin.manifestJson.description || "Nessuna descrizione."}</p>
-
-                    {plugin.status === "error" && (
-                      <div className="mt-3 rounded-xl px-3 py-2" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 shrink-0 text-red-400 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-red-400">Errore plugin</p>
-                            <p className="text-xs text-red-300/80 mt-1 break-words">{getPluginErrorSummary(plugin)}</p>
-                          </div>
-                          <button
-                            onClick={() => setErrorDetailsPlugin(plugin)}
-                            className="text-xs text-red-400 hover:text-red-300 shrink-0 underline"
-                          >
-                            Dettagli
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge
-                      variant={plugin.status === "ready" ? "default" : plugin.status === "error" ? "destructive" : "secondary"}
-                      className={cn("shrink-0", plugin.status === "ready" ? "bg-green-600 hover:bg-green-700" : "")}
-                    >
-                      {plugin.status === "ready" ? "attivo" : plugin.status === "error" ? "errore" : plugin.status}
-                    </Badge>
-                    <button
-                      title={plugin.status === "ready" ? "Disattiva" : "Attiva"}
-                      onClick={() => plugin.status === "ready" ? disableMutation.mutate(plugin.id) : enableMutation.mutate(plugin.id)}
-                      disabled={enableMutation.isPending || disableMutation.isPending}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-                    >
-                      <Power className={cn("h-4 w-4", plugin.status === "ready" ? "text-green-400" : "text-muted-foreground")} />
-                    </button>
-                    <button
-                      title="Disinstalla"
-                      onClick={() => { setUninstallPluginId(plugin.id); setUninstallPluginName(plugin.manifestJson.displayName ?? plugin.packageName); }}
-                      disabled={uninstallMutation.isPending}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-                    >
-                      <Trash className="h-4 w-4 text-red-400" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex justify-end mt-2">
-                  <Link
-                    to={`/plugins/${plugin.id}`}
-                    className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "hsl(158 64% 52%)" }}
-                  >
-                    <Settings className="h-3.5 w-3.5" />
-                    Configura
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* Uninstall dialog */}
       <Dialog open={uninstallPluginId !== null} onOpenChange={(open) => { if (!open) setUninstallPluginId(null); }}>

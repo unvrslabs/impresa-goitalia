@@ -220,7 +220,7 @@ export function Sidebar() {
 
         {/* Impostazioni - nel menu principale */}
         <SidebarSection label="Impostazioni">
-          {!isOnboarding && <SidebarNavItem to="/plugins" label="Plugin" icon={Plug} />}
+          {!isOnboarding && <SidebarNavItem to="/plugins" label="Connettori" icon={Plug} />}
           {!isOnboarding && <SidebarNavItem to="/company/settings" label="Impostazioni" icon={Settings} />}
           <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} />
           {session?.user?.email === "emanuele@unvrslabs.dev" && (
