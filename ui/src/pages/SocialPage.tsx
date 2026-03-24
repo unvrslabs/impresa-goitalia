@@ -76,7 +76,8 @@ export function SocialPage() {
       if (publishImage) {
         // If Instagram targets, resize to square
         const hasIG = Array.from(publishTargets).some((t) => t.startsWith("ig_"));
-        if (hasIG) {
+        const isImage = publishImage.type.startsWith("image/");
+        if (hasIG && isImage) {
           const resized = await resizeForIG(publishImage);
           fd.append("image", resized, "post.jpg");
         } else {
@@ -225,9 +226,9 @@ export function SocialPage() {
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
           />
           <div className="flex items-center gap-2">
-            <input type="file" ref={(el) => { fileInputRef.current = el; }} className="hidden" accept="image/*" onChange={(e) => { setPublishImage(e.target.files?.[0] || null); }} />
+            <input type="file" ref={(el) => { fileInputRef.current = el; }} className="hidden" accept="image/*,video/*" onChange={(e) => { setPublishImage(e.target.files?.[0] || null); }} />
             <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <ImageIcon className="w-3.5 h-3.5" /> {publishImage ? publishImage.name : "Aggiungi immagine"}
+              <ImageIcon className="w-3.5 h-3.5" /> {publishImage ? publishImage.name : "Aggiungi media"}
             </button>
             {publishImage && <button onClick={() => setPublishImage(null)} className="text-xs text-red-400">Rimuovi</button>}
           </div>
