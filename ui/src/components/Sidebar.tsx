@@ -51,6 +51,7 @@ export function Sidebar() {
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
   const [hasSocial, setHasSocial] = useState(false);
   const [telegramUnread, setTelegramUnread] = useState(0);
+  const [waUnread, setWaUnread] = useState(0);
 
   useEffect(() => {
     if (!selectedCompanyId) return;
@@ -75,6 +76,15 @@ export function Sidebar() {
     checkConnectors();
     const connectorInterval = setInterval(checkConnectors, 10000);
 
+    const fetchWaUnread = () => {
+      if (!selectedCompanyId) return;
+      fetch("/api/whatsapp/unread-count?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setWaUnread(d.count || 0))
+        .catch(() => {});
+    };
+    fetchWaUnread();
+
     const fetchTgUnread = () => {
       if (!selectedCompanyId) return;
       fetch("/api/telegram/unread-count?companyId=" + selectedCompanyId, { credentials: "include" })
@@ -91,7 +101,7 @@ export function Sidebar() {
         .catch(() => {});
     };
     fetchUnread();
-    const interval = setInterval(() => { fetchUnread(); fetchTgUnread(); }, 30000);
+    const interval = setInterval(() => { fetchUnread(); fetchTgUnread(); fetchWaUnread(); }, 30000);
     const onMailUpdated = () => fetchUnread();
     window.addEventListener("mail-updated", onMailUpdated);
     return () => { clearInterval(interval); clearInterval(connectorInterval); window.removeEventListener("mail-updated", onMailUpdated); };
@@ -187,9 +197,9 @@ export function Sidebar() {
         <SidebarSection label="Lavoro">
           <SidebarNavItem to="/chat" label="Chat" icon={MessageCircle} />
           {hasGoogle && <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />}
-          {hasWhatsApp && <SidebarNavItem to="/whatsapp" label="WhatsApp" icon={Phone} />}
-          {hasSocial && <SidebarNavItem to="/social" label="Social" icon={Share2Icon} />}
+          {hasWhatsApp && <SidebarNavItem to="/whatsapp" label="WhatsApp" icon={Phone} badge={waUnread > 0 ? waUnread : undefined} />}
           {hasTelegram && <SidebarNavItem to="/telegram" label="Telegram" icon={MessageSquare} badge={telegramUnread > 0 ? telegramUnread : undefined} />}
+          {hasSocial && <SidebarNavItem to="/social" label="Social" icon={Share2Icon} />}
           {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
           {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}
           {!isOnboarding && !isClaudeApi && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}
