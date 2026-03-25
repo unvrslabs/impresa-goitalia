@@ -466,7 +466,7 @@ export function GenerateAI() {
             setProgress("Generazione in corso...");
           } else {
             
-            setProgress(`In coda... (posizione: ${pos})`);
+            setProgress("In coda...");
           }
 
           if (attempts > 300) {
