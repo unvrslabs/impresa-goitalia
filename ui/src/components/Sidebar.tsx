@@ -29,6 +29,7 @@ import { SidebarProjects } from "./SidebarProjects";
 import { SidebarAgents } from "./SidebarAgents";
 import { agentsApi } from "../api/agents";
 import { useDialog } from "../context/DialogContext";
+import { useLocation } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
 import { heartbeatsApi } from "../api/heartbeats";
 import { authApi } from "../api/auth";
@@ -55,6 +56,7 @@ export function Sidebar() {
     enabled: !!selectedCompanyId,
   });
   const [mailUnread, setMailUnread] = useState(0);
+  const location = useLocation();
   const [hasGoogle, setHasGoogle] = useState(false);
   const [hasTelegram, setHasTelegram] = useState(false);
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
@@ -98,6 +100,9 @@ export function Sidebar() {
         .catch(() => {});
     };
     fetchWaUnread();
+    // If user is already on WA/TG page, force 0
+    if (location.pathname.includes("/whatsapp")) setWaUnread(0);
+    if (location.pathname.includes("/telegram")) setTelegramUnread(0);
 
     const fetchTgUnread = () => {
       if (!selectedCompanyId) return;
@@ -115,7 +120,10 @@ export function Sidebar() {
         .catch(() => {});
     };
     fetchUnread();
-    const interval = setInterval(() => { fetchUnread(); fetchTgUnread(); fetchWaUnread(); }, 30000);
+    const interval = setInterval(() => { fetchUnread(); fetchTgUnread(); fetchWaUnread();
+    // If user is already on WA/TG page, force 0
+    if (location.pathname.includes("/whatsapp")) setWaUnread(0);
+    if (location.pathname.includes("/telegram")) setTelegramUnread(0); }, 30000);
     const onMailUpdated = () => fetchUnread();
     const onTgRead = () => { setTelegramUnread(0); };
     const onWaRead = () => { setWaUnread(0); };
