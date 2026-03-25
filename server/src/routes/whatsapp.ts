@@ -435,10 +435,7 @@ export function whatsappRoutes(db: Db) {
     try { res.json(JSON.parse(row.description)); } catch { res.json({ numbers: {} }); }
   });
 
-  return router;
-}
 
-// Webhook router (mounted before auth)
   // POST /whatsapp/delete-chat
   router.post("/whatsapp/delete-chat", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
@@ -450,6 +447,9 @@ export function whatsappRoutes(db: Db) {
       res.json({ deleted: true });
     } catch { res.status(500).json({ error: "Errore" }); }
   });
+  return router;
+}
+
 
 export function whatsappWebhookRouter(db: Db) {
   const router = Router();
