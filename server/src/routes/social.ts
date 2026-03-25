@@ -98,15 +98,16 @@ export function socialRoutes(db: Db) {
       }
     }
 
-    // LinkedIn posts
-    if (!platform || platform === "linkedin") {
+    // LinkedIn posts — disabled: requires r_member_social scope
+    // To re-enable, the app needs special LinkedIn approval
+    if (false) { // LinkedIn fetch disabled — requires r_member_social
       const liSecret = await db.select().from(companySecrets)
         .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "linkedin_tokens")))
         .then((rows) => rows[0]);
 
       if (liSecret?.description) {
         try {
-          const li = JSON.parse(decrypt(liSecret.description));
+          const li = JSON.parse(decrypt(liSecret.description as string));
           // Get posts from LinkedIn (v2/shares - works with w_member_social)
           const authorUrn = "urn:li:person:" + li.sub;
           const r = await fetch(`https://api.linkedin.com/v2/shares?q=owners&owners=${encodeURIComponent(authorUrn)}&count=20`, {
@@ -265,7 +266,7 @@ export function socialRoutes(db: Db) {
           .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "linkedin_tokens")))
           .then((rows) => rows[0]);
         if (liSecret?.description) {
-          const li = JSON.parse(decrypt(liSecret.description));
+          const li = JSON.parse(decrypt(liSecret.description as string));
           // Use LinkedIn Posts API (v2)
           const authorUrn = "urn:li:person:" + li.sub;
           const liHeaders = {

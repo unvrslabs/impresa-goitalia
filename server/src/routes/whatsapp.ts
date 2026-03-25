@@ -445,7 +445,7 @@ export function whatsappWebhookRouter(db: Db) {
   router.post("/:companyId", async (req, res) => {
     const companyId = req.params.companyId;
     const event = req.body;
-    console.log("[wa-webhook]", companyId, event?.event, JSON.stringify(event?.data?.messages || event?.data || {}).substring(0, 500));
+    // Webhook received
     res.json({ ok: true });
 
     if (event?.event === "messages.received" && event?.data?.messages) {
@@ -522,14 +522,14 @@ export function whatsappWebhookRouter(db: Db) {
             const sessions = JSON.parse(decrypt(waSecret.description));
             const session = Array.isArray(sessions) ? sessions[0] : sessions;
             if (session?.apiKey) {
-              console.log("[wa-webhook] calling decrypt-media with apiKey length:", session.apiKey?.length, "key id:", msg.key?.id);
+              
               const decryptRes = await fetch("https://www.wasenderapi.com/api/decrypt-media", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.apiKey },
                 body: JSON.stringify({ data: { messages: msg } }),
               });
               const decText = await decryptRes.text();
-              console.log("[wa-webhook] decrypt-media response:", decryptRes.status, decText.substring(0, 300));
+              
               if (decryptRes.ok || decryptRes.status === 200) {
                 let decData: any = {};
                 try { decData = JSON.parse(decText); } catch {}
@@ -550,7 +550,7 @@ export function whatsappWebhookRouter(db: Db) {
           }
         } catch (err) { console.error("[wa-webhook] media download error:", err); }
         
-        console.log("[wa-webhook] media:", messageType, "url:", mediaUrl?.substring(0, 80), "caption:", caption);
+        
         if (!text) text = messageType === "image" ? "[Immagine]" : messageType === "video" ? "[Video]" : "[Documento]";
       }
       
@@ -645,76 +645,7 @@ export function whatsappWebhookRouter(db: Db) {
     res.json({ ok: true });
   });
 
-  // POST /whatsapp/generate-reply
-  router.post("/whatsapp/generate-reply", async (req, res) => {
-    const actor = req.actor as { type?: string; userId?: string } | undefined;
-    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
-    const { companyId, messageText, fromName, remoteJid, mediaUrl, messageType } = req.body as { companyId: string; messageText: string; fromName: string; remoteJid?: string; mediaUrl?: string; messageType?: string };
-    if (!companyId || (!messageText && !mediaUrl)) { res.status(400).json({ error: "Parametri mancanti" }); return; }
-
-    const apiKeySecret = await db.select().from(companySecrets)
-      .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "claude_api_key")))
-      .then((rows) => rows[0]);
-    if (!apiKeySecret?.description) { res.status(400).json({ error: "API key Claude non configurata" }); return; }
-    let claudeKey: string;
-    try { claudeKey = decrypt(apiKeySecret.description); } catch { res.status(500).json({ error: "Errore decrypt" }); return; }
-
-    // Get conversation history
-    let history: Array<{ role: "user" | "assistant"; content: string }> = [];
-    if (remoteJid) {
-      try {
-        const rows = await db.execute(sql`SELECT message_text, direction FROM whatsapp_messages WHERE company_id = ${companyId} AND remote_jid = ${remoteJid} ORDER BY created_at ASC LIMIT 20`);
-        history = (rows as any[]).map((r: any) => ({
-          role: r.direction === "incoming" ? "user" as const : "assistant" as const,
-          content: r.message_text,
-        }));
-      } catch {}
-    }
-    if (history.length === 0) {
-      history = [{ role: "user", content: messageText }];
-    }
-
-    try {
-      // If last message has an image, add it to the request with vision
-      let finalMessages: any = history;
-      if (mediaUrl && messageType === "image") {
-        try {
-          const fs = await import("node:fs");
-          const path = await import("node:path");
-          const localPath = mediaUrl.replace("/api/wa-media/", "");
-          const filePath = path.join(process.cwd(), "data/wa-media", localPath);
-          if (fs.existsSync(filePath)) {
-            const imgBuffer = fs.readFileSync(filePath);
-            const base64 = imgBuffer.toString("base64");
-            const mediaType = filePath.endsWith(".png") ? "image/png" : "image/jpeg";
-            // Replace last message with image + text
-            finalMessages = [...history.slice(0, -1), {
-              role: "user" as const,
-              content: [
-                { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-                { type: "text", text: messageText || "L'utente ha inviato questa immagine. Descrivi cosa vedi e rispondi in modo appropriato." },
-              ],
-            }];
-          }
-        } catch (err) { console.error("[wa] image read error:", err); }
-      }
-
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
-          system: "Sei un assistente di customer service professionale. Rispondi in italiano, in modo conciso e cordiale. Se ti viene mostrata un\'immagine, descrivila e rispondi in modo contestuale.",
-          messages: finalMessages,
-        }),
-      });
-      if (!r.ok) { res.status(502).json({ error: "Errore AI" }); return; }
-      const data = await r.json() as { content?: Array<{ text?: string }> };
-      const reply = data.content?.map((c) => c.text).join("") || "";
-      res.json({ reply });
-    } catch { res.status(500).json({ error: "Errore generazione risposta" }); }
-  });
+  
 
   // POST /whatsapp/settings
   router.post("/whatsapp/settings", async (req, res) => {

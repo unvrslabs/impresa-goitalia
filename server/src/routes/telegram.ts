@@ -565,7 +565,7 @@ export function telegramWebhookRouter(db: Db) {
       } else {
         isAutoReply = s.autoReply === true;
       }
-      console.info("[tg-wh] autoReply:", isAutoReply);
+      
       if (!isAutoReply) return;
       const tok = await getTelegramToken(db, companyId);
       if (!tok) { console.info("[tg-wh] no token"); return; }
@@ -573,7 +573,7 @@ export function telegramWebhookRouter(db: Db) {
       let reply = "Grazie per il messaggio!";
       if (keyRow?.description) {
         const ck = decrypt(keyRow.description);
-        console.info("[tg-wh] calling claude...");
+        
         const cr = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": ck, "anthropic-version": "2023-06-01" },
