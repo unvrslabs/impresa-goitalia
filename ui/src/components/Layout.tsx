@@ -352,6 +352,7 @@ export function Layout() {
 function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | null; sidebarOpen: boolean }) {
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [dismissed, setDismissed] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -374,7 +375,7 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
   }, [hasApiKey, sidebarOpen]);
 
   if (hasApiKey !== false) return null;
-  if (location.pathname.includes("api-claude")) return null;
+  if (dismissed) return null;
   if (!sidebarOpen || !pos) return null;
 
   return (
@@ -387,10 +388,10 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
           </div>
           <h3 className="text-sm font-bold text-white">Configura API Claude</h3>
         </div>
-        <p className="text-xs text-white/60 leading-relaxed mb-3">Per attivare il tuo CEO AI e sbloccare tutte le funzionalità, inserisci la tua API key di Anthropic.</p>
-        <a href="/api-claude" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:brightness-110" style={{ background: "hsl(158 64% 42%)", color: "white" }}>
-          Configura ora →
-        </a>
+        <p className="text-xs text-white/60 leading-relaxed mb-3">Per attivare il tuo CEO AI e sbloccare tutte le funzionalità, inserisci la tua API key di Anthropic nella sezione qui sotto.</p>
+        <button onClick={() => setDismissed(true)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all hover:brightness-110 w-full justify-center" style={{ background: "hsl(158 64% 42%)", color: "white" }}>
+          Ho capito
+        </button>
       </div>
     </div>
   );

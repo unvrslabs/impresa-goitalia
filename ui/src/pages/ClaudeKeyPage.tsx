@@ -98,38 +98,6 @@ export function ClaudeKeyPage() {
         )}
       </div>
 
-      {/* Tutorial */}
-      <div className="glass-card p-5 space-y-4">
-        <h2 className="text-sm font-semibold">Come ottenere la API key</h2>
-
-        <div className="space-y-3">
-          <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <span className="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: "hsl(158 64% 42% / 0.2)", color: "hsl(158 64% 42%)" }}>1</span>
-            <div>
-              <p className="text-sm font-medium">Crea un account su Anthropic</p>
-              <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-xs inline-flex items-center gap-1 mt-1" style={{ color: "hsl(158 64% 42%)" }}>
-                console.anthropic.com <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <span className="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: "hsl(158 64% 42% / 0.2)", color: "hsl(158 64% 42%)" }}>2</span>
-            <div>
-              <p className="text-sm font-medium">Vai su "API Keys" nel menu</p>
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-xs inline-flex items-center gap-1 mt-1" style={{ color: "hsl(158 64% 42%)" }}>
-                Vai alle API Keys <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <span className="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: "hsl(158 64% 42% / 0.2)", color: "hsl(158 64% 42%)" }}>3</span>
-            <p className="text-sm font-medium">Clicca "Create Key", copia la chiave e incollala qui sotto</p>
-          </div>
-        </div>
-      </div>
-
       {/* Input */}
       <div className="glass-card p-5 space-y-4">
         <h2 className="text-sm font-semibold">{hasKey ? "Aggiorna API key" : "Inserisci API key"}</h2>
@@ -192,6 +160,39 @@ export function ClaudeKeyPage() {
           </button>
         </div>
       </div>
-    </div>
+    
+{/* Tutorial */}
+      <div className="glass-card p-5 space-y-4">
+        <h2 className="text-sm font-semibold">Come ottenere la API key</h2>
+
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <span className="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: "hsl(158 64% 42% / 0.2)", color: "hsl(158 64% 42%)" }}>1</span>
+            <div>
+              <p className="text-sm font-medium">Crea un account su Anthropic</p>
+              <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-xs inline-flex items-center gap-1 mt-1" style={{ color: "hsl(158 64% 42%)" }}>
+                console.anthropic.com <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <span className="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: "hsl(158 64% 42% / 0.2)", color: "hsl(158 64% 42%)" }}>2</span>
+            <div>
+              <p className="text-sm font-medium">Vai su "API Keys" nel menu</p>
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-xs inline-flex items-center gap-1 mt-1" style={{ color: "hsl(158 64% 42%)" }}>
+                Vai alle API Keys <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <span className="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: "hsl(158 64% 42% / 0.2)", color: "hsl(158 64% 42%)" }}>3</span>
+            <p className="text-sm font-medium">Clicca "Create Key", copia la chiave e incollala qui sotto</p>
+          </div>
+        </div>
+      </div>
+
+      </div>
   );
 }
