@@ -451,7 +451,7 @@ export function GenerateAI() {
       // Create background job
       const job: ActiveJob = { id: crypto.randomUUID(), modelKey, requestId, companyId: selectedCompany!.id, type: mainTab === "images" ? "image" : "video", status: "pending" };
       setActiveJobs((prev) => [job, ...prev]);
-      setProgress("In coda...");
+      setProgress("Generazione in corso...");
       pollJob(job);
       // Keep old polling for progress display only
       let attempts = 0;
@@ -465,7 +465,7 @@ export function GenerateAI() {
           } else if (status.status === "IN_PROGRESS") {
             setProgress("Generazione in corso...");
           } else {
-            const pos = status.queue_position ?? "?";
+            
             setProgress(`In coda... (posizione: ${pos})`);
           }
 
