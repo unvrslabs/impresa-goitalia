@@ -351,6 +351,7 @@ export function Layout() {
 
 function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | null; sidebarOpen: boolean }) {
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -359,23 +360,44 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
       .then((r) => r.json()).then((d) => setHasApiKey(!!d.hasKey)).catch(() => {});
   }, [companyId]);
 
+  useEffect(() => {
+    if (hasApiKey !== false || !sidebarOpen || dismissed) { setPos(null); return; }
+    const update = () => {
+      const el = document.getElementById("api-claude-nav");
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
+    };
+    update();
+    const id = setInterval(update, 500);
+    return () => clearInterval(id);
+  }, [hasApiKey, sidebarOpen, dismissed]);
+
   if (hasApiKey !== false || dismissed) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-      <div className="rounded-2xl p-6 w-96 max-w-[90vw] text-center space-y-4" style={{ background: "linear-gradient(135deg, rgba(30, 40, 55, 0.98) 0%, rgba(20, 28, 40, 0.98) 100%)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))" }}>
-          <Key className="w-7 h-7 text-white" />
+    <>
+      {/* Overlay scuro */}
+      <div className="fixed inset-0 z-[90]" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
+      {/* Tooltip */}
+      {sidebarOpen && pos && (
+        <div className="fixed z-[100]" style={{ left: pos.left, top: pos.top, transform: "translateY(-50%)", filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.5))" }}>
+          <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2" style={{ width: 0, height: 0, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderRight: "10px solid rgba(30, 40, 55, 0.97)" }} />
+          <div className="rounded-xl p-4 w-72" style={{ background: "rgba(30, 40, 55, 0.97)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "hsl(158 64% 42%)" }}>
+                <Key className="w-3.5 h-3.5 text-white" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Configura API Claude</h3>
+            </div>
+            <p className="text-xs text-white/60 leading-relaxed mb-3">Per attivare il tuo CEO AI e sbloccare tutte le funzionalità, inserisci la tua API key di Anthropic nella sezione qui sotto.</p>
+            <button onClick={() => setDismissed(true)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all hover:brightness-110 w-full justify-center" style={{ background: "hsl(158 64% 42%)", color: "white" }}>
+              Ho capito
+            </button>
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-bold text-white">Benvenuto su GoItalIA!</h3>
-          <p className="text-sm text-white/50 leading-relaxed mt-2">Per attivare il tuo <strong className="text-white/80">CEO AI</strong> e sbloccare tutte le funzionalità, inserisci la tua API key di Anthropic (Claude) nel campo qui sotto.</p>
-        </div>
-        <button onClick={() => setDismissed(true)} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:scale-105 w-full" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white", boxShadow: "0 4px 20px hsl(158 64% 42% / 0.4)" }}>
-          Ho capito, procediamo
-        </button>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
