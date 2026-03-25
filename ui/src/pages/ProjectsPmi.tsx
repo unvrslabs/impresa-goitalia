@@ -11,6 +11,7 @@ interface PmiProject {
   storage_type: string;
   drive_folder_id?: string;
   created_at: string;
+  github_repo?: string;
 }
 
 interface ProjectFile {
@@ -22,9 +23,15 @@ interface ProjectFile {
   source: string;
   webViewLink?: string;
   storageRef?: string;
+  isDir?: boolean;
+  path?: string;
+  downloadUrl?: string;
+  htmlUrl?: string;
 }
 
 const fileIcon = (mime?: string) => {
+  if (mime === "directory") return <FolderOpen className="w-4 h-4 text-amber-400" />;
+  if (mime === "directory") return <FolderOpen className="w-4 h-4 text-amber-400" />;
   if (!mime) return <File className="w-4 h-4" />;
   if (mime.startsWith("image/")) return <Image className="w-4 h-4 text-pink-400" />;
   if (mime.startsWith("video/")) return <Video className="w-4 h-4 text-blue-400" />;
@@ -53,6 +60,11 @@ export function ProjectsPmi() {
   const [newDesc, setNewDesc] = useState("");
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [ghPath, setGhPath] = useState("");
+  const [showLinkRepo, setShowLinkRepo] = useState(false);
+  const [repoUrl, setRepoUrl] = useState("");
+  const [repoToken, setRepoToken] = useState("");
+  const [linkingRepo, setLinkingRepo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -73,7 +85,7 @@ export function ProjectsPmi() {
   const fetchFiles = async (project: PmiProject) => {
     if (!selectedCompany?.id) return;
     try {
-      const r = await fetch("/api/pmi-projects/" + project.id + "/files?companyId=" + selectedCompany.id, { credentials: "include" });
+      const r = await fetch("/api/pmi-projects/" + project.id + "/files?companyId=" + selectedCompany.id + (ghPath ? "&path=" + encodeURIComponent(ghPath) : ""), { credentials: "include" });
       const d = await r.json();
       setFiles(d.files || []);
     } catch {}
@@ -86,7 +98,8 @@ export function ProjectsPmi() {
     }
   }, [urlProjectId, projects]);
   
-  useEffect(() => { if (selectedProject) fetchFiles(selectedProject); }, [selectedProject]);
+  useEffect(() => { setGhPath(""); }, [selectedProject?.id]);
+  useEffect(() => { if (selectedProject) fetchFiles(selectedProject); }, [selectedProject, ghPath]);
 
   const createProject = async () => {
     if (!selectedCompany?.id || !newName.trim()) return;
@@ -154,8 +167,12 @@ export function ProjectsPmi() {
                   <h2 className="text-sm font-semibold">{selectedProject.name}</h2>
                   {selectedProject.description && <p className="text-xs text-muted-foreground">{selectedProject.description}</p>}
                   <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
-                    {selectedProject.storage_type === "drive" ? (
+                    {selectedProject.storage_type === "github" ? (
+                      <><span className="w-1.5 h-1.5 rounded-full bg-white" /> GitHub</>
+                    ) : selectedProject.storage_type === "drive" ? (
                       <><span className="w-1.5 h-1.5 rounded-full bg-blue-400" /> Google Drive</>
+                    ) : selectedProject.storage_type === "github" ? (
+                      <><span className="w-1.5 h-1.5 rounded-full bg-white" /> GitHub {selectedProject.github_repo?.replace("https://github.com/", "")}</>
                     ) : (
                       <><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Storage locale</>
                     )}
@@ -172,6 +189,51 @@ export function ProjectsPmi() {
                 </div>
               </div>
 
+              {/* GitHub path breadcrumb */}
+              {selectedProject.storage_type === "github" && ghPath && (
+                <div className="flex items-center gap-1 pb-2 text-xs text-muted-foreground">
+                  <button onClick={() => setGhPath("")} className="hover:text-foreground">/</button>
+                  {ghPath.split("/").map((part, i, arr) => (
+                    <span key={i} className="flex items-center gap-1">
+                      <span>/</span>
+                      <button onClick={() => setGhPath(arr.slice(0, i + 1).join("/"))} className="hover:text-foreground">{part}</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Link GitHub repo button for local projects */}
+              {selectedProject.storage_type === "local" && !showLinkRepo && (
+                <button onClick={() => setShowLinkRepo(true)} className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                  Collega repo GitHub
+                </button>
+              )}
+              {showLinkRepo && (
+                <div className="mb-2 glass-card p-3 space-y-2">
+                  <input className="w-full rounded-xl px-3 py-2 text-xs outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }} placeholder="https://github.com/user/repo" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} />
+                  <input className="w-full rounded-xl px-3 py-2 text-xs outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }} placeholder="Token GitHub (opzionale, per repo privati)" type="password" value={repoToken} onChange={(e) => setRepoToken(e.target.value)} />
+                  <div className="flex gap-2">
+                    <button onClick={async () => {
+                      if (!repoUrl.trim() || !selectedCompany?.id || !selectedProject) return;
+                      setLinkingRepo(true);
+                      await fetch("/api/pmi-projects/" + selectedProject.id + "/link-github", {
+                        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+                        body: JSON.stringify({ companyId: selectedCompany.id, githubRepo: repoUrl, githubToken: repoToken || undefined }),
+                      });
+                      setShowLinkRepo(false); setRepoUrl(""); setRepoToken("");
+                      fetchProjects(); setLinkingRepo(false);
+                      // Reload project
+                      const updated = { ...selectedProject, storage_type: "github", github_repo: repoUrl };
+                      setSelectedProject(updated as any);
+                    }} disabled={linkingRepo || !repoUrl.trim()} className="px-3 py-1.5 rounded-xl text-xs font-medium text-white disabled:opacity-30" style={{ background: "hsl(158 64% 42%)" }}>
+                      {linkingRepo ? "..." : "Collega"}
+                    </button>
+                    <button onClick={() => setShowLinkRepo(false)} className="text-xs text-muted-foreground">Annulla</button>
+                  </div>
+                </div>
+              )}
+
               {/* Drop zone + file list */}
               <div
                 className="flex-1 glass-card overflow-y-auto"
@@ -187,7 +249,7 @@ export function ProjectsPmi() {
                 ) : (
                   <div className="divide-y divide-white/5">
                     {files.map((f) => (
-                      <div key={f.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors">
+                      <div key={f.id} className={"px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors" + (f.isDir ? " cursor-pointer" : "")} onClick={() => { if (f.isDir && f.path) setGhPath(f.path); }}>
                         {fileIcon(f.mimeType)}
                         <div className="flex-1 min-w-0">
                           <div className="text-sm truncate">{f.name}</div>
@@ -200,6 +262,11 @@ export function ProjectsPmi() {
                         )}
                         {f.source === "local" && (
                           <a href={"/api/pmi-projects/" + selectedProject.id + "/files/" + f.id + "/download"} className="p-1 text-muted-foreground hover:text-foreground no-underline">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {f.source === "github" && f.htmlUrl && !f.isDir && (
+                          <a href={f.htmlUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-muted-foreground hover:text-foreground no-underline">
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         )}

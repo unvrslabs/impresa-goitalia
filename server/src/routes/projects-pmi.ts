@@ -67,7 +67,7 @@ export function projectsPmiRoutes(db: Db) {
   router.post("/pmi-projects", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
-    const { companyId, name, description } = req.body as { companyId: string; name: string; description?: string };
+    const { companyId, name, description, githubRepo, githubToken } = req.body as { companyId: string; name: string; description?: string; githubRepo?: string; githubToken?: string };
     if (!companyId || !name) { res.status(400).json({ error: "Nome progetto richiesto" }); return; }
 
     const driveToken = await getDriveToken(db, companyId);
@@ -96,7 +96,9 @@ export function projectsPmiRoutes(db: Db) {
 
     try {
       const id = crypto.randomUUID();
-      await db.execute(sql`INSERT INTO pmi_projects (id, company_id, name, description, storage_type, drive_folder_id) VALUES (${id}, ${companyId}, ${name}, ${description || null}, ${storageType}, ${driveFolderId})`);
+      const finalStorage = githubRepo ? "github" : storageType;
+      const encGhToken = githubToken ? encrypt(githubToken) : null;
+      await db.execute(sql`INSERT INTO pmi_projects (id, company_id, name, description, storage_type, drive_folder_id, github_repo, github_token) VALUES (${id}, ${companyId}, ${name}, ${description || null}, ${finalStorage}, ${driveFolderId}, ${githubRepo || null}, ${encGhToken})`);
       
       // If local and no drive, save the folder path
       if (storageType === "local") {
@@ -150,6 +152,66 @@ export function projectsPmiRoutes(db: Db) {
             return;
           }
         }
+      }
+
+      // GitHub repo files
+      if (project.storage_type === "github" && project.github_repo) {
+        try {
+          const repoPath = (project.github_repo as string).replace("https://github.com/", "").replace(/\.git$/, "");
+          const ghHeaders: Record<string, string> = { Accept: "application/vnd.github.v3+json", "User-Agent": "GoItalIA" };
+          if (project.github_token) {
+            try { ghHeaders.Authorization = "token " + decrypt(project.github_token as string); } catch {}
+          }
+          const branch = (req.query.branch as string) || "main";
+          const dirPath = (req.query.path as string) || "";
+          let ghRes = await fetch("https://api.github.com/repos/" + repoPath + "/contents/" + dirPath + "?ref=" + branch, { headers: ghHeaders });
+          if (!ghRes.ok && branch === "main") {
+            ghRes = await fetch("https://api.github.com/repos/" + repoPath + "/contents/" + dirPath + "?ref=master", { headers: ghHeaders });
+          }
+          if (ghRes.ok) {
+            const items = await ghRes.json() as any[];
+            if (Array.isArray(items)) {
+              const dirs = items.filter((i: any) => i.type === "dir").sort((a: any, b: any) => a.name.localeCompare(b.name));
+              const files_list = items.filter((i: any) => i.type !== "dir").sort((a: any, b: any) => a.name.localeCompare(b.name));
+              res.json({ files: [...dirs, ...files_list].map((item: any) => ({
+                id: item.sha, name: item.name, mimeType: item.type === "dir" ? "directory" : "file",
+                size: item.size || 0, createdAt: "", source: "github", path: item.path,
+                isDir: item.type === "dir", downloadUrl: item.download_url, htmlUrl: item.html_url,
+              })), repo: repoPath });
+              return;
+            }
+          }
+        } catch (err) { console.error("[projects] GitHub error:", err); }
+      }
+
+      // GitHub repo files
+      if (project.storage_type === "github" && project.github_repo) {
+        try {
+          const repoPath = (project.github_repo as string).replace("https://github.com/", "").replace(/\.git$/, "");
+          const ghHeaders: Record<string, string> = { Accept: "application/vnd.github.v3+json", "User-Agent": "GoItalIA" };
+          if (project.github_token) {
+            try { ghHeaders.Authorization = "token " + decrypt(project.github_token as string); } catch {}
+          }
+          const branch = (req.query.branch as string) || "main";
+          const dirPath = (req.query.path as string) || "";
+          let ghRes = await fetch("https://api.github.com/repos/" + repoPath + "/contents/" + dirPath + "?ref=" + branch, { headers: ghHeaders });
+          if (!ghRes.ok && branch === "main") {
+            ghRes = await fetch("https://api.github.com/repos/" + repoPath + "/contents/" + dirPath + "?ref=master", { headers: ghHeaders });
+          }
+          if (ghRes.ok) {
+            const items = await ghRes.json() as any[];
+            if (Array.isArray(items)) {
+              const dirs = items.filter((i: any) => i.type === "dir").sort((a: any, b: any) => a.name.localeCompare(b.name));
+              const files_list = items.filter((i: any) => i.type !== "dir").sort((a: any, b: any) => a.name.localeCompare(b.name));
+              res.json({ files: [...dirs, ...files_list].map((item: any) => ({
+                id: item.sha, name: item.name, mimeType: item.type === "dir" ? "directory" : "file",
+                size: item.size || 0, createdAt: "", source: "github", path: item.path,
+                isDir: item.type === "dir", downloadUrl: item.download_url, htmlUrl: item.html_url,
+              })), repo: repoPath });
+              return;
+            }
+          }
+        } catch (err) { console.error("[projects] GitHub error:", err); }
       }
 
       // Local files
@@ -216,6 +278,19 @@ export function projectsPmiRoutes(db: Db) {
       console.error("[projects] upload error:", err);
       res.status(500).json({ error: "Errore upload" });
     }
+  });
+
+  // POST /pmi-projects/:id/link-github - Link GitHub repo to project
+  router.post("/pmi-projects/:id/link-github", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const { id } = req.params;
+    const { companyId, githubRepo, githubToken } = req.body as { companyId: string; githubRepo: string; githubToken?: string };
+    try {
+      const encToken = githubToken ? encrypt(githubToken) : null;
+      await db.execute(sql`UPDATE pmi_projects SET storage_type = 'github', github_repo = ${githubRepo}, github_token = ${encToken}, updated_at = now() WHERE id = ${id} AND company_id = ${companyId}`);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ error: "Errore" }); }
   });
 
   // GET /pmi-projects/:projectId/files/:fileId/download - Download local file
