@@ -351,6 +351,7 @@ export function Layout() {
 
 function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | null; sidebarOpen: boolean }) {
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -359,12 +360,25 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
       .then((r) => r.json()).then((d) => setHasApiKey(!!d.hasKey)).catch(() => {});
   }, [companyId]);
 
+  useEffect(() => {
+    if (hasApiKey !== false || !sidebarOpen) { setPos(null); return; }
+    const update = () => {
+      const el = document.getElementById("api-claude-nav");
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
+    };
+    update();
+    const id = setInterval(update, 500);
+    return () => clearInterval(id);
+  }, [hasApiKey, sidebarOpen]);
+
   if (hasApiKey !== false) return null;
   if (location.pathname.includes("api-claude")) return null;
-  if (!sidebarOpen) return null;
+  if (!sidebarOpen || !pos) return null;
 
   return (
-    <div className="fixed z-[100]" style={{ left: "248px", bottom: "140px", filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.5))" }}>
+    <div className="fixed z-[100]" style={{ left: pos.left, top: pos.top, transform: "translateY(-50%)", filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.5))" }}>
       <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2" style={{ width: 0, height: 0, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderRight: "10px solid rgba(30, 40, 55, 0.97)" }} />
       <div className="rounded-xl p-4 w-72" style={{ background: "rgba(30, 40, 55, 0.97)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}>
         <div className="flex items-center gap-2 mb-2">

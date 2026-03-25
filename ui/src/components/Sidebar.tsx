@@ -240,7 +240,7 @@ export function Sidebar() {
           <div className={hasApiKey === false ? "opacity-30 pointer-events-none" : ""}><SidebarNavItem to="/plugins" label="Connettori" icon={Plug} /></div>
           <div className={hasApiKey === false ? "opacity-30 pointer-events-none" : ""}><SidebarNavItem to="/company/settings" label="Profilo" icon={Settings} /></div>
           {hasApiKey === false ? (
-            <div className="relative">
+            <div className="relative" id="api-claude-nav">
               <div className="absolute inset-0 rounded-lg animate-pulse" style={{ background: "hsl(158 64% 42% / 0.25)", boxShadow: "0 0 15px hsl(158 64% 42% / 0.4)" }} />
               <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} className="relative z-10 !text-white font-bold" />
               <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-ping" style={{ background: "hsl(158 64% 42%)" }} />

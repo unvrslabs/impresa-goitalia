@@ -59,12 +59,9 @@ export function AuthPage() {
       // Now sign in to get session
       await authApi.signInEmail({ email: email.trim(), password });
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       setError(null);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.session });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
-      // After registration, redirect to home - app routes to company dashboard
-      // Then user can go to API Claude from there
+      // Redirect immediately before React re-renders can intercept
       window.location.href = "/api-claude";
     },
     onError: (err) => {
