@@ -58,7 +58,9 @@ export function TelegramPage() {
     } catch {}
     setSending(false);
   };
-  const readChatsRef = useRef<Set<number>>(new Set());
+  const readChatsRef = useRef<Set<string>>(new Set(
+    (() => { try { return JSON.parse(localStorage.getItem("goitalia_tg_read_chats") || "[]"); } catch { return []; } })()
+  ));
   const [, forceRender] = useState(0);
 
   useEffect(() => { setBreadcrumbs([{ label: "Telegram" }]); }, [setBreadcrumbs]);
@@ -113,7 +115,7 @@ export function TelegramPage() {
         username: incoming[0]?.from_username || "",
         lastMessage: last.message_text.slice(0, 60),
         lastTime: last.created_at,
-        unread: readChatsRef.current.has(chatId) ? 0 : unreadCount,
+        unread: readChatsRef.current.has(String(chatId)) ? 0 : unreadCount,
       });
     }
   }
@@ -199,7 +201,7 @@ export function TelegramPage() {
           ) : threads.map((thread) => (
             <button
               key={thread.chatId}
-              onClick={() => { setSelectedChat(thread.chatId); setReplyText(""); readChatsRef.current.add(thread.chatId); forceRender((n) => n + 1); if (selectedCompany?.id) { fetch("/api/telegram/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, chatId: String(thread.chatId) }) }).catch(() => {}); window.dispatchEvent(new CustomEvent("telegram-read")); } }}
+              onClick={() => { setSelectedChat(thread.chatId); setReplyText(""); readChatsRef.current.add(String(thread.chatId)); localStorage.setItem("goitalia_tg_read_chats", JSON.stringify([...readChatsRef.current])); forceRender((n) => n + 1); if (selectedCompany?.id) { fetch("/api/telegram/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, chatId: String(thread.chatId) }) }).catch(() => {}); window.dispatchEvent(new CustomEvent("telegram-read")); } }}
               className={"w-full text-left px-3 py-2.5 border-b border-white/5 transition-colors " + (selectedChat === thread.chatId ? "bg-white/10" : "hover:bg-white/5")}
             >
               <div className="flex items-center gap-2">

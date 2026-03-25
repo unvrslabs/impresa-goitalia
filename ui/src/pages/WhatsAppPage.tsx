@@ -40,7 +40,9 @@ export function WhatsAppPage() {
   const [numbers, setNumbers] = useState<Array<{ phoneNumber: string }>>([]);
   const [selectedBot, setSelectedBot] = useState(-1); // -1 = all
   const bottomRef = useRef<HTMLDivElement>(null);
-  const readChatsRef = useRef<Set<number>>(new Set());
+  const readChatsRef = useRef<Set<string>>(new Set(
+    (() => { try { return JSON.parse(localStorage.getItem("goitalia_wa_read_chats") || "[]"); } catch { return []; } })()
+  ));
   const [, forceRender] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +115,7 @@ export function WhatsAppPage() {
         username: incoming[0]?.from_username || "",
         lastMessage: last.message_text.slice(0, 60),
         lastTime: last.created_at,
-        unread: readChatsRef.current.has(remoteJid) ? 0 : unreadCount,
+        unread: readChatsRef.current.has(String(remoteJid)) ? 0 : unreadCount,
       });
     }
   }
@@ -199,7 +201,7 @@ export function WhatsAppPage() {
           ) : threads.map((thread) => (
             <button
               key={thread.remoteJid}
-              onClick={() => { setSelectedChat(thread.remoteJid); setReplyText(""); readChatsRef.current.add(thread.remoteJid); forceRender((n) => n + 1); if (selectedCompany?.id) { fetch("/api/whatsapp/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, chatId: String(thread.remoteJid) }) }).catch(() => {}); window.dispatchEvent(new CustomEvent("whatsapp-read")); } }}
+              onClick={() => { setSelectedChat(thread.remoteJid); setReplyText(""); readChatsRef.current.add(String(thread.remoteJid)); localStorage.setItem("goitalia_wa_read_chats", JSON.stringify([...readChatsRef.current])); forceRender((n) => n + 1); if (selectedCompany?.id) { fetch("/api/whatsapp/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, chatId: String(thread.remoteJid) }) }).catch(() => {}); window.dispatchEvent(new CustomEvent("whatsapp-read")); } }}
               className={"w-full text-left px-3 py-2.5 border-b border-white/5 transition-colors " + (selectedChat === thread.remoteJid ? "bg-white/10" : "hover:bg-white/5")}
             >
               <div className="flex items-center gap-2">
