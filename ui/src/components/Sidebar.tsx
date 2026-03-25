@@ -212,8 +212,8 @@ export function Sidebar() {
           {hasGoogle && <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />}
           {hasWhatsApp && <SidebarNavItem to="/whatsapp" label="WhatsApp" icon={Phone} badge={waUnread > 0 ? waUnread : undefined} />}
           {hasTelegram && <SidebarNavItem to="/telegram" label="Telegram" icon={MessageSquare} badge={telegramUnread > 0 ? telegramUnread : undefined} />}
-          {hasSocial && <SidebarNavItem to="/genera" label="Genera AI" icon={Sparkles} />
-          <SidebarNavItem to="/social" label="Social" icon={Share2Icon} />}
+          <SidebarNavItem to="/genera" label="Genera AI" icon={Sparkles} />
+          {hasSocial && <SidebarNavItem to="/social" label="Social" icon={Share2Icon} />}
           {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
           {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}
           {!isOnboarding && !isClaudeApi && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}
