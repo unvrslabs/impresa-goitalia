@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { companySecrets, agents, companyMemberships, companies, issues } from "@goitalia/db";
 import { eq, and, inArray, desc, sql, asc } from "drizzle-orm";
-import { decrypt as decryptSecret } from "../utils/crypto.js";
+import { decrypt as decryptSecret, decrypt, encrypt } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
 
 // Tool definitions (same as adapter)
@@ -75,7 +75,104 @@ const TOOLS = [
       required: ["nome", "titolo", "competenze", "istruzioni"],
     },
   },
+
+  {
+    name: "lista_clienti",
+    description: "Elenca i clienti dell'azienda registrati su Fatture in Cloud.",
+    input_schema: { type: "object" as const, properties: {}, required: [] as string[] },
+  },
+  {
+    name: "cerca_cliente",
+    description: "Cerca un cliente per nome o P.IVA su Fatture in Cloud.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "Nome o P.IVA del cliente" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "crea_cliente",
+    description: "Crea un nuovo cliente su Fatture in Cloud.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        nome: { type: "string", description: "Nome o ragione sociale" },
+        partita_iva: { type: "string", description: "Partita IVA (opzionale)" },
+        codice_fiscale: { type: "string", description: "Codice fiscale (opzionale)" },
+        indirizzo: { type: "string", description: "Via e numero civico" },
+        cap: { type: "string", description: "CAP" },
+        citta: { type: "string", description: "Città" },
+        provincia: { type: "string", description: "Provincia (sigla)" },
+        email: { type: "string", description: "Email" },
+        pec: { type: "string", description: "PEC (per fattura elettronica)" },
+        codice_sdi: { type: "string", description: "Codice destinatario SDI (7 caratteri)" },
+      },
+      required: ["nome"],
+    },
+  },
+  {
+    name: "crea_fattura",
+    description: "Crea una nuova fattura su Fatture in Cloud. Specifica il cliente, le righe e il metodo di pagamento.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        cliente_id: { type: "number", description: "ID del cliente (usa lista_clienti per trovarlo)" },
+        righe: {
+          type: "array",
+          description: "Righe della fattura",
+          items: {
+            type: "object",
+            properties: {
+              descrizione: { type: "string" },
+              prezzo: { type: "number", description: "Prezzo unitario netto" },
+              quantita: { type: "number", description: "Quantità (default 1)" },
+              iva: { type: "number", description: "Aliquota IVA % (default 22)" },
+            },
+            required: ["descrizione", "prezzo"],
+          },
+        },
+        fattura_elettronica: { type: "boolean", description: "Se inviare come fattura elettronica via SDI (default true)" },
+        data: { type: "string", description: "Data fattura (YYYY-MM-DD, default oggi)" },
+        note: { type: "string", description: "Note aggiuntive" },
+      },
+      required: ["cliente_id", "righe"],
+    },
+  },
+  {
+    name: "lista_fatture",
+    description: "Elenca le fatture emesse. Può filtrare per stato.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        tipo: { type: "string", enum: ["emesse", "ricevute"], description: "Tipo (default emesse)" },
+        pagina: { type: "number", description: "Pagina (default 1)" },
+      },
+      required: [] as string[],
+    },
+  },
+  {
+    name: "invia_fattura_sdi",
+    description: "Invia una fattura elettronica allo SDI (Sistema di Interscambio).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        fattura_id: { type: "number", description: "ID della fattura da inviare" },
+      },
+      required: ["fattura_id"],
+    },
+  },
 ];
+
+
+async function getFicTokenForChat(db: Db, companyId: string): Promise<{ access_token: string; fic_company_id: number } | null> {
+  const secret = await db.select().from(companySecrets)
+    .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "fattureincloud_tokens")))
+    .then((r) => r[0]);
+  if (!secret?.description) return null;
+  try { return JSON.parse(decrypt(secret.description)); } catch { return null; }
+}
 
 type ToolInput = Record<string, unknown>;
 
@@ -294,6 +391,12 @@ Competenze: ${capabilities}
 Hai a disposizione dei tool per gestire l'azienda:
 - lista_agenti: per vedere gli agenti disponibili
 - crea_task: per creare task e assegnarli agli agenti
+- lista_clienti: per vedere i clienti su Fatture in Cloud
+- cerca_cliente: per cercare un cliente per nome o P.IVA
+- crea_cliente: per creare un nuovo cliente
+- crea_fattura: per creare una fattura (specifica cliente, righe con descrizione/prezzo/quantità)
+- lista_fatture: per vedere le fatture emesse o ricevute
+- invia_fattura_sdi: per inviare una fattura elettronica allo SDI
 - stato_task: per controllare lo stato dei lavori
 - commenta_task: per aggiungere istruzioni ai task
 - crea_agente: per creare nuovi agenti specializzati
