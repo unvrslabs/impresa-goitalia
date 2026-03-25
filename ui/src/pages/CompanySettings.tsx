@@ -51,8 +51,7 @@ export function CompanySettings() {
     { key: "email", label: "Email Contatto" },
     { key: "pec", label: "PEC" },
     { key: "sito_web", label: "Sito Web" },
-    { key: "codice_sdi", label: "Codice SDI" },
-    { key: "regime_fiscale", label: "Regime Fiscale" },
+    { key: "dipendenti", label: "Numero Dipendenti" },
   ];
   const [profile, setProfile] = useState<Record<string, string>>({});
   const [profileSaved, setProfileSaved] = useState<Record<string, string>>({});
@@ -375,29 +374,67 @@ export function CompanySettings() {
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Profilo Aziendale
         </div>
+        <p className="text-xs text-muted-foreground">Questi dati vengono usati dal CEO AI come contesto. Puoi modificarli in qualsiasi momento.</p>
+
+        {/* Identità */}
         <div className="glass-card px-5 py-5 space-y-3">
-          <p className="text-xs text-muted-foreground pb-2">Questi dati vengono usati dal CEO AI come contesto per gestire la tua azienda. Puoi modificarli in qualsiasi momento.</p>
+          <div className="text-xs font-medium pb-1">Identità</div>
           <div className="grid grid-cols-2 gap-3">
-            {PROFILE_FIELDS.map((f) => (
+            {[
+              { key: "ragione_sociale", label: "Ragione Sociale" },
+              { key: "partita_iva", label: "Partita IVA" },
+              { key: "codice_fiscale", label: "Codice Fiscale" },
+              { key: "settore", label: "Settore / Attività" },
+            ].map((f) => (
               <Field key={f.key} label={f.label}>
-                <input
-                  className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
-                  type="text"
-                  value={profile[f.key] || ""}
-                  onChange={(e) => setProfile((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                  placeholder={f.label}
-                />
+                <input className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none" type="text" value={profile[f.key] || ""} onChange={(e) => setProfile((prev) => ({ ...prev, [f.key]: e.target.value }))} placeholder={f.label} />
               </Field>
             ))}
           </div>
-          {profileDirty && (
-            <div className="flex items-center gap-2 pt-2">
-              <Button size="sm" onClick={saveProfile} disabled={profileSaving}>
-                {profileSaving ? "Salvataggio..." : "Salva Profilo"}
-              </Button>
-            </div>
-          )}
         </div>
+
+        {/* Sede e Contatti */}
+        <div className="glass-card px-5 py-5 space-y-3">
+          <div className="text-xs font-medium pb-1">Sede e Contatti</div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { key: "indirizzo", label: "Indirizzo Sede" },
+              { key: "citta", label: "Città" },
+              { key: "cap", label: "CAP" },
+              { key: "provincia", label: "Provincia" },
+              { key: "telefono", label: "Telefono" },
+              { key: "email", label: "Email Contatto" },
+              { key: "pec", label: "PEC" },
+              { key: "sito_web", label: "Sito Web" },
+            ].map((f) => (
+              <Field key={f.key} label={f.label}>
+                <input className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none" type="text" value={profile[f.key] || ""} onChange={(e) => setProfile((prev) => ({ ...prev, [f.key]: e.target.value }))} placeholder={f.label} />
+              </Field>
+            ))}
+          </div>
+        </div>
+
+        {/* Fatturazione */}
+        <div className="glass-card px-5 py-5 space-y-3">
+          <div className="text-xs font-medium pb-1">Fatturazione e Azienda</div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { key: "dipendenti", label: "Numero Dipendenti" },
+            ].map((f) => (
+              <Field key={f.key} label={f.label}>
+                <input className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none" type="text" value={profile[f.key] || ""} onChange={(e) => setProfile((prev) => ({ ...prev, [f.key]: e.target.value }))} placeholder={f.label} />
+              </Field>
+            ))}
+          </div>
+        </div>
+
+        {profileDirty && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={saveProfile} disabled={profileSaving}>
+              {profileSaving ? "Salvataggio..." : "Salva Profilo"}
+            </Button>
+          </div>
+        )}
       </div>
 
     </div>
