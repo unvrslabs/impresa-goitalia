@@ -348,7 +348,16 @@ async function executeChatTool(
         for (const item of items) { totalNet += (item.net_price || 0) * (item.qty || 1); }
         const vatRate = items[0]?.vat?.value || 22;
         const totalGross = Math.round((totalNet * (1 + vatRate / 100)) * 100) / 100;
-        const body = { data: { type: "invoice", date: (toolInput.data as string) || new Date().toISOString().split("T")[0], entity: { id: toolInput.cliente_id }, items_list: items, e_invoice: toolInput.fattura_elettronica !== false, notes: toolInput.note || "", payments_list: [{ amount: totalGross, due_date: (toolInput.data as string) || new Date().toISOString().split("T")[0], status: "not_paid" }] } };
+        // Fetch client name (FIC requires entity.name)
+        let clientName = "";
+        try {
+          const clientRes = await fetch("https://api-v2.fattureincloud.it/c/" + ficToken.fic_company_id + "/entities/clients/" + toolInput.cliente_id, {
+            headers: { Authorization: "Bearer " + ficToken.access_token },
+          });
+          if (clientRes.ok) { const cd = await clientRes.json() as any; clientName = cd.data?.name || ""; }
+        } catch {}
+        const invoiceDate = (toolInput.data as string) || new Date().toISOString().split("T")[0];
+        const body = { data: { type: "invoice", date: invoiceDate, entity: { id: toolInput.cliente_id, name: clientName }, items_list: items, e_invoice: toolInput.fattura_elettronica !== false, notes: toolInput.note || "", payments_list: [{ amount: totalGross, due_date: invoiceDate, status: "not_paid" }] } };
         const r = await fetch(`https://api-v2.fattureincloud.it/c/${ficToken.fic_company_id}/issued_documents`, {
           method: "POST", headers: { Authorization: "Bearer " + ficToken.access_token, "Content-Type": "application/json" }, body: JSON.stringify(body),
         });
