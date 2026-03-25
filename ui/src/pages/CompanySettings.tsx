@@ -237,6 +237,34 @@ export function CompanySettings() {
           Generale
         </div>
         <div className="glass-card px-5 py-5 space-y-3">
+          {/* Logo */}
+          <div className="flex items-center gap-4 pb-3 border-b border-white/5">
+            <div className="relative shrink-0">
+              <CompanyPatternIcon
+                companyName={companyName || selectedCompany.name}
+                logoUrl={logoUrl || null}
+                brandColor={brandColor || null}
+                className="rounded-[14px]"
+              />
+              {logoUrl && (
+                <button
+                  onClick={handleClearLogo}
+                  disabled={clearLogoMutation.isPending}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              )}
+            </div>
+            <div>
+              <label className="relative cursor-pointer px-3 py-1.5 rounded-lg text-xs font-medium transition-all" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                Scegli file
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={handleLogoFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+              </label>
+              {logoUploadMutation.isPending && <span className="text-xs text-muted-foreground ml-2">Caricamento...</span>}
+            </div>
+          </div>
+
           <Field label="Nome impresa" hint="Il nome visualizzato della tua impresa.">
             <input
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
@@ -257,36 +285,6 @@ export function CompanySettings() {
               onChange={(e) => setDescrizione(e.target.value)}
             />
           </Field>
-
-          {/* Logo */}
-          <div className="flex items-start gap-4 pt-2 border-t border-white/5">
-            <div className="shrink-0">
-              <CompanyPatternIcon
-                companyName={companyName || selectedCompany.name}
-                logoUrl={logoUrl || null}
-                brandColor={brandColor || null}
-                className="rounded-[14px]"
-              />
-            </div>
-            <div className="flex-1">
-              <Field label="Logo" hint="PNG, JPEG, WEBP, GIF o SVG.">
-                <div className="space-y-2">
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-                    onChange={handleLogoFileChange}
-                    className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-2.5 file:py-1 file:text-xs"
-                  />
-                  {logoUrl && (
-                    <Button size="sm" variant="outline" onClick={handleClearLogo} disabled={clearLogoMutation.isPending}>
-                      {clearLogoMutation.isPending ? "Rimozione..." : "Rimuovi logo"}
-                    </Button>
-                  )}
-                  {logoUploadMutation.isPending && <span className="text-xs text-muted-foreground">Caricamento...</span>}
-                </div>
-              </Field>
-            </div>
-          </div>
 
           {/* Dati account */}
           <div className="pt-2 border-t border-white/5 space-y-3">
