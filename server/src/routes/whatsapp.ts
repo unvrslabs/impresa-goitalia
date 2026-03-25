@@ -322,7 +322,7 @@ export function whatsappRoutes(db: Db) {
         await db.execute(sql`INSERT INTO read_markers (company_id, user_id, channel, chat_id, last_read_at) VALUES (${companyId}, ${actor.userId}, 'whatsapp', ${chatId}, now())`);
       } else {
         // Global mark-read (page open)
-        await db.execute(sql`DELETE FROM read_markers WHERE company_id = ${companyId} AND user_id = ${actor.userId} AND channel = 'whatsapp' AND chat_id IS NULL`);
+        await db.execute(sql`DELETE FROM read_markers WHERE company_id = ${companyId} AND user_id = ${actor.userId} AND channel = 'whatsapp'`);
         await db.execute(sql`INSERT INTO read_markers (company_id, user_id, channel, last_read_at) VALUES (${companyId}, ${actor.userId}, 'whatsapp', now())`);
       }
     } catch {}
