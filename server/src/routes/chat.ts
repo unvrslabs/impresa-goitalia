@@ -343,7 +343,12 @@ async function executeChatTool(
         if (!ficToken) return "Fatture in Cloud non connesso.";
         const righe = (toolInput.righe as any[]) || [];
         const items = righe.map((r: any) => ({ name: r.descrizione, net_price: r.prezzo, qty: r.quantita || 1, vat: { id: 0, value: r.iva || 22, is_disabled: false } }));
-        const body = { data: { type: "invoice", date: (toolInput.data as string) || new Date().toISOString().split("T")[0], entity: { id: toolInput.cliente_id }, items_list: items, e_invoice: toolInput.fattura_elettronica !== false, notes: toolInput.note || "" } };
+        // Calculate gross amount
+        let totalNet = 0;
+        for (const item of items) { totalNet += (item.net_price || 0) * (item.qty || 1); }
+        const vatRate = items[0]?.vat?.value || 22;
+        const totalGross = Math.round((totalNet * (1 + vatRate / 100)) * 100) / 100;
+        const body = { data: { type: "invoice", date: (toolInput.data as string) || new Date().toISOString().split("T")[0], entity: { id: toolInput.cliente_id }, items_list: items, e_invoice: toolInput.fattura_elettronica !== false, notes: toolInput.note || "", payments_list: [{ amount: totalGross, due_date: (toolInput.data as string) || new Date().toISOString().split("T")[0], status: "not_paid" }] } };
         const r = await fetch(`https://api-v2.fattureincloud.it/c/${ficToken.fic_company_id}/issued_documents`, {
           method: "POST", headers: { Authorization: "Bearer " + ficToken.access_token, "Content-Type": "application/json" }, body: JSON.stringify(body),
         });
