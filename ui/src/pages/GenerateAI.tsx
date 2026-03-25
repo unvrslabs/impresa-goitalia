@@ -1015,7 +1015,8 @@ export function GenerateAI() {
               <button onClick={() => setPublishingResult(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
             </div>
             <img src={publishingResult.url} alt="" className="w-full rounded-xl max-h-48 object-cover" />
-            <textarea value={publishText} onChange={(e) => setPublishText(e.target.value)} placeholder="Testo del post (opzionale)..." rows={2} className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none" style={inputStyle} />
+            <textarea value={publishText} onChange={(e) => setPublishText(e.target.value)} placeholder="Scrivi il testo del post..." rows={2} className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none" style={inputStyle} />
+            {!publishText.trim() && <p className="text-[11px] text-amber-400">Inserisci il testo del post per pubblicare</p>}
             <div className="text-xs text-muted-foreground">Pubblica su:</div>
             <div className="flex flex-wrap gap-1.5">
               {socialAccounts.map((acc) => (
@@ -1048,8 +1049,8 @@ export function GenerateAI() {
                 if (data.results?.every((r: any) => r.success)) setTimeout(() => setPublishingResult(null), 2000);
               } catch (err) { console.error("Publish error:", err); setPublishResult([{ platform: "all", success: false, error: String(err) }]); }
               setPublishing(false);
-            }} disabled={publishing || publishTargets.size === 0} className="w-full py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-30" style={greenShadow}>
-              {publishing ? "Pubblicazione..." : "Pubblica"}
+            }} disabled={publishing || publishTargets.size === 0 || !publishText.trim()} className="w-full py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-30" style={greenShadow}>
+              {publishing ? <><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Pubblicazione...</> : "Pubblica"}
             </button>
           </div>
         </div>
