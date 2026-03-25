@@ -18,6 +18,7 @@ import { gmailRoutes } from "./routes/gmail.js";
 import { calendarRoutes } from "./routes/calendar.js";
 import { driveRoutes } from "./routes/drive.js";
 import { telegramRoutes, telegramWebhookRouter as telegramWebhookRouterFn } from "./routes/telegram.js";
+import { fattureincloudRoutes } from "./routes/fattureincloud.js";
 import { falAiRoutes } from "./routes/fal-ai.js";
 import { projectsPmiRoutes } from "./routes/projects-pmi.js";
 import { whatsappRoutes, whatsappWebhookRouter } from "./routes/whatsapp.js";
@@ -192,6 +193,7 @@ app.use(express.json({
   api.use(calendarRoutes(db));
   api.use(driveRoutes(db));
   api.use(telegramRoutes(db));
+  api.use(fattureincloudRoutes(db));
   api.use(falAiRoutes(db));
   api.use(projectsPmiRoutes(db));
   api.use(whatsappRoutes(db));
