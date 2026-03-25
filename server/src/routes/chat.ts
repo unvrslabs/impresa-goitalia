@@ -224,6 +224,43 @@ const TOOLS = [
   },
 ];
 
+// Map each tool to the connector key it requires. null = always available.
+const TOOL_CONNECTOR: Record<string, string | null> = {
+  lista_agenti: null,
+  crea_task: null,
+  stato_task: null,
+  commenta_task: null,
+  elimina_agente: null,
+  crea_agente: null,
+  // Fatture in Cloud
+  lista_clienti: "fic",
+  cerca_cliente: "fic",
+  crea_cliente: "fic",
+  crea_fattura: "fic",
+  lista_fatture: "fic",
+  invia_fattura_sdi: "fic",
+  // OpenAPI.it
+  cerca_azienda_piva: "oai_company",
+  cerca_azienda_nome: "oai_company",
+  codice_sdi: "oai_company",
+  credit_score: "oai_risk",
+  cerca_cap: "oai_cap",
+};
+
+function filterToolsForAgent(agentRole: string, connectors: Record<string, boolean>): typeof TOOLS {
+  // CEO/Direttore gets all tools
+  if (agentRole === "ceo") return TOOLS;
+  
+  return TOOLS.filter((tool) => {
+    const required = TOOL_CONNECTOR[tool.name];
+    // Tool with no connector requirement = always available
+    if (required === null || required === undefined) return true;
+    // Check if connector is explicitly enabled (default is false for non-ceo)
+    return connectors[required] === true;
+  });
+}
+
+
 
 
 async function getOaiToken(db: Db, companyId: string, service: string): Promise<string | null> {
@@ -626,6 +663,8 @@ export function chatRoutes(db: Db) {
 
       let systemPrompt = "Sei un assistente AI di GoItalIA. Rispondi in italiano in modo professionale e conciso.";
       let agentModel = "claude-opus-4-6";
+      let agentRole = "ceo";
+      let agentConnectors: Record<string, boolean> = {};
       let resolvedAgentId = agentId || "";
 
       if (agentId) {
@@ -636,6 +675,8 @@ export function chatRoutes(db: Db) {
         if (agent) {
           resolvedAgentId = agent.id;
           const adapterConfig = agent.adapterConfig as Record<string, unknown> | null;
+          agentRole = agent.role || "general";
+          agentConnectors = (adapterConfig?.connectors as Record<string, boolean>) || {};
           const promptTemplate = typeof adapterConfig?.promptTemplate === "string" ? adapterConfig.promptTemplate : "";
           if (typeof adapterConfig?.model === "string" && adapterConfig.model) { agentModel = adapterConfig.model; }
           const capabilities = agent.capabilities ?? "";
@@ -644,24 +685,7 @@ export function chatRoutes(db: Db) {
 
 Competenze: ${capabilities}
 
-Hai a disposizione dei tool per gestire l'azienda:
-- lista_agenti: per vedere gli agenti disponibili
-- crea_task: per creare task e assegnarli agli agenti
-- lista_clienti: per vedere i clienti su Fatture in Cloud
-- cerca_cliente: per cercare un cliente per nome o P.IVA
-- crea_cliente: per creare un nuovo cliente
-- crea_fattura: per creare una fattura (specifica cliente, righe con descrizione/prezzo/quantità)
-- lista_fatture: per vedere le fatture emesse o ricevute
-- invia_fattura_sdi: per inviare una fattura elettronica allo SDI
-- stato_task: per controllare lo stato dei lavori
-- commenta_task: per aggiungere istruzioni ai task
-- crea_agente: per creare nuovi agenti specializzati
-- elimina_agente: per eliminare agenti
-- cerca_azienda_piva: per cercare info azienda da P.IVA o CF (OpenAPI.it)
-- cerca_azienda_nome: per cercare aziende per nome (OpenAPI.it)
-- credit_score: per ottenere il rating di rischio di un'azienda (OpenAPI.it Risk)
-- codice_sdi: per recuperare il codice destinatario SDI di un'azienda
-- cerca_cap: per cercare info su un CAP italiano
+Hai a disposizione dei tool per gestire l'azienda. Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.
 
 Rispondi sempre in italiano, in modo professionale e conciso.
 Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
@@ -756,7 +780,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
             max_tokens: 4096,
             system: systemPrompt,
             messages,
-            tools: TOOLS,
+            tools: agentId ? filterToolsForAgent(agentRole || 'general', agentConnectors || {}) : TOOLS,
           }),
         });
 
