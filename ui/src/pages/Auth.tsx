@@ -63,9 +63,22 @@ export function AuthPage() {
     },
     onSuccess: async () => {
       setError(null);
-      justRegistered.current = true;
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth.session });
       await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+      // Wait for companies to load, then navigate with prefix
+      const companies = queryClient.getQueryData<any[]>(queryKeys.companies.all) ?? [];
+      if (companies.length > 0) {
+        navigate("/" + companies[0].issuePrefix + "/api-claude", { replace: true });
+      } else {
+        // Fallback: refetch and try again
+        const res = await queryClient.fetchQuery({ queryKey: queryKeys.companies.all });
+        const list = (res as any[]) ?? [];
+        if (list.length > 0) {
+          navigate("/" + list[0].issuePrefix + "/api-claude", { replace: true });
+        } else {
+          navigate("/api-claude", { replace: true });
+        }
+      }
     },
     onError: (err) => {
       const msg = err instanceof Error ? err.message : "";
