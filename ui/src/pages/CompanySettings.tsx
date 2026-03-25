@@ -37,6 +37,50 @@ export function CompanySettings() {
   const sessionQ = useQuery({ queryKey: ["auth", "session"], queryFn: () => fetch("/api/auth/get-session", { credentials: "include" }).then(r => r.json()) });
   const userEmail = sessionQ.data?.user?.email || "";
 
+  // Profile fields from ceo_memory
+  const PROFILE_FIELDS = [
+    { key: "ragione_sociale", label: "Ragione Sociale" },
+    { key: "partita_iva", label: "Partita IVA" },
+    { key: "codice_fiscale", label: "Codice Fiscale" },
+    { key: "settore", label: "Settore / Attività" },
+    { key: "indirizzo", label: "Indirizzo Sede" },
+    { key: "citta", label: "Città" },
+    { key: "cap", label: "CAP" },
+    { key: "provincia", label: "Provincia" },
+    { key: "telefono", label: "Telefono" },
+    { key: "email", label: "Email Contatto" },
+    { key: "pec", label: "PEC" },
+    { key: "sito_web", label: "Sito Web" },
+    { key: "codice_sdi", label: "Codice SDI" },
+    { key: "regime_fiscale", label: "Regime Fiscale" },
+  ];
+  const [profile, setProfile] = useState<Record<string, string>>({});
+  const [profileSaved, setProfileSaved] = useState<Record<string, string>>({});
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+    fetch("/api/company-profile?companyId=" + selectedCompanyId, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { setProfile(d.profile || {}); setProfileSaved(d.profile || {}); })
+      .catch(() => {});
+  }, [selectedCompanyId]);
+
+  const profileDirty = JSON.stringify(profile) !== JSON.stringify(profileSaved);
+
+  const saveProfile = async () => {
+    setProfileSaving(true);
+    try {
+      await fetch("/api/company-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ companyId: selectedCompanyId, profile }),
+      });
+      setProfileSaved({ ...profile });
+    } catch {} finally { setProfileSaving(false); }
+  };
+
   const [companyName, setCompanyName] = useState("");
   const [description, setDescrizione] = useState("");
   const [brandColor, setBrandColor] = useState("");
@@ -228,7 +272,7 @@ export function CompanySettings() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Settings className="h-5 w-5 text-muted-foreground" />
-        <h1 className="text-lg font-semibold">Impostazioni Impresa</h1>
+        <h1 className="text-lg font-semibold">Profilo Impresa</h1>
       </div>
 
       {/* Generale */}
@@ -324,6 +368,37 @@ export function CompanySettings() {
 
 
 
+
+
+      {/* Profilo Aziendale */}
+      <div className="space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Profilo Aziendale
+        </div>
+        <div className="glass-card px-5 py-5 space-y-3">
+          <p className="text-xs text-muted-foreground pb-2">Questi dati vengono usati dal CEO AI come contesto per gestire la tua azienda. Puoi modificarli in qualsiasi momento.</p>
+          <div className="grid grid-cols-2 gap-3">
+            {PROFILE_FIELDS.map((f) => (
+              <Field key={f.key} label={f.label}>
+                <input
+                  className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
+                  type="text"
+                  value={profile[f.key] || ""}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                  placeholder={f.label}
+                />
+              </Field>
+            ))}
+          </div>
+          {profileDirty && (
+            <div className="flex items-center gap-2 pt-2">
+              <Button size="sm" onClick={saveProfile} disabled={profileSaving}>
+                {profileSaving ? "Salvataggio..." : "Salva Profilo"}
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
 
     </div>
   );

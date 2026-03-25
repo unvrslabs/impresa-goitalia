@@ -231,7 +231,7 @@ export function Sidebar() {
         {/* Impostazioni - nel menu principale */}
         <SidebarSection label="Impostazioni">
           <SidebarNavItem to="/plugins" label="Connettori" icon={Plug} />
-          <SidebarNavItem to="/company/settings" label="Impostazioni" icon={Settings} />
+          <SidebarNavItem to="/company/settings" label="Profilo" icon={Settings} />
           <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} />
           {session?.user?.email === "emanuele@unvrslabs.dev" && (
             <SidebarNavItem to="/admin" label="GoItalIA" icon={ShieldCheck} />

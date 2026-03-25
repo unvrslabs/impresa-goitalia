@@ -20,6 +20,7 @@ import { driveRoutes } from "./routes/drive.js";
 import { telegramRoutes, telegramWebhookRouter as telegramWebhookRouterFn } from "./routes/telegram.js";
 import { fattureincloudRoutes } from "./routes/fattureincloud.js";
 import { falAiRoutes } from "./routes/fal-ai.js";
+import { sql } from "drizzle-orm";
 import { openapiItRoutes } from "./routes/openapi-it.js";
 import { projectsPmiRoutes } from "./routes/projects-pmi.js";
 import { whatsappRoutes, whatsappWebhookRouter } from "./routes/whatsapp.js";
@@ -196,6 +197,41 @@ app.use(express.json({
   api.use(telegramRoutes(db));
   api.use(fattureincloudRoutes(db));
   api.use(falAiRoutes(db));
+
+  // Company profile (ceo_memory)
+  api.get("/company-profile", async (req, res) => {
+    const actor = req.actor as any;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const companyId = req.query.companyId as string;
+    if (!companyId) { res.json({ profile: {} }); return; }
+    try {
+      const result = await db.execute(sql`SELECT company_info FROM ceo_memory WHERE company_id = ${companyId}`);
+      const rows = (result as any).rows || result;
+      res.json({ profile: rows[0]?.company_info || {} });
+    } catch { res.json({ profile: {} }); }
+  });
+
+  api.post("/company-profile", async (req, res) => {
+    const actor = req.actor as any;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const { companyId, profile } = req.body;
+    if (!companyId) { res.status(400).json({ error: "companyId required" }); return; }
+    try {
+      const existing = await db.execute(sql`SELECT id FROM ceo_memory WHERE company_id = ${companyId}`);
+      const rows = (existing as any).rows || existing;
+      const profileStr = JSON.stringify(profile || {});
+      if (rows.length > 0) {
+        await db.execute(sql`UPDATE ceo_memory SET company_info = ${profileStr}::jsonb, updated_at = NOW() WHERE company_id = ${companyId}`);
+      } else {
+        await db.execute(sql`INSERT INTO ceo_memory (company_id, company_info) VALUES (${companyId}, ${profileStr}::jsonb)`);
+      }
+      res.json({ saved: true });
+    } catch (err) {
+      console.error("Profile save error:", err);
+      res.status(500).json({ error: "Errore salvataggio" });
+    }
+  });
+
   api.use(openapiItRoutes(db));
   api.use(projectsPmiRoutes(db));
   api.use(whatsappRoutes(db));
