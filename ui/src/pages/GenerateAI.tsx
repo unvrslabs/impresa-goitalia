@@ -236,8 +236,12 @@ export function GenerateAI() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
 
   // Generation state
-  const [generating, setGenerating] = useState(false);
-  const [progress, setProgress] = useState("");
+  const [generating, setGenerating] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("goitalia_gen_jobs") || "[]").some((j) => j.status === "pending" || j.status === "polling"); } catch { return false; }
+  });
+  const [progress, setProgress] = useState(() => {
+    try { const jobs = JSON.parse(localStorage.getItem("goitalia_gen_jobs") || "[]"); return jobs.some((j) => j.status === "pending" || j.status === "polling") ? "Generazione in corso..." : ""; } catch { return ""; }
+  });
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ResultItem[]>(() => {
     try { return JSON.parse(localStorage.getItem("goitalia_gen_results") || "[]"); } catch { return []; }
@@ -908,6 +912,15 @@ export function GenerateAI() {
                       >
                         <Download className="w-4 h-4 text-white" />
                       </button>
+                      {socialAccounts.length > 0 && (
+                        <button
+                          onClick={() => { setPublishingResult(r); setPublishText(""); setPublishTargets(new Set()); setPublishResult(null); }}
+                          className="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors"
+                          title="Pubblica sui social"
+                        >
+                          <Share2 className="w-4 h-4 text-white" />
+                        </button>
+                      )}
                       <button
                         onClick={() => deleteResult(r.id)}
                         className="p-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/40 transition-colors"
