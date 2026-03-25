@@ -334,7 +334,7 @@ REGOLE:
           }),
         });
 
-        if (!testRes.ok) {
+        if (!testRes.ok && testRes.status !== 529 && testRes.status !== 503) {
           res.status(400).json({ error: "API key non valida. Verifica di averla copiata correttamente." });
           return;
         }
