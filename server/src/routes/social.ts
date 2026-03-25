@@ -150,8 +150,10 @@ export function socialRoutes(db: Db) {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
     const { companyId, text, platforms } = req.body as { companyId: string; text: string; platforms: string };
+    console.log("[social/publish] start", { hasFile: !!(req as any).file, imageUrl: req.body.image_url, platforms: req.body.platforms, text: req.body.text?.slice(0, 30) });
     const image = (req as any).file;
     const imageUrl = req.body.image_url as string;
+    console.log("[social/publish] imageUrl:", imageUrl?.substring(0, 80), "effectiveImage will be:", !!image ? "file" : imageUrl ? "download" : "none");
     
     // If image_url provided (from AI generation), download it server-side
     let downloadedImage: { buffer: Buffer; mimetype: string; originalname: string } | null = null;
