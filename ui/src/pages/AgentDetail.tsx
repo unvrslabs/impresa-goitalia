@@ -954,19 +954,11 @@ export function AgentDetail() {
         >
           <div className="flex items-center gap-2 bg-background/90 backdrop-blur-sm glass-card px-3 py-1.5 shadow-lg">
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => cancelConfigActionRef.current?.()}
-              disabled={configSaving}
-            >
-              Cancel
-            </Button>
-            <Button
               size="sm"
               onClick={() => saveConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              {configSaving ? "Saving…" : "Save"}
+              {configSaving ? "Salvataggio..." : "Salva"}
             </Button>
           </div>
         </div>
@@ -980,19 +972,11 @@ export function AgentDetail() {
             style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
           >
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => cancelConfigActionRef.current?.()}
-              disabled={configSaving}
-            >
-              Cancel
-            </Button>
-            <Button
               size="sm"
               onClick={() => saveConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              {configSaving ? "Saving…" : "Save"}
+              {configSaving ? "Salvataggio..." : "Salva"}
             </Button>
           </div>
         </div>
