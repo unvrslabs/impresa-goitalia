@@ -200,33 +200,8 @@ export function Sidebar() {
       <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-1 px-2 py-2">
         {/* Top items */}
         <div className="flex flex-col gap-0.5">
-          {!isOnboarding && <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />}
-          {!isOnboarding && <SidebarNavItem to="/org" label="Organigramma" icon={Share2Icon} />}
-          {!isOnboarding && !isClaudeApi && <SidebarNavItem
-            to="/inbox"
-            label="Inbox"
-            icon={Inbox}
-            badge={inboxBadge.inbox}
-            badgeTone={inboxBadge.failedRuns > 0 ? "danger" : "default"}
-            alert={inboxBadge.failedRuns > 0}
-          />}
-          {!isOnboarding && !isClaudeApi && <button
-            onClick={() => openNewIssue()}
-            className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors rounded-lg"
-            style={{ color: "hsl(158 64% 52%)" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "hsl(158 64% 42% / 0.1)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-          >
-            <SquarePen className="h-4 w-4 shrink-0" />
-            <span className="truncate">Nuova attività</span>
-          </button>}
-          <PluginSlotOutlet
-            slotTypes={["sidebar"]}
-            context={pluginContext}
-            className="flex flex-col gap-0.5"
-            itemClassName="text-[13px] font-medium"
-            missingBehavior="placeholder"
-          />
+          <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />
+          <SidebarNavItem to="/org" label="Organigramma" icon={Share2Icon} />
         </div>
 
         {/* Lavoro */}
@@ -241,22 +216,22 @@ export function Sidebar() {
           {hasOpenapi && <SidebarNavItem to="/analisi-aziende" label="OpenAPI.it" icon={Globe} />}
           {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
           {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}
-          {!isOnboarding && !isClaudeApi && <SidebarNavItem to="/issues" label="Attività" icon={CircleDot} />}
-          {!isOnboarding && !isClaudeApi && <SidebarNavItem to="/goals" label="Obiettivi" icon={Target} />}
+
+
         </SidebarSection>
 
 
 
         {/* Projects */}
-        {!isOnboarding && <SidebarProjects />}
+        <SidebarProjects />
 
         {/* Agents */}
-        {!isOnboarding && <SidebarAgents />}
+        <SidebarAgents />
 
         {/* Impostazioni - nel menu principale */}
         <SidebarSection label="Impostazioni">
-          {!isOnboarding && <SidebarNavItem to="/plugins" label="Connettori" icon={Plug} />}
-          {!isOnboarding && <SidebarNavItem to="/company/settings" label="Impostazioni" icon={Settings} />}
+          <SidebarNavItem to="/plugins" label="Connettori" icon={Plug} />
+          <SidebarNavItem to="/company/settings" label="Impostazioni" icon={Settings} />
           <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} />
           {session?.user?.email === "emanuele@unvrslabs.dev" && (
             <SidebarNavItem to="/admin" label="GoItalIA" icon={ShieldCheck} />
