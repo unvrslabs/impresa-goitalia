@@ -168,7 +168,7 @@ export function socialRoutes(db: Db) {
       } catch (err) { console.error("[social/publish] image download error:", err); }
     }
     const effectiveImage = image || downloadedImage;
-    if (!companyId || !text) { res.status(400).json({ error: "Testo richiesto" }); return; }
+    if (!companyId) { res.status(400).json({ error: "companyId richiesto" }); return; }
 
     let targetPlatforms: string[] = [];
     try { targetPlatforms = JSON.parse(platforms || "[]"); } catch { targetPlatforms = []; }
