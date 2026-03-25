@@ -946,7 +946,7 @@ export function GenerateAI() {
                 >
                   <div className="text-center space-y-2">
                     <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto" />
-                    <p className="text-xs text-muted-foreground">{progress || "Generazione..."}</p>
+                    <p className="text-xs text-muted-foreground">{imageProgress || "Generazione..."}</p>
                   </div>
                 </div>
               )}
@@ -989,7 +989,7 @@ export function GenerateAI() {
             >
               <div className="text-center space-y-2">
                 <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto" />
-                <p className="text-xs text-muted-foreground">{progress || "Generazione..."}</p>
+                <p className="text-xs text-muted-foreground">{videoProgress || "Generazione..."}</p>
               </div>
             </div>
           )}
