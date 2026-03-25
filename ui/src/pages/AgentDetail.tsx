@@ -2863,17 +2863,6 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
           )}
         </div>
       )}
-      <div className="glass-card p-4" style={{ opacity: 0.5 }}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <Boxes className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-muted-foreground">Microsoft 365</div>
-            <div className="text-xs text-muted-foreground">Outlook, Teams, OneDrive — Prossimamente</div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

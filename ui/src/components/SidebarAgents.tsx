@@ -88,27 +88,27 @@ export function SidebarAgents() {
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="group">
         <div className="flex items-center px-3 py-1.5">
-          <CollapsibleTrigger className="flex items-center gap-1 flex-1 min-w-0">
-            <ChevronRight
-              className={cn(
-                "h-3 w-3 text-muted-foreground/60 transition-transform opacity-0 group-hover:opacity-100",
-                open && "rotate-90"
-              )}
-            />
-            <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/60">
-              Agenti
-            </span>
-          </CollapsibleTrigger>
+          <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/60">
+            Agenti
+          </span>
           <button
             onClick={(e) => {
               e.stopPropagation();
               setShowAgentPopup(true);
             }}
-            className="flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent/50 transition-colors"
+            className="flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent/50 transition-colors ml-1.5"
             aria-label="New agent"
           >
             <Plus className="h-3 w-3" />
           </button>
+          <CollapsibleTrigger className="ml-auto flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground transition-colors">
+            <ChevronRight
+              className={cn(
+                "h-3 w-3 transition-transform",
+                open && "rotate-90"
+              )}
+            />
+          </CollapsibleTrigger>
         </div>
       </div>
 
