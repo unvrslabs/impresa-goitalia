@@ -644,6 +644,59 @@ export function PluginManager() {
           )}
         </div>
 
+
+        {/* 7. fal.ai */}
+        <div className="rounded-xl overflow-hidden" style={glass.cardStyle}>
+          <button onClick={() => toggle("fal")} className="w-full px-4 py-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(168, 85, 247, 0.3)" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-sm font-medium">fal.ai</div>
+              <div className="text-xs text-muted-foreground">Genera immagini e video con AI</div>
+            </div>
+            <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0", isFalConnected ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30")}>
+              {isFalConnected ? "Connesso" : "Non connesso"}
+            </span>
+            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform shrink-0", expandedConnector === "fal" && "rotate-180")} />
+          </button>
+          {expandedConnector === "fal" && (
+            <div className="px-4 pb-3 space-y-2 border-t border-white/5">
+              <p className="text-xs text-muted-foreground pt-1">Genera immagini e video con AI. Ottieni la key da <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">fal.ai/dashboard/keys</a></p>
+              {isFalConnected ? (
+                <div className="space-y-2">
+                  <div className={row} style={rowBg}>
+                    {greenDot}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    <span className="flex-1 text-xs">fal.ai — 11 modelli AI</span>
+                    <button className="flex items-center gap-1 text-[10px] text-red-400/60 hover:text-red-400 transition-all" onClick={async () => { await fetch("/api/fal/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setFalConnected(false); }}>{xIcon} <span>Disconnetti</span></button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] text-muted-foreground mb-1.5 block">API Key fal.ai</label>
+                    <input type="password" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" placeholder="Incolla la tua fal.ai API key" value={falKey} onChange={(e) => setFalKey(e.target.value)} />
+                  </div>
+                  <button onClick={async () => {
+                    if (!falKey) return;
+                    setFalSaving(true);
+                    try {
+                      const r = await fetch("/api/fal/save-key", {
+                        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+                        body: JSON.stringify({ companyId: selectedCompany?.id, apiKey: falKey }),
+                      });
+                      if (r.ok) { setFalConnected(true); setFalKey(""); }
+                      else { const d = await r.json(); alert(d.error || "Errore"); }
+                    } catch {}
+                    setFalSaving(false);
+                  }} disabled={falSaving || !falKey} className="px-4 py-2 rounded-xl text-xs font-medium disabled:opacity-40 transition-all" style={{ background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.9)" }}>{falSaving ? "Verifica..." : "Collega fal.ai"}</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* 8. Prossimamente */}
         <div className="rounded-xl overflow-hidden" style={{ ...glass.cardStyle, opacity: 0.5 }}>
           <div className="w-full px-4 py-3 flex items-center gap-3 cursor-default">
