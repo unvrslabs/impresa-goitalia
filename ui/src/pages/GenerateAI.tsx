@@ -226,6 +226,7 @@ export function GenerateAI() {
   const [showNegPrompt, setShowNegPrompt] = useState(false);
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [resolution, setResolution] = useState("1K");
+  const [videoResolution, setVideoResolution] = useState("1080p");
   const [outputFormat, setOutputFormat] = useState("jpeg");
   const [numImages, setNumImages] = useState(1);
   const [duration, setDuration] = useState("8s");
@@ -430,7 +431,7 @@ export function GenerateAI() {
 
       if (isVideo) {
         fd.append("duration", duration);
-        fd.append("resolution", resolution);
+        fd.append("resolution", mainTab === "images" ? resolution : videoResolution);
         fd.append("generate_audio", String(generateAudio));
         if (negativePrompt.trim()) fd.append("negative_prompt", negativePrompt);
       } else {
