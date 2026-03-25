@@ -357,6 +357,7 @@ export function App() {
           <Route path="telegram" element={<UnprefixedBoardRedirect />} />
           <Route path="whatsapp" element={<UnprefixedBoardRedirect />} />
           <Route path="social" element={<UnprefixedBoardRedirect />} />
+          <Route path="api-claude" element={<UnprefixedBoardRedirect />} />
           <Route path="settings" element={<LegacySettingsRedirect />} />
           <Route path="settings/*" element={<LegacySettingsRedirect />} />
           <Route path="agents" element={<UnprefixedBoardRedirect />} />
