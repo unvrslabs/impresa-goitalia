@@ -27,7 +27,7 @@ export function GenerateAI() {
   const [imageUrl, setImageUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
 
-  useEffect(() => { setBreadcrumbs([{ label: "Genera AI" }]); }, [setBreadcrumbs]);
+  useEffect(() => { setBreadcrumbs([{ label: "Genera Contenuti" }]); }, [setBreadcrumbs]);
 
   useEffect(() => {
     fetch("/api/fal/models").then(r => r.json()).then(d => setModels(d.models || [])).catch(() => {});
@@ -99,7 +99,7 @@ export function GenerateAI() {
   if (!connected) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3"><Sparkles className="w-5 h-5" /><h1 className="text-xl font-semibold">Genera AI</h1></div>
+        <div className="flex items-center gap-3"><Sparkles className="w-5 h-5" /><h1 className="text-xl font-semibold">Genera Contenuti</h1></div>
         <div className="glass-card p-6 text-center space-y-3">
           <Sparkles className="w-10 h-10 mx-auto text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Collega fal.ai da Connettori per generare immagini e video con AI</p>
@@ -111,7 +111,7 @@ export function GenerateAI() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3"><Sparkles className="w-5 h-5" /><h1 className="text-xl font-semibold">Genera AI</h1></div>
+      <div className="flex items-center gap-3"><Sparkles className="w-5 h-5" /><h1 className="text-xl font-semibold">Genera Contenuti</h1></div>
 
       {/* Model selector */}
       <div className="space-y-3">
