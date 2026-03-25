@@ -734,20 +734,27 @@ export function PluginManager() {
                   </div>
                 </div>
               ) : (
-                <button onClick={() => { // Token-based connection
-                    const token = ficToken;
-                    if (!token) return;
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] text-muted-foreground mb-1.5 block">Token personale Fatture in Cloud</label>
+                    <input type="password" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" placeholder="Incolla il token personale da Fatture in Cloud" value={ficToken} onChange={(e) => setFicToken(e.target.value)} />
+                    <p className="text-[10px] text-muted-foreground mt-1">Genera il token da <a href="https://secure.fattureincloud.it/settings/developers" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Impostazioni &gt; Sviluppatore</a> &gt; Token personale</p>
+                  </div>
+                  <button onClick={async () => {
+                    if (!ficToken) return;
                     setFicSaving(true);
                     try {
                       const r = await fetch("/api/fic/save-token", {
                         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-                        body: JSON.stringify({ companyId: selectedCompany?.id, accessToken: token }),
+                        body: JSON.stringify({ companyId: selectedCompany?.id, accessToken: ficToken }),
                       });
                       const d = await r.json();
-                      if (r.ok) { setFicConnected(true); setFicToken(""); setFicCompanyName(d.companyName || ""); }
+                      if (r.ok) { setFicConnected(true); setFicToken(""); }
                       else { alert(d.error || "Errore"); }
                     } catch {}
-                    setFicSaving(false); }} className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all mt-2" style={{ background: "rgba(66, 133, 244, 0.2)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.9)" }}>Collega</button>
+                    setFicSaving(false);
+                  }} disabled={ficSaving || !ficToken} className="px-4 py-2 rounded-xl text-xs font-medium disabled:opacity-40 transition-all" style={{ background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.9)" }}>{ficSaving ? "Verifica..." : "Collega Fatture in Cloud"}</button>
+                </div>
               )}
             </div>
           )}
