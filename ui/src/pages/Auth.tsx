@@ -38,7 +38,7 @@ export function AuthPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
       // If explicit next param, use it
       const next = searchParams.get("next");
-      if (next) { navigate(next, { replace: true }); return; }
+      if (next && next !== "/" && next !== "/%2F") { navigate(next, { replace: true }); return; }
       // Check if first company has API key, if not go to api-claude
       const companies = await queryClient.fetchQuery({ queryKey: queryKeys.companies.all }) as any[];
       if (companies?.length > 0) {
