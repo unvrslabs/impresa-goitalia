@@ -644,7 +644,7 @@ export function PluginManager() {
           )}
         </div>
 
-        {/* 7. Prossimamente */}
+        {/* 8. Prossimamente */}
         <div className="rounded-xl overflow-hidden" style={{ ...glass.cardStyle, opacity: 0.5 }}>
           <div className="w-full px-4 py-3 flex items-center gap-3 cursor-default">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
