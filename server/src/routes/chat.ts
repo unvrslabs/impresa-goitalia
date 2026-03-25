@@ -75,6 +75,19 @@ const TOOLS = [
       required: ["nome", "titolo", "competenze", "istruzioni"],
     },
   },
+  {
+    name: "esegui_task_agente",
+    description: "Delega un compito a un agente specifico. L'agente lo eseguirà usando i suoi tool e connettori, poi ti restituirà il risultato. Usa lista_agenti per trovare l'agente giusto.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        agente_id: { type: "string", description: "ID dell'agente a cui delegare il compito" },
+        istruzioni: { type: "string", description: "Istruzioni dettagliate su cosa deve fare l'agente" },
+      },
+      required: ["agente_id", "istruzioni"],
+    },
+  },
+
 
   {
     name: "lista_clienti",
@@ -232,6 +245,7 @@ const TOOL_CONNECTOR: Record<string, string | null> = {
   commenta_task: null,
   elimina_agente: null,
   crea_agente: null,
+  esegui_task_agente: null,
   // Fatture in Cloud
   lista_clienti: "fic",
   cerca_cliente: "fic",
@@ -309,12 +323,120 @@ async function getFicTokenForChat(db: Db, companyId: string): Promise<{ access_t
 
 type ToolInput = Record<string, unknown>;
 
+
+async function executeAgentTask(
+  db: Db,
+  companyId: string,
+  targetAgentId: string,
+  istruzioni: string,
+  apiKey: string,
+): Promise<string> {
+  // 1. Load the target agent
+  const agent = await db.select().from(agents)
+    .where(eq(agents.id, targetAgentId))
+    .then((rows) => rows[0]);
+  
+  if (!agent) return "Errore: agente non trovato con ID " + targetAgentId;
+
+  const adapterConfig = agent.adapterConfig as Record<string, unknown> | null;
+  const agentModel = (typeof adapterConfig?.model === "string" && adapterConfig.model) || "claude-haiku-4-5-20251001";
+  const connectors = (adapterConfig?.connectors as Record<string, boolean>) || {};
+  const promptTemplate = typeof adapterConfig?.promptTemplate === "string" ? adapterConfig.promptTemplate : "";
+  const capabilities = agent.capabilities ?? "";
+
+  // 2. Build agent system prompt
+  const systemPrompt = promptTemplate || `Sei ${agent.name}, ${agent.title ?? agent.role} presso l'azienda del cliente.\nCompetenze: ${capabilities}\nEsegui il compito assegnato usando i tool a disposizione. Rispondi in italiano, in modo conciso e operativo.`;
+
+  // 3. Get agent's tools based on connectors
+  const agentTools = filterToolsForAgent(agent.role || "general", connectors);
+  
+  if (agentTools.length === 0) {
+    return "Errore: l'agente " + agent.name + " non ha connettori attivi. Attiva i connettori dalla pagina dell'agente.";
+  }
+
+  // 4. Execute multi-turn tool loop (max 3 turns)
+  const MAX_AGENT_TURNS = 3;
+  const messages: Array<{ role: string; content: unknown }> = [
+    { role: "user", content: istruzioni },
+  ];
+
+  let finalResult = "";
+
+  for (let turn = 0; turn < MAX_AGENT_TURNS; turn++) {
+    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: agentModel,
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages,
+        tools: agentTools,
+      }),
+    });
+
+    if (!claudeRes.ok) {
+      const errText = await claudeRes.text();
+      console.error("[agent-task] Claude error for", agent.name, ":", claudeRes.status, errText);
+      return "Errore: l'agente " + agent.name + " non ha potuto completare il task (errore Claude API).";
+    }
+
+    const data = await claudeRes.json() as {
+      content?: Array<{ type: string; id?: string; name?: string; input?: unknown; text?: string }>;
+      stop_reason?: string;
+    };
+
+    const content = data.content || [];
+    const textBlocks = content.filter((c) => c.type === "text");
+    const toolUseBlocks = content.filter((c) => c.type === "tool_use");
+
+    // Collect text
+    for (const block of textBlocks) {
+      if (block.text) finalResult += block.text;
+    }
+
+    // If no tool calls, we're done
+    if (toolUseBlocks.length === 0 || data.stop_reason === "end_turn") {
+      break;
+    }
+
+    // Execute tool calls
+    messages.push({ role: "assistant", content });
+
+    const toolResults: Array<{ type: "tool_result"; tool_use_id: string; content: string }> = [];
+    for (const toolUse of toolUseBlocks) {
+      console.log("[agent-task]", agent.name, "calls tool:", toolUse.name);
+      const result = await executeChatTool(
+        toolUse.name || "",
+        (toolUse.input || {}) as ToolInput,
+        db,
+        companyId,
+        targetAgentId,
+      );
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: toolUse.id || "",
+        content: result,
+      });
+    }
+
+    messages.push({ role: "user", content: toolResults });
+  }
+
+  return finalResult || "Task completato ma nessuna risposta dall'agente.";
+}
+
 async function executeChatTool(
   toolName: string,
   toolInput: ToolInput,
   db: Db,
   companyId: string,
   agentId: string,
+  apiKey?: string,
 ): Promise<string> {
   try {
     switch (toolName) {
@@ -562,6 +684,17 @@ async function executeChatTool(
         const data = await r.json();
         return JSON.stringify(data, null, 2).substring(0, 1000);
       }
+      case "esegui_task_agente": {
+        if (!apiKey) return "Errore: API key non disponibile per esecuzione agente.";
+        const targetId = toolInput.agente_id as string;
+        const instructions = toolInput.istruzioni as string;
+        if (!targetId || !instructions) return "Errore: agente_id e istruzioni sono obbligatori.";
+        console.log("[direttore] Delegating task to agent:", targetId, "->", instructions.substring(0, 100));
+        const result = await executeAgentTask(db, companyId, targetId, instructions, apiKey);
+        console.log("[direttore] Agent result:", result.substring(0, 200));
+        return result;
+      }
+
       default:
         return "Tool sconosciuto: " + toolName;
     }
@@ -830,6 +963,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
             db,
             companyId,
             resolvedAgentId,
+            apiKey,
           );
           toolResults.push({ type: "tool_result", tool_use_id: block.id || "", content: result });
           // tool result logged silently
