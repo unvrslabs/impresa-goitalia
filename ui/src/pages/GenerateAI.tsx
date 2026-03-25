@@ -1042,10 +1042,11 @@ export function GenerateAI() {
                 fd.append("platforms", JSON.stringify(Array.from(publishTargets)));
                 fd.append("image_url", publishingResult.url);
                 const res = await fetch("/api/social/publish", { method: "POST", credentials: "include", body: fd });
+                if (!res.ok) { const errText = await res.text(); setPublishResult([{ platform: "server", success: false, error: res.status + ": " + errText.slice(0, 100) }]); setPublishing(false); return; }
                 const data = await res.json();
                 setPublishResult(data.results || []);
                 if (data.results?.every((r: any) => r.success)) setTimeout(() => setPublishingResult(null), 2000);
-              } catch { setPublishResult([{ platform: "all", success: false, error: "Errore" }]); }
+              } catch (err) { console.error("Publish error:", err); setPublishResult([{ platform: "all", success: false, error: String(err) }]); }
               setPublishing(false);
             }} disabled={publishing || publishTargets.size === 0} className="w-full py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-30" style={greenShadow}>
               {publishing ? "Pubblicazione..." : "Pubblica"}
