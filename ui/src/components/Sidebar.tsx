@@ -245,6 +245,20 @@ export function Sidebar() {
               <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} className="relative z-10 !text-white font-bold" />
               <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-ping" style={{ background: "hsl(158 64% 42%)" }} />
               <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: "hsl(158 64% 42%)" }} />
+              {/* Tour-style tooltip */}
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 z-50 w-72" style={{ filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.4))" }}>
+                <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2" style={{ width: 0, height: 0, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderRight: "8px solid rgba(30, 40, 55, 0.95)" }} />
+                <div className="rounded-xl p-4" style={{ background: "rgba(30, 40, 55, 0.95)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-bold text-white">Configura API Claude</h3>
+                    <div className="w-2 h-2 rounded-full" style={{ background: "hsl(158 64% 42%)", boxShadow: "0 0 8px hsl(158 64% 42%)" }} />
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed">Per attivare il CEO AI e sbloccare tutte le funzionalità, inserisci la tua API key di Anthropic (Claude).</p>
+                  <a href="api-claude" className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: "hsl(158 64% 42%)", color: "white" }}>
+                    Configura ora →
+                  </a>
+                </div>
+              </div>
             </div>
           ) : (
             <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Key, Moon, Settings, Sun } from "lucide-react";
+import { BookOpen, Moon, Settings, Sun } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "@/lib/router";
 import { CompanyRail } from "./CompanyRail";
 import { ClaudeKeyModal } from "./ClaudeKeyModal";
@@ -266,7 +266,7 @@ export function Layout() {
         isMobile ? "min-h-dvh" : "flex h-dvh flex-col overflow-hidden",
       )}
     >
-      <OnboardingModal companyId={selectedCompanyId} />
+
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -348,39 +348,3 @@ export function Layout() {
   );
 }
 
-function OnboardingModal({ companyId }: { companyId: string | null }) {
-  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
-  const location = useLocation();
-
-  useEffect(() => {
-    if (!companyId) return;
-    fetch("/api/onboarding/claude-key/" + companyId, { credentials: "include" })
-      .then((r) => r.json()).then((d) => setHasApiKey(!!d.hasKey)).catch(() => {});
-  }, [companyId]);
-
-  // Don't show on the API Claude page itself
-  if (hasApiKey !== false) return null;
-  if (location.pathname.includes("api-claude")) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
-      <div className="max-w-lg w-full mx-4 rounded-3xl p-8 space-y-6 text-center" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(20px)" }}>
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))" }}>
-          <Key className="w-8 h-8 text-white" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold">Benvenuto su GoItalIA!</h2>
-          <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-            Per attivare il tuo <strong className="text-foreground">CEO AI</strong> e iniziare a lavorare, devi prima configurare la tua API key di Claude (Anthropic).
-          </p>
-          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Senza la API key il sistema non puo\u0300 funzionare.
-          </p>
-        </div>
-        <a href="api-claude" className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-semibold transition-all hover:scale-105" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white", boxShadow: "0 4px 20px hsl(158 64% 42% / 0.4)" }}>
-          Ho capito, configuriamo la API key
-        </a>
-      </div>
-    </div>
-  );
-}
