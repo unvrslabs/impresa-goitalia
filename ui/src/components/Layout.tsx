@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Moon, Settings, Sun } from "lucide-react";
+import { BookOpen, Key, Moon, Settings, Sun } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "@/lib/router";
 import { CompanyRail } from "./CompanyRail";
 import { ClaudeKeyModal } from "./ClaudeKeyModal";
@@ -344,6 +344,40 @@ export function Layout() {
       <NewGoalDialog />
       <NewAgentDialog />
       <ToastViewport />
+      <OnboardingTooltip companyId={selectedCompanyId} sidebarOpen={sidebarOpen} />
+    </div>
+  );
+}
+
+function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | null; sidebarOpen: boolean }) {
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetch("/api/onboarding/claude-key/" + companyId, { credentials: "include" })
+      .then((r) => r.json()).then((d) => setHasApiKey(!!d.hasKey)).catch(() => {});
+  }, [companyId]);
+
+  if (hasApiKey !== false) return null;
+  if (location.pathname.includes("api-claude")) return null;
+  if (!sidebarOpen) return null;
+
+  return (
+    <div className="fixed z-[100]" style={{ left: "248px", bottom: "140px", filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.5))" }}>
+      <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2" style={{ width: 0, height: 0, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderRight: "10px solid rgba(30, 40, 55, 0.97)" }} />
+      <div className="rounded-xl p-4 w-72" style={{ background: "rgba(30, 40, 55, 0.97)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "hsl(158 64% 42%)" }}>
+            <Key className="w-3.5 h-3.5 text-white" />
+          </div>
+          <h3 className="text-sm font-bold text-white">Configura API Claude</h3>
+        </div>
+        <p className="text-xs text-white/60 leading-relaxed mb-3">Per attivare il tuo CEO AI e sbloccare tutte le funzionalità, inserisci la tua API key di Anthropic.</p>
+        <a href="/api-claude" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:brightness-110" style={{ background: "hsl(158 64% 42%)", color: "white" }}>
+          Configura ora →
+        </a>
+      </div>
     </div>
   );
 }
