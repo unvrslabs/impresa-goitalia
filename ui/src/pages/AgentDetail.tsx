@@ -1638,13 +1638,22 @@ function PromptTemplateEditor({
         setSaving(true);
         try {
           const updates: Record<string, unknown> = {};
-          if (isDirty || modelDraft !== ((config.model as string) || "claude-opus-4-6")) updates.adapterConfig = { ...config, promptTemplate: draft, model: modelDraft };
-          if (identityDirty) {
-            updates.name = nameDraft;
-            updates.title = titleDraft;
-            updates.capabilities = capDraft;
+          // Always send adapterConfig if model or prompt changed
+          const modelChanged = modelDraft !== ((config.model as string) || "claude-opus-4-6");
+          if (isDirty || modelChanged) {
+            updates.adapterConfig = { ...config, promptTemplate: draft, model: modelDraft };
           }
-          await agentsApi.update(agent.id, updates, companyId);
+          // Always send identity fields if any changed
+          const nameChanged = nameDraft !== ((agentObj.name as string) || "");
+          const titleChanged = titleDraft !== ((agentObj.title as string) || "");
+          const capChanged = capDraft !== ((agentObj.capabilities as string) || "");
+          if (nameChanged) updates.name = nameDraft;
+          if (titleChanged) updates.title = titleDraft;
+          if (capChanged) updates.capabilities = capDraft;
+          console.log("[agent-save] updates:", JSON.stringify(updates).substring(0, 200));
+          if (Object.keys(updates).length > 0) {
+            await agentsApi.update(agent.id, updates, companyId);
+          }
           queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
         } finally {
           setSaving(false);
@@ -1673,15 +1682,22 @@ function PromptTemplateEditor({
             <label className="text-xs text-muted-foreground">Competenze</label>
             <textarea className={inputClass + " min-h-[80px] resize-y"} value={capDraft} onChange={(e) => setCapDraft(e.target.value)} />
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Modello AI</label>
-            <select className="w-full h-10 rounded-xl border border-white/10 bg-transparent px-4 py-2 text-sm outline-none appearance-none cursor-pointer" value={modelDraft} onChange={(e) => setModelDraft(e.target.value)}>
-              <option value="claude-opus-4-6">Claude Opus 4.6</option>
-              <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-              <option value="claude-sonnet-4-5-20241022">Claude Sonnet 4.5</option>
-              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
-            </select>
-          </div>
+          {agent.role === "ceo" ? (
+            <div>
+              <label className="text-xs text-muted-foreground">Modello AI</label>
+              <div className="w-full h-10 rounded-xl border border-white/10 bg-transparent px-4 py-2 text-sm opacity-50">Claude Opus 4.6</div>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs text-muted-foreground">Modello AI</label>
+              <select className="w-full h-10 rounded-xl border border-white/10 bg-transparent px-4 py-2 text-sm outline-none appearance-none cursor-pointer" value={modelDraft} onChange={(e) => setModelDraft(e.target.value)}>
+                <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="claude-sonnet-4-5-20241022">Claude Sonnet 4.5</option>
+                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
       <div className="glass-card p-4 space-y-4">
