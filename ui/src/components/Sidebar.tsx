@@ -59,6 +59,7 @@ export function Sidebar() {
   const [hasTelegram, setHasTelegram] = useState(false);
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
   const [hasSocial, setHasSocial] = useState(false);
+  const [hasFal, setHasFal] = useState(false);
   const [telegramUnread, setTelegramUnread] = useState(0);
   const [waUnread, setWaUnread] = useState(0);
 
@@ -212,7 +213,7 @@ export function Sidebar() {
           {hasGoogle && <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />}
           {hasWhatsApp && <SidebarNavItem to="/whatsapp" label="WhatsApp" icon={Phone} badge={waUnread > 0 ? waUnread : undefined} />}
           {hasTelegram && <SidebarNavItem to="/telegram" label="Telegram" icon={MessageSquare} badge={telegramUnread > 0 ? telegramUnread : undefined} />}
-          <SidebarNavItem to="/genera" label="Genera AI" icon={Sparkles} />
+          {hasFal && <SidebarNavItem to="/genera" label="Genera AI" icon={Sparkles} />}
           {hasSocial && <SidebarNavItem to="/social" label="Social" icon={Share2Icon} />}
           {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
           {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}
