@@ -151,6 +151,21 @@ export function socialRoutes(db: Db) {
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
     const { companyId, text, platforms } = req.body as { companyId: string; text: string; platforms: string };
     const image = (req as any).file;
+    const imageUrl = req.body.image_url as string;
+    
+    // If image_url provided (from AI generation), download it server-side
+    let downloadedImage: { buffer: Buffer; mimetype: string; originalname: string } | null = null;
+    if (!image && imageUrl) {
+      try {
+        const dlRes = await fetch(imageUrl);
+        if (dlRes.ok) {
+          const buffer = Buffer.from(await dlRes.arrayBuffer());
+          const contentType = dlRes.headers.get("content-type") || "image/jpeg";
+          downloadedImage = { buffer, mimetype: contentType, originalname: "generated.jpg" };
+        }
+      } catch (err) { console.error("[social/publish] image download error:", err); }
+    }
+    const effectiveImage = image || downloadedImage;
     if (!companyId || !text) { res.status(400).json({ error: "Testo richiesto" }); return; }
 
     let targetPlatforms: string[] = [];
@@ -171,10 +186,10 @@ export function socialRoutes(db: Db) {
             const page = (meta.pages || []).find((pg: any) => pg.id === pageId);
             if (page) {
               const token = page.accessToken || meta.accessToken;
-              if (image) {
+              if (effectiveImage) {
                 // Photo post
                 const fd = new FormData();
-                fd.append("source", new Blob([image.buffer], { type: image.mimetype }), image.originalname);
+                fd.append("source", new Blob([effectiveImage.buffer], { type: effectiveImage.mimetype }), effectiveImage.originalname);
                 fd.append("caption", text);
                 fd.append("access_token", token);
                 const r = await fetch("https://graph.facebook.com/v21.0/" + pageId + "/photos", { method: "POST", body: fd });
@@ -201,13 +216,13 @@ export function socialRoutes(db: Db) {
           for (const p of targetPlatforms.filter((t) => t.startsWith("ig_"))) {
             const igUsername = p.replace("ig_", "");
             const ig = (meta.instagram || []).find((i: any) => i.username === igUsername);
-            if (ig && image) {
+            if (ig && effectiveImage) {
               // Instagram requires a public image URL - upload to FB page first
               const page = (meta.pages || []).find((pg: any) => pg.id === ig.pageId) || (meta.pages || [])[0];
               if (page) {
                 // Upload photo unpublished to get URL
                 const fd = new FormData();
-                fd.append("source", new Blob([image.buffer], { type: image.mimetype }), image.originalname);
+                fd.append("source", new Blob([effectiveImage.buffer], { type: effectiveImage.mimetype }), effectiveImage.originalname);
                 fd.append("published", "false");
                 fd.append("access_token", page.accessToken || meta.accessToken);
                 const uploadRes = await fetch("https://graph.facebook.com/v21.0/" + page.id + "/photos", { method: "POST", body: fd });
@@ -251,7 +266,7 @@ export function socialRoutes(db: Db) {
                   }
                 }
               }
-            } else if (!image) {
+            } else if (!effectiveImage) {
               results.push({ platform: "instagram:@" + igUsername, success: false, error: "Instagram richiede un'immagine" });
             }
           }
@@ -277,7 +292,7 @@ export function socialRoutes(db: Db) {
           };
 
           let imageUrn = "";
-          if (image) {
+          if (effectiveImage) {
             // Step 1: Initialize image upload
             const initRes = await fetch("https://api.linkedin.com/rest/images?action=initializeUpload", {
               method: "POST",
@@ -292,8 +307,8 @@ export function socialRoutes(db: Db) {
                 // Step 2: Upload binary image
                 await fetch(uploadUrl, {
                   method: "PUT",
-                  headers: { Authorization: "Bearer " + li.accessToken, "Content-Type": image.mimetype },
-                  body: image.buffer,
+                  headers: { Authorization: "Bearer " + li.accessToken, "Content-Type": effectiveImage.mimetype },
+                  body: effectiveImage.buffer,
                 });
               }
             }

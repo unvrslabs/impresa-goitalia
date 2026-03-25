@@ -1028,13 +1028,11 @@ export function GenerateAI() {
               if (!selectedCompany?.id || publishTargets.size === 0) return;
               setPublishing(true);
               try {
-                const imgRes = await fetch(publishingResult.url);
-                const imgBlob = await imgRes.blob();
                 const fd = new FormData();
                 fd.append("companyId", selectedCompany.id);
                 fd.append("text", publishText);
                 fd.append("platforms", JSON.stringify(Array.from(publishTargets)));
-                fd.append("image", imgBlob, "generated.jpg");
+                fd.append("image_url", publishingResult.url);
                 const res = await fetch("/api/social/publish", { method: "POST", credentials: "include", body: fd });
                 const data = await res.json();
                 setPublishResult(data.results || []);
