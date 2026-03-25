@@ -19,7 +19,7 @@ import { ActivityRow } from "../components/ActivityRow";
 import { Identity } from "../components/Identity";
 import { timeAgo } from "../lib/timeAgo";
 import { cn, formatCents } from "../lib/utils";
-import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle } from "lucide-react";
+import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle, Key } from "lucide-react";
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
@@ -203,17 +203,24 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       {hasApiKey === false && (
-        <div className="mb-6 rounded-2xl p-5 flex items-center gap-4" style={{ background: "linear-gradient(135deg, hsl(158 64% 42% / 0.15), hsl(160 70% 36% / 0.08))", border: "1px solid hsl(158 64% 42% / 0.3)" }}>
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))" }}>
-            <span className="text-2xl">👋</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+          <div className="max-w-lg w-full mx-4 rounded-3xl p-8 space-y-6 text-center" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(20px)" }}>
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))" }}>
+              <Key className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Benvenuto su GoItalIA!</h2>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                Per attivare il tuo CEO AI e iniziare a lavorare, devi prima configurare la tua <strong className="text-foreground">API key di Claude</strong> (Anthropic).
+              </p>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                Senza la API key il sistema non può funzionare. La key viene usata per far comunicare i tuoi agenti AI.
+              </p>
+            </div>
+            <a href="api-claude" className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-semibold transition-all hover:scale-105" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white", boxShadow: "0 4px 20px hsl(158 64% 42% / 0.4)" }}>
+              Ho capito, configuriamo la API key
+            </a>
           </div>
-          <div className="flex-1">
-            <div className="text-sm font-semibold">Benvenuto su GoItalIA!</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Per iniziare, configura la tua <a href="api-claude" className="font-medium underline" style={{ color: "hsl(158 64% 52%)" }}>API key Claude</a> — è il primo passo per attivare il tuo CEO AI.</div>
-          </div>
-          <a href="api-claude" className="px-4 py-2 rounded-xl text-sm font-medium shrink-0" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}>
-            Configura API
-          </a>
         </div>
       )}
 

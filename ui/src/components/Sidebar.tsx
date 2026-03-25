@@ -202,12 +202,13 @@ export function Sidebar() {
       {/* Main nav */}
       <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-1 px-2 py-2">
         {/* Top items */}
-        <div className="flex flex-col gap-0.5">
+        <div className={"flex flex-col gap-0.5" + (hasApiKey === false ? " opacity-30 pointer-events-none" : "")}>
           <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />
           <SidebarNavItem to="/org" label="Organigramma" icon={Share2Icon} />
         </div>
 
         {/* Lavoro */}
+        <div className={hasApiKey === false ? "opacity-30 pointer-events-none" : ""}>
         <SidebarSection label="Lavoro">
           <SidebarNavItem to="/chat" label="Chat (CEO)" icon={MessageCircle} />
           {hasGoogle && <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />}
@@ -222,19 +223,22 @@ export function Sidebar() {
 
 
         </SidebarSection>
+        </div>
 
 
 
         {/* Agents */}
+        <div className={hasApiKey === false ? "opacity-30 pointer-events-none" : ""}>
         <SidebarAgents />
 
         {/* Projects */}
         <SidebarProjects />
 
+        </div>
         {/* Impostazioni - nel menu principale */}
         <SidebarSection label="Impostazioni">
-          <SidebarNavItem to="/plugins" label="Connettori" icon={Plug} />
-          <SidebarNavItem to="/company/settings" label="Profilo" icon={Settings} />
+          <div className={hasApiKey === false ? "opacity-30 pointer-events-none" : ""}><SidebarNavItem to="/plugins" label="Connettori" icon={Plug} /></div>
+          <div className={hasApiKey === false ? "opacity-30 pointer-events-none" : ""}><SidebarNavItem to="/company/settings" label="Profilo" icon={Settings} /></div>
           {hasApiKey === false ? (
             <div className="relative">
               <div className="absolute inset-0 rounded-lg animate-pulse" style={{ background: "hsl(158 64% 42% / 0.25)", boxShadow: "0 0 15px hsl(158 64% 42% / 0.4)" }} />
