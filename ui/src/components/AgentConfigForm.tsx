@@ -479,6 +479,18 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 }}
               />
             </Field>
+            <Field label="Modello AI">
+              <select
+                value={eff("adapterConfig", "model", String(config.model ?? "claude-opus-4-6"))}
+                onChange={(e) => mark("adapterConfig", "model", e.target.value)}
+                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="claude-sonnet-4-5-20241022">Claude Sonnet 4.5</option>
+                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+              </select>
+            </Field>
             {isLocal && !props.hidePromptTemplate && (
               <>
                 <Field label="Template Prompt" hint={help.promptTemplate}>

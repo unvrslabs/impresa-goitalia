@@ -74,6 +74,7 @@ import {
   Settings,
   Play,
   Wallet,
+  Globe,
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -1267,7 +1268,7 @@ function CostsSection({
         </div>
       )}
       {runsWithCost.length > 0 && (
-        <div className="glass-card overflow-hidden">
+        <div className="glass-card p-4 space-y-4">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-accent/20">
@@ -1608,10 +1609,6 @@ function PromptTemplateEditor({
   useEffect(() => { onSavingChange(saving); }, [onSavingChange, saving]);
 
   useEffect(() => {
-    onCancelActionChange(isDirty ? () => setDraft(savedPrompt) : null);
-  }, [isDirty, onCancelActionChange, savedPrompt]);
-
-  useEffect(() => {
     onSaveActionChange(isDirty ? () => {
       const save = async () => {
         setSaving(true);
@@ -1631,8 +1628,9 @@ function PromptTemplateEditor({
   const [nameDraft, setNameDraft] = useState((agentObj.name as string) || "");
   const [titleDraft, setTitleDraft] = useState((agentObj.title as string) || "");
   const [capDraft, setCapDraft] = useState((agentObj.capabilities as string) || "");
+  const [modelDraft, setModelDraft] = useState((config.model as string) || "claude-opus-4-6");
 
-  const identityDirty = nameDraft !== ((agentObj.name as string) || "") ||
+  const identityDirty = nameDraft !== ((agentObj.name as string) || "") || modelDraft !== ((config.model as string) || "claude-opus-4-6") ||
     titleDraft !== ((agentObj.title as string) || "") ||
     capDraft !== ((agentObj.capabilities as string) || "");
 
@@ -1641,12 +1639,22 @@ function PromptTemplateEditor({
   useEffect(() => { onDirtyChange(anyDirty); }, [onDirtyChange, anyDirty]);
 
   useEffect(() => {
+    onCancelActionChange(anyDirty ? () => {
+      setDraft(savedPrompt);
+      setNameDraft((agentObj.name as string) || "");
+      setTitleDraft((agentObj.title as string) || "");
+      setCapDraft((agentObj.capabilities as string) || "");
+      setModelDraft((config.model as string) || "claude-opus-4-6");
+    } : null);
+  }, [anyDirty, onCancelActionChange, savedPrompt, agentObj, config]);
+
+  useEffect(() => {
     onSaveActionChange(anyDirty ? () => {
       const doSave = async () => {
         setSaving(true);
         try {
           const updates: Record<string, unknown> = {};
-          if (isDirty) updates.adapterConfig = { ...config, promptTemplate: draft };
+          if (isDirty || modelDraft !== ((config.model as string) || "claude-opus-4-6")) updates.adapterConfig = { ...config, promptTemplate: draft, model: modelDraft };
           if (identityDirty) {
             updates.name = nameDraft;
             updates.title = titleDraft;
@@ -1660,7 +1668,7 @@ function PromptTemplateEditor({
       };
       void doSave();
     } : null);
-  }, [anyDirty, isDirty, identityDirty, draft, nameDraft, titleDraft, capDraft, config, agent.id, companyId, queryClient, onSaveActionChange]);
+  }, [anyDirty, isDirty, identityDirty, draft, nameDraft, titleDraft, capDraft, modelDraft, config, agent.id, companyId, queryClient, onSaveActionChange]);
 
   const inputClass = "w-full rounded-xl border border-white/10 bg-transparent px-3 py-2 text-sm outline-none";
 
@@ -1680,6 +1688,15 @@ function PromptTemplateEditor({
           <div>
             <label className="text-xs text-muted-foreground">Competenze</label>
             <textarea className={inputClass + " min-h-[80px] resize-y"} value={capDraft} onChange={(e) => setCapDraft(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Modello AI</label>
+            <select className="w-full h-10 rounded-xl border border-white/10 bg-transparent px-4 py-2 text-sm outline-none appearance-none cursor-pointer" value={modelDraft} onChange={(e) => setModelDraft(e.target.value)}>
+              <option value="claude-opus-4-6">Claude Opus 4.6</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+              <option value="claude-sonnet-4-5-20241022">Claude Sonnet 4.5</option>
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+            </select>
           </div>
         </div>
       </div>
@@ -2007,6 +2024,7 @@ function PromptsTab({
       />
     );
   }
+
 
   if (bundleLoading && !bundle) {
     return <PromptsTabSkeleton />;
@@ -2418,6 +2436,11 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean; numbers?: Array<{ phoneNumber: string }> } | null>(null);
   const [metaStatus, setMetaStatus] = useState<{ connected: boolean; instagram?: Array<{ id: string; username: string; pageName: string }>; pages?: Array<{ id: string; name: string }> } | null>(null);
   const [linkedinStatus, setLinkedinStatus] = useState<{ connected: boolean; name?: string; email?: string; picture?: string } | null>(null);
+  const [falStatus, setFalStatus] = useState<{ connected: boolean } | null>(null);
+  const [ficStatus, setFicStatus] = useState<{ connected: boolean; companyName?: string } | null>(null);
+  const [oaiStatus, setOaiStatus] = useState<{ connected: boolean; services?: string[] } | null>(null);
+  const [expandedConn, setExpandedConn] = useState<string | null>(null);
+  const [selectedGoogleAcct, setSelectedGoogleAcct] = useState(0);
   const { selectedCompany } = useCompany();
   const [agentConnectors, setAgentConnectors] = useState<Record<string, boolean>>({});
   const [savingConnectors, setSavingConnectors] = useState(false);
@@ -2437,7 +2460,6 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
           setAgentConnectors(config.connectors || { gmail: true, calendar: true, drive: true, telegram: true });
         }
       })
-      .catch(() => {});
   }, [companyId]);
 
   const toggleConnector = async (key: string) => {
@@ -2485,7 +2507,12 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
     fetch("/api/oauth/linkedin/status?companyId=" + companyId, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setLinkedinStatus(d))
-      .catch(() => {});
+    fetch("/api/fal/status?companyId=" + companyId, { credentials: "include" })
+      .then((r) => r.json()).then((d) => setFalStatus(d)).catch(() => {});
+    fetch("/api/fic/status?companyId=" + companyId, { credentials: "include" })
+      .then((r) => r.json()).then((d) => setFicStatus(d)).catch(() => {});
+    fetch("/api/openapi-it/status?companyId=" + companyId, { credentials: "include" })
+      .then((r) => r.json()).then((d) => setOaiStatus(d)).catch(() => {});
   }, [companyId]);
 
   const services = [
@@ -2499,7 +2526,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
   return (
     <div className="space-y-4">
       <div className="glass-card p-4 space-y-4">
-        <div className="flex items-center gap-3">
+        <div onClick={() => setExpandedConn(expandedConn === "google" ? null : "google")} className="flex items-center gap-3 cursor-pointer">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.3)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 001 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
           </div>
@@ -2508,7 +2535,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
             {googleStatus?.connected ? (
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
-                <span className="text-xs text-muted-foreground">{(googleStatus.accounts || [])[0] || ""}</span>
+                <span className="text-xs text-muted-foreground">{(googleStatus.accounts || []).length} account</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 mt-0.5">
@@ -2519,35 +2546,52 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
           </div>
         </div>
 
-        {googleStatus?.connected && (
-          <div className="space-y-1.5 pt-2">
-            {[
-              { key: "gmail", name: "Gmail", desc: "Email" },
-              { key: "calendar", name: "Calendar", desc: "Eventi" },
-              { key: "drive", name: "Drive", desc: "File e documenti" },
-              { key: "sheets", name: "Sheets", desc: "Fogli di calcolo" },
-              { key: "docs", name: "Docs", desc: "Documenti" },
-            ].map((svc) => (
-              <div key={svc.key} className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="flex items-center gap-2">
-                  <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors[svc.key] !== false ? "bg-green-500" : "bg-white/20")} />
-                  <div className="text-xs font-medium">{svc.name}</div>
-                  <div className="text-[10px] text-muted-foreground">{svc.desc}</div>
-                </div>
-                <button
-                  onClick={() => toggleConnector(svc.key)}
-                  style={{ width: "36px", height: "20px", minWidth: "36px" }} className={"relative inline-flex items-center rounded-full transition-colors " + (agentConnectors[svc.key] !== false ? "bg-green-600" : "bg-white/10")}
-                >
-                  <span style={{ width: "14px", height: "14px" }} className={"inline-block rounded-full bg-white transition-transform " + (agentConnectors[svc.key] !== false ? "translate-x-[18px]" : "translate-x-0.5")} />
-                </button>
+        {expandedConn === "google" && googleStatus?.connected && (
+          <div className="space-y-3 pt-2">
+            {(googleStatus.accounts || []).length > 1 && (
+              <div className="flex gap-2">
+                {(googleStatus.accounts || []).map((acct, idx) => (
+                  <button key={acct} onClick={(e) => { e.stopPropagation(); setSelectedGoogleAcct(idx); }} className={"px-3 py-1.5 rounded-lg text-xs font-medium transition-colors " + (selectedGoogleAcct === idx ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10")}>
+                    {acct}
+                  </button>
+                ))}
               </div>
-            ))}
+            )}
+            {(googleStatus.accounts || []).length === 1 && (
+              <div className="text-xs text-muted-foreground">{(googleStatus.accounts || [])[0]}</div>
+            )}
+            <div className="space-y-1.5">
+              {[
+                { key: "gmail", name: "Gmail", desc: "Email" },
+                { key: "calendar", name: "Calendar", desc: "Eventi" },
+                { key: "drive", name: "Drive", desc: "File e documenti" },
+                { key: "sheets", name: "Sheets", desc: "Fogli di calcolo" },
+                { key: "docs", name: "Docs", desc: "Documenti" },
+              ].map((svc) => {
+                const connKey = (googleStatus.accounts || []).length > 1 ? svc.key + "_" + selectedGoogleAcct : svc.key;
+                return (
+                  <div key={connKey} className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="flex items-center gap-2">
+                      <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors[connKey] !== false ? "bg-green-500" : "bg-white/20")} />
+                      <div className="text-xs font-medium">{svc.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{svc.desc}</div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleConnector(connKey); }}
+                      style={{ width: "36px", height: "20px", minWidth: "36px" }} className={"relative inline-flex items-center rounded-full transition-colors " + (agentConnectors[connKey] !== false ? "bg-green-600" : "bg-white/10")}
+                    >
+                      <span style={{ width: "14px", height: "14px" }} className={"inline-block rounded-full bg-white transition-transform " + (agentConnectors[connKey] !== false ? "translate-x-[18px]" : "translate-x-0.5")} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
 
       <div className="glass-card p-4 space-y-4">
-        <div className="flex items-center gap-3">
+        <div onClick={() => setExpandedConn(expandedConn === "telegram" ? null : "telegram")} className="flex items-center gap-3 cursor-pointer">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(0, 136, 204, 0.15)", border: "1px solid rgba(0, 136, 204, 0.3)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="#0088cc"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
           </div>
@@ -2556,7 +2600,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
             {telegramStatus?.connected && telegramStatus.bots?.length ? (
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
-                <span className="text-xs text-muted-foreground">@{telegramStatus.bots[0]?.username}</span>
+                <span className="text-xs text-muted-foreground">{telegramStatus.bots.length} bot</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 mt-0.5">
@@ -2567,7 +2611,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
           </div>
         </div>
 
-        {telegramStatus?.connected && telegramStatus.bots?.length ? (
+        {expandedConn === "telegram" && telegramStatus?.connected && telegramStatus.bots?.length ? (
           <div className="space-y-1.5 pt-2">
             {telegramStatus.bots.map((bot) => {
               const key = "tg_" + bot.username;
@@ -2592,7 +2636,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
       </div>
 
       <div className="glass-card p-4 space-y-4">
-        <div className="flex items-center gap-3">
+        <div onClick={() => setExpandedConn(expandedConn === "whatsapp" ? null : "whatsapp")} className="flex items-center gap-3 cursor-pointer">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(37, 211, 102, 0.15)", border: "1px solid rgba(37, 211, 102, 0.3)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
           </div>
@@ -2601,7 +2645,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
             {whatsappStatus?.connected ? (
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
-                <span className="text-xs text-muted-foreground">{whatsappStatus.numbers?.[0]?.phoneNumber}</span>
+                <span className="text-xs text-muted-foreground">{(whatsappStatus.numbers || []).length} numero</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 mt-0.5">
@@ -2611,12 +2655,12 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
             )}
           </div>
         </div>
-        {whatsappStatus?.connected && (
+        {expandedConn === "whatsapp" && whatsappStatus?.connected && (
           <div className="space-y-1.5 pt-2">
             <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex items-center gap-2">
                 <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors.whatsapp !== false ? "bg-green-500" : "bg-white/20")} />
-                <div className="text-xs font-medium">WhatsApp</div>
+                <div className="text-xs font-medium">{whatsappStatus?.numbers?.[0]?.phoneNumber || "WhatsApp"}</div>
                 <div className="text-[10px] text-muted-foreground">Messaggi e vocali</div>
               </div>
               <button
@@ -2631,14 +2675,17 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
       </div>
 
       <div className="glass-card p-4 space-y-4">
-        <div className="flex items-center gap-3">
+        <div onClick={() => setExpandedConn(expandedConn === "meta" ? null : "meta")} className="flex items-center gap-3 cursor-pointer">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, rgba(131, 58, 180, 0.15), rgba(253, 29, 29, 0.15))", border: "1px solid rgba(253, 29, 29, 0.3)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="url(#ig-agent)"><defs><linearGradient id="ig-agent" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#feda75"/><stop offset="50%" stopColor="#d62976"/><stop offset="100%" stopColor="#4f5bd5"/></linearGradient></defs><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
           </div>
           <div className="flex-1">
             <div className="text-sm font-semibold">Instagram + Facebook</div>
             {metaStatus?.connected ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
+                <span className="text-xs text-muted-foreground">{(metaStatus.instagram?.length || 0) + (metaStatus.pages?.length || 0)} account</span>
+              </div>
             ) : (
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">Non connesso</span>
@@ -2647,7 +2694,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
             )}
           </div>
         </div>
-        {metaStatus?.connected && (
+        {expandedConn === "meta" && metaStatus?.connected && (
           <div className="space-y-1.5 pt-2">
             {metaStatus.instagram?.map((ig) => {
               const key = "ig_" + ig.username;
@@ -2684,7 +2731,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
       </div>
 
       <div className="glass-card p-4 space-y-4">
-        <div className="flex items-center gap-3">
+        <div onClick={() => setExpandedConn(expandedConn === "linkedin" ? null : "linkedin")} className="flex items-center gap-3 cursor-pointer">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(0, 119, 181, 0.15)", border: "1px solid rgba(0, 119, 181, 0.3)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="#0077B5"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
           </div>
@@ -2693,7 +2740,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
             {linkedinStatus?.connected ? (
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
-                <span className="text-xs text-muted-foreground">{linkedinStatus.name}</span>
+                <span className="text-xs text-muted-foreground">1 account</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 mt-0.5">
@@ -2703,12 +2750,12 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
             )}
           </div>
         </div>
-        {linkedinStatus?.connected && (
+        {expandedConn === "linkedin" && linkedinStatus?.connected && (
           <div className="space-y-1.5 pt-2">
             <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex items-center gap-2">
                 <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors.linkedin !== false ? "bg-green-500" : "bg-white/20")} />
-                <div className="text-xs font-medium">LinkedIn</div>
+                <div className="text-xs font-medium">{linkedinStatus?.name || "LinkedIn"}</div>
                 <div className="text-[10px] text-muted-foreground">Post e profilo</div>
               </div>
               <button
@@ -2722,6 +2769,99 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
         )}
       </div>
 
+
+      {/* Fal.ai */}
+      {falStatus?.connected && (
+        <div onClick={() => setExpandedConn(expandedConn === "fal" ? null : "fal")} className="cursor-pointer glass-card p-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(168, 85, 247, 0.3)" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">Fal.ai</div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
+            </div>
+          </div>
+          {expandedConn === "fal" && (<div className="space-y-1.5 pt-2 px-4 pb-4">
+            {[
+              { key: "fal_nano", name: "Nano Banana 2", desc: "Testo → Immagine" },
+              { key: "fal_veo", name: "Veo 3.1 Fast", desc: "Video (Google)" },
+              { key: "fal_kling", name: "Kling v3 Pro", desc: "Video (Kling)" },
+              { key: "fal_seedance", name: "Seedance 1.5 Pro", desc: "Video (ByteDance)" },
+            ].map((m) => (
+              <div key={m.key} className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="flex items-center gap-2">
+                  <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors[m.key] !== false ? "bg-green-500" : "bg-white/20")} />
+                  <div className="text-xs font-medium">{m.name}</div>
+                  <div className="text-[10px] text-muted-foreground">{m.desc}</div>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); toggleConnector(m.key); }} style={{ width: "36px", height: "20px", minWidth: "36px" }} className={"relative inline-flex items-center rounded-full transition-colors " + (agentConnectors[m.key] !== false ? "bg-green-600" : "bg-white/10")}>
+                  <span style={{ width: "14px", height: "14px" }} className={"inline-block rounded-full bg-white transition-transform " + (agentConnectors[m.key] !== false ? "translate-x-[18px]" : "translate-x-0.5")} />
+                </button>
+              </div>
+            ))}
+          </div>
+          )}
+        </div>
+      )}
+
+      {/* Fatture in Cloud */}
+      {ficStatus?.connected && (
+        <div onClick={() => setExpandedConn(expandedConn === "fic" ? null : "fic")} className="cursor-pointer glass-card p-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">Fatture in Cloud</div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
+            </div>
+          </div>
+          {expandedConn === "fic" && (<div className="space-y-1.5 pt-2 px-4 pb-4">
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex items-center gap-2">
+                <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors.fic !== false ? "bg-green-500" : "bg-white/20")} />
+                <div className="text-xs font-medium">Fatturazione</div>
+                <div className="text-[10px] text-muted-foreground">Clienti, fatture, SDI</div>
+              </div>
+              <button onClick={() => toggleConnector("fic")} style={{ width: "36px", height: "20px", minWidth: "36px" }} className={"relative inline-flex items-center rounded-full transition-colors " + (agentConnectors.fic !== false ? "bg-green-600" : "bg-white/10")}>
+                <span style={{ width: "14px", height: "14px" }} className={"inline-block rounded-full bg-white transition-transform " + (agentConnectors.fic !== false ? "translate-x-[18px]" : "translate-x-0.5")} />
+              </button>
+            </div>
+          </div>
+          )}
+        </div>
+      )}
+
+      {/* OpenAPI.it */}
+      {oaiStatus?.connected && (
+        <div onClick={() => setExpandedConn(expandedConn === "openapi" ? null : "openapi")} className="cursor-pointer glass-card p-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.3)" }}>
+              <Globe className="w-5 h-5 text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">OpenAPI.it</div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">Connesso</span>
+            </div>
+          </div>
+          {expandedConn === "openapi" && (<div className="space-y-1.5 pt-2 px-4 pb-4">
+            {(oaiStatus.services || []).map((svc) => (
+              <div key={svc} className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="flex items-center gap-2">
+                  <span className={"w-2 h-2 rounded-full shrink-0 " + (agentConnectors["oai_" + svc] !== false ? "bg-green-500" : "bg-white/20")} />
+                  <div className="text-xs font-medium">{svc === "company" ? "Company" : svc === "risk" ? "Risk" : svc === "cap" ? "CAP" : svc === "sdi" ? "SDI" : svc}</div>
+                  <div className="text-[10px] text-muted-foreground">{svc === "company" ? "Dati aziendali, visure" : svc === "risk" ? "Credit score, rating" : svc === "cap" ? "Codici postali" : svc === "sdi" ? "Fatturazione elettronica" : ""}</div>
+                </div>
+                <button onClick={() => toggleConnector("oai_" + svc)} style={{ width: "36px", height: "20px", minWidth: "36px" }} className={"relative inline-flex items-center rounded-full transition-colors " + (agentConnectors["oai_" + svc] !== false ? "bg-green-600" : "bg-white/10")}>
+                  <span style={{ width: "14px", height: "14px" }} className={"inline-block rounded-full bg-white transition-transform " + (agentConnectors["oai_" + svc] !== false ? "translate-x-[18px]" : "translate-x-0.5")} />
+                </button>
+              </div>
+            ))}
+          </div>
+          )}
+        </div>
+      )}
       <div className="glass-card p-4" style={{ opacity: 0.5 }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
@@ -3423,7 +3563,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
   return (
     <div className="space-y-4 min-w-0">
       {/* Run summary card */}
-      <div className="glass-card overflow-hidden">
+      <div className="glass-card p-4 space-y-4">
         <div className="flex flex-col sm:flex-row">
           {/* Left column: status + timing */}
           <div className="flex-1 p-4 space-y-3">

@@ -163,9 +163,79 @@ const TOOLS = [
       required: ["fattura_id"],
     },
   },
+
+  // OpenAPI.it tools
+  {
+    name: "cerca_azienda_piva",
+    description: "Cerca informazioni su un'azienda italiana tramite P.IVA o Codice Fiscale usando OpenAPI.it. Restituisce denominazione, indirizzo, PEC, stato attività, codice ATECO, ecc.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "Partita IVA o Codice Fiscale dell'azienda" },
+        livello: { type: "string", enum: ["start", "advanced", "full"], description: "Livello di dettaglio: start (base), advanced (dettagliato), full (completo)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "cerca_azienda_nome",
+    description: "Cerca aziende italiane per denominazione/nome usando OpenAPI.it.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        nome: { type: "string", description: "Nome o denominazione dell'azienda da cercare" },
+      },
+      required: ["nome"],
+    },
+  },
+  {
+    name: "credit_score",
+    description: "Ottieni il credit score e la valutazione di rischio di un'azienda tramite P.IVA usando OpenAPI.it Risk.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        piva: { type: "string", description: "Partita IVA dell'azienda" },
+        livello: { type: "string", enum: ["start", "advanced", "top"], description: "start: score base, advanced: rating A1-C3 + severity, top: completo con storico e limite credito" },
+      },
+      required: ["piva"],
+    },
+  },
+  {
+    name: "codice_sdi",
+    description: "Recupera il codice destinatario SDI di un'azienda tramite P.IVA per la fatturazione elettronica.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        piva: { type: "string", description: "Partita IVA dell'azienda" },
+      },
+      required: ["piva"],
+    },
+  },
+  {
+    name: "cerca_cap",
+    description: "Cerca informazioni su un CAP italiano: comune, provincia, regione, prefisso telefonico.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        cap: { type: "string", description: "Codice di Avviamento Postale (es: 00100)" },
+      },
+      required: ["cap"],
+    },
+  },
 ];
 
 
+
+async function getOaiToken(db: Db, companyId: string, service: string): Promise<string | null> {
+  const secret = await db.select().from(companySecrets)
+    .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "openapi_it_creds")))
+    .then((r) => r[0]);
+  if (!secret?.description) return null;
+  try {
+    const creds = JSON.parse(decrypt(secret.description));
+    return creds.tokens?.[service] || null;
+  } catch { return null; }
+}
 async function getFicTokenForChat(db: Db, companyId: string): Promise<{ access_token: string; fic_company_id: number } | null> {
   const secret = await db.select().from(companySecrets)
     .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "fattureincloud_tokens")))
@@ -393,6 +463,68 @@ async function executeChatTool(
         return "Fattura inviata allo SDI!";
       }
 
+
+      case "cerca_azienda_piva": {
+        const token = await getOaiToken(db, companyId, "company");
+        if (!token) return "OpenAPI.it Company non connesso. Vai su Connettori per collegarlo.";
+        const query = toolInput.query as string;
+        const livello = (toolInput.livello as string) || "start";
+        const r = await fetch(`https://company.openapi.com/IT-${livello}/${encodeURIComponent(query)}`, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!r.ok) return "Errore ricerca azienda: " + r.status;
+        const data = await r.json();
+        return JSON.stringify(data, null, 2).substring(0, 3000);
+      }
+
+      case "cerca_azienda_nome": {
+        const token = await getOaiToken(db, companyId, "company");
+        if (!token) return "OpenAPI.it Company non connesso. Vai su Connettori per collegarlo.";
+        const nome = toolInput.nome as string;
+        const r = await fetch(`https://company.openapi.com/IT-name?denomination=${encodeURIComponent(nome)}`, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!r.ok) return "Errore ricerca: " + r.status;
+        const data = await r.json();
+        return JSON.stringify(data, null, 2).substring(0, 3000);
+      }
+
+      case "credit_score": {
+        const token = await getOaiToken(db, companyId, "risk");
+        if (!token) return "OpenAPI.it Risk non connesso. Vai su Connettori per collegarlo.";
+        const piva = toolInput.piva as string;
+        const livello = (toolInput.livello as string) || "start";
+        const r = await fetch(`https://risk.openapi.com/IT-creditscore-${livello}/${encodeURIComponent(piva)}`, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!r.ok) return "Errore credit score: " + r.status;
+        const data = await r.json();
+        return JSON.stringify(data, null, 2).substring(0, 3000);
+      }
+
+      case "codice_sdi": {
+        const token = await getOaiToken(db, companyId, "company");
+        if (!token) return "OpenAPI.it Company non connesso. Vai su Connettori per collegarlo.";
+        const piva = toolInput.piva as string;
+        const r = await fetch(`https://company.openapi.com/IT-sdicode/${encodeURIComponent(piva)}`, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!r.ok) return "Errore codice SDI: " + r.status;
+        const data = await r.json();
+        return JSON.stringify(data, null, 2).substring(0, 1000);
+      }
+
+      case "cerca_cap": {
+        const token = await getOaiToken(db, companyId, "cap");
+        if (!token) return "OpenAPI.it CAP non connesso. Vai su Connettori per collegarlo.";
+        const cap = toolInput.cap as string;
+        const r = await fetch(`https://cap.openapi.it/cap?cap=${encodeURIComponent(cap)}`, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!r.ok) return "Errore CAP: " + r.status;
+        const data = await r.json();
+        return JSON.stringify(data, null, 2).substring(0, 1000);
+      }
       default:
         return "Tool sconosciuto: " + toolName;
     }
@@ -493,6 +625,7 @@ export function chatRoutes(db: Db) {
       }
 
       let systemPrompt = "Sei un assistente AI di GoItalIA. Rispondi in italiano in modo professionale e conciso.";
+      let agentModel = "claude-opus-4-6";
       let resolvedAgentId = agentId || "";
 
       if (agentId) {
@@ -504,6 +637,7 @@ export function chatRoutes(db: Db) {
           resolvedAgentId = agent.id;
           const adapterConfig = agent.adapterConfig as Record<string, unknown> | null;
           const promptTemplate = typeof adapterConfig?.promptTemplate === "string" ? adapterConfig.promptTemplate : "";
+          if (typeof adapterConfig?.model === "string" && adapterConfig.model) { agentModel = adapterConfig.model; }
           const capabilities = agent.capabilities ?? "";
 
           systemPrompt = promptTemplate || `Sei ${agent.name}, ${agent.title ?? agent.role} presso l'azienda del cliente.
@@ -523,6 +657,11 @@ Hai a disposizione dei tool per gestire l'azienda:
 - commenta_task: per aggiungere istruzioni ai task
 - crea_agente: per creare nuovi agenti specializzati
 - elimina_agente: per eliminare agenti
+- cerca_azienda_piva: per cercare info azienda da P.IVA o CF (OpenAPI.it)
+- cerca_azienda_nome: per cercare aziende per nome (OpenAPI.it)
+- credit_score: per ottenere il rating di rischio di un'azienda (OpenAPI.it Risk)
+- codice_sdi: per recuperare il codice destinatario SDI di un'azienda
+- cerca_cap: per cercare info su un CAP italiano
 
 Rispondi sempre in italiano, in modo professionale e conciso.
 Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
@@ -547,6 +686,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
         const hasGoogle = secretNames.includes("google_oauth_tokens");
         const hasTelegram = secretNames.includes("telegram_bots");
         const hasClaudeKey = secretNames.includes("claude_api_key");
+        const hasOpenApi = secretNames.includes("openapi_it_creds");
 
         dynamicContext = "\n\n--- STATO ATTUALE DELL'IMPRESA ---\n";
         
@@ -562,6 +702,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
         dynamicContext += "\nConnettori attivi:\n";
         if (hasGoogle) dynamicContext += "- Google Workspace (Gmail, Calendar, Drive): connesso\n";
         if (hasTelegram) dynamicContext += "- Telegram Bot: connesso\n";
+        if (hasOpenApi) dynamicContext += "- OpenAPI.it (Dati aziendali, Risk, CAP, SDI): connesso\n";
         if (!hasGoogle && !hasTelegram) dynamicContext += "- Nessun connettore attivo\n";
 
         dynamicContext += "\nConnettori disponibili ma non attivi:\n";
@@ -611,7 +752,7 @@ Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
+            model: agentModel,
             max_tokens: 4096,
             system: systemPrompt,
             messages,

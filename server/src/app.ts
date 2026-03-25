@@ -20,6 +20,7 @@ import { driveRoutes } from "./routes/drive.js";
 import { telegramRoutes, telegramWebhookRouter as telegramWebhookRouterFn } from "./routes/telegram.js";
 import { fattureincloudRoutes } from "./routes/fattureincloud.js";
 import { falAiRoutes } from "./routes/fal-ai.js";
+import { openapiItRoutes } from "./routes/openapi-it.js";
 import { projectsPmiRoutes } from "./routes/projects-pmi.js";
 import { whatsappRoutes, whatsappWebhookRouter } from "./routes/whatsapp.js";
 import { voiceRoutes } from "./routes/voice.js";
@@ -195,6 +196,7 @@ app.use(express.json({
   api.use(telegramRoutes(db));
   api.use(fattureincloudRoutes(db));
   api.use(falAiRoutes(db));
+  api.use(openapiItRoutes(db));
   api.use(projectsPmiRoutes(db));
   api.use(whatsappRoutes(db));
   api.use(voiceRoutes(db));

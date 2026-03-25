@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { PluginRecord } from "@goitalia/shared";
 import { Link } from "@/lib/router";
-import { AlertTriangle, ChevronDown, Plus, Power, Puzzle, Settings, Trash } from "lucide-react";
+import { AlertTriangle, ChevronDown, Globe, Plus, Power, Puzzle, Settings, Trash } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { useBreadcrumbs } from "@/context/BreadcrumbContext";
 import { pluginsApi } from "@/api/plugins";
@@ -78,6 +78,11 @@ export function PluginManager() {
   const [ficConnected, setFicConnected] = useState(false);
   const [ficToken, setFicToken] = useState("");
   const [ficSaving, setFicSaving] = useState(false);
+  const [oaiConnected, setOaiConnected] = useState(false);
+  const [oaiServices, setOaiServices] = useState<string[]>([]);
+  const [oaiKey, setOaiKey] = useState("");
+  const [oaiTokens, setOaiTokens] = useState<Record<string, string>>({ company: "", risk: "", cap: "", sdi: "", visure: "" });
+  const [oaiSaving, setOaiSaving] = useState(false);
   const [ficCompany, setFicCompany] = useState<string | null>(null);
   const [expandedConnector, setExpandedConnector] = useState<string | null>(null);
 
@@ -97,6 +102,7 @@ export function PluginManager() {
       .catch(() => setTelegramStatus({ connected: false }));
     fetch("/api/fal/status?companyId=" + selectedCompany.id, { credentials: "include" }).then((r) => r.json()).then((d) => setFalConnected(d.connected)).catch(() => {});
     fetch("/api/fic/status?companyId=" + selectedCompany.id, { credentials: "include" }).then((r) => r.json()).then((d) => { setFicConnected(d.connected || false); setFicCompany(d.companyName || null); }).catch(() => {});
+    fetch("/api/openapi-it/status?companyId=" + selectedCompany.id, { credentials: "include" }).then((r) => r.json()).then((d) => { setOaiConnected(d.connected || false); setOaiServices(d.services || []); }).catch(() => {});
     fetch("/api/voice/status?companyId=" + selectedCompany.id, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setVoiceEnabled(d.enabled || false))
@@ -227,6 +233,7 @@ export function PluginManager() {
   const isVoiceConnected = voiceEnabled;
   const isFalConnected = falConnected;
   const isFicConnected = ficConnected;
+  const isOaiConnected = oaiConnected;
 
 
   // Uniform row style for sub-items
@@ -762,6 +769,83 @@ export function PluginManager() {
           )}
         </div>
 
+
+
+        {/* 9. OpenAPI.it */}
+        <div className="rounded-xl overflow-hidden" style={glass.cardStyle}>
+          <button onClick={() => toggle("openapi")} className="w-full px-4 py-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.3)" }}>
+              <Globe className="w-4 h-4 text-blue-400" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-sm font-medium">OpenAPI.it</div>
+              <div className="text-xs text-muted-foreground">Dati aziendali, visure, risk, CAP, SDI</div>
+            </div>
+            <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0", isOaiConnected ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30")}>
+              {isOaiConnected ? "Connesso" : "Non connesso"}
+            </span>
+            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform shrink-0", expandedConnector === "openapi" && "rotate-180")} />
+          </button>
+          {expandedConnector === "openapi" && (
+            <div className="px-4 pb-3 space-y-3 border-t border-white/5">
+              <p className="text-xs text-muted-foreground pt-2">Registrati su <a href="https://console.openapi.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">console.openapi.com</a> — 1 API key + 1 token per ogni servizio che usi.</p>
+              {!isOaiConnected && (
+                <div>
+                  <label className="text-[11px] text-muted-foreground mb-1.5 block">API Key</label>
+                  <input type="password" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" placeholder="API Key da console.openapi.com/autenticazione" value={oaiKey} onChange={(e) => setOaiKey(e.target.value)} />
+                </div>
+              )}
+              {[
+                { key: "company", label: "Company", desc: "Dati aziendali, P.IVA, Visure" },
+                { key: "risk", label: "Risk", desc: "Credit score, Rating" },
+                { key: "cap", label: "CAP", desc: "Codici postali" },
+                { key: "sdi", label: "SDI", desc: "Fatturazione elettronica" },
+                { key: "visure", label: "Visure Camerali", desc: "Visure da Camera di Commercio" },
+                { key: "pec", label: "PEC", desc: "Gestione caselle PEC certificate" },
+              ].map((svc) => {
+                const isActive = oaiServices.includes(svc.key);
+                return (
+                  <div key={svc.key} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span className={"w-2 h-2 rounded-full shrink-0 " + (isActive ? "bg-green-500" : "bg-white/20")} />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium">{svc.label}</span>
+                      <span className="text-muted-foreground ml-1.5">{svc.desc}</span>
+                    </div>
+                    {isActive ? (
+                      <button className="flex items-center gap-1 text-[10px] text-red-400/60 hover:text-red-400 transition-all" onClick={async () => {
+                        await fetch("/api/openapi-it/remove-service", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyId: selectedCompany?.id, service: svc.key }), credentials: "include" });
+                        setOaiServices((prev) => prev.filter((s) => s !== svc.key));
+                        if (oaiServices.length <= 1) setOaiConnected(false);
+                      }}>{xIcon} <span>Rimuovi</span></button>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <input type="password" className="w-40 px-2.5 py-1.5 rounded-lg border border-white/10 bg-transparent text-[11px] outline-none" placeholder="Token" value={oaiTokens[svc.key] || ""} onChange={(e) => setOaiTokens((prev) => ({ ...prev, [svc.key]: e.target.value }))} />
+                        <button onClick={async () => {
+                          const tok = oaiTokens[svc.key];
+                          if (!tok) return;
+                          const apiKeyToSend = isOaiConnected ? "_existing_" : oaiKey;
+                          if (!apiKeyToSend) { alert("Inserisci prima la API Key"); return; }
+                          setOaiSaving(true);
+                          try {
+                            const r = await fetch("/api/openapi-it/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyId: selectedCompany?.id, apiKey: apiKeyToSend, tokens: { [svc.key]: tok } }), credentials: "include" });
+                            const d = await r.json();
+                            if (d.connected) { setOaiConnected(true); setOaiServices(d.services || []); setOaiTokens((prev) => ({ ...prev, [svc.key]: "" })); setOaiKey(""); }
+                            else alert(d.error || "Errore");
+                          } catch { alert("Errore"); } finally { setOaiSaving(false); }
+                        }} disabled={oaiSaving || !oaiTokens[svc.key]} className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-40 transition-all" style={{ background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.9)" }}>Aggiungi</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {isOaiConnected && (
+                <div className={actionRow}>
+                  {agentBtn("Ho collegato OpenAPI.it con i servizi: " + oaiServices.join(", ") + ". Crea un agente specializzato in analisi aziende, visure e due diligence.")}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         {/* 9. Prossimamente */}
         <div className="rounded-xl overflow-hidden" style={{ ...glass.cardStyle, opacity: 0.5 }}>
           <div className="w-full px-4 py-3 flex items-center gap-3 cursor-default">

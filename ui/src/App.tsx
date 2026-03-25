@@ -48,6 +48,7 @@ import { RunTranscriptUxLab } from "./pages/RunTranscriptUxLab";
 import { OrgChart } from "./pages/OrgChart";
 import { GenerateAI } from "./pages/GenerateAI";
 import { Fatturazione } from "./pages/Fatturazione";
+import { AnalisiAziende } from "./pages/AnalisiAziende";
 import { ProjectsPmi } from "./pages/ProjectsPmi";
 import { NewAgent } from "./pages/NewAgent";
 import { AuthPage } from "./pages/Auth";
@@ -155,6 +156,7 @@ function boardRoutes() {
       <Route path="progetti" element={<ProjectsPmi />} />
       <Route path="genera" element={<GenerateAI />} />
       <Route path="fatturazione" element={<Fatturazione />} />
+      <Route path="analisi-aziende" element={<AnalisiAziende />} />
       <Route path="agents" element={<Navigate to="/agents/all" replace />} />
       <Route path="agents/all" element={<Agents />} />
       <Route path="agents/active" element={<Agents />} />
@@ -371,6 +373,7 @@ export function App() {
           <Route path="tests/ux/runs" element={<UnprefixedBoardRedirect />} />
           <Route path="genera" element={<UnprefixedBoardRedirect />} />
           <Route path="fatturazione" element={<UnprefixedBoardRedirect />} />
+          <Route path="analisi-aziende" element={<UnprefixedBoardRedirect />} />
           <Route path="progetti" element={<UnprefixedBoardRedirect />} />
           <Route path=":companyPrefix" element={<Layout />}>
             {boardRoutes()}
