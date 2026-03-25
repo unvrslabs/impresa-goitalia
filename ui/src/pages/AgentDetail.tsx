@@ -1599,7 +1599,10 @@ function PromptTemplateEditor({
         try {
           const newConfig = { ...config, promptTemplate: draft };
           await agentsApi.update(agent.id, { adapterConfig: newConfig }, companyId);
-          queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+          // Invalidate all agent queries to refresh UI
+          await queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+          if ((agent as any).urlKey) await queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail((agent as any).urlKey) });
+          if (companyId) await queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(companyId) });
         } finally {
           setSaving(false);
         }
