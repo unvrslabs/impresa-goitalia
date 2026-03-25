@@ -26,7 +26,7 @@ export function AuthPage() {
   });
 
   useEffect(() => {
-    if (session) { const dest = searchParams.get("next") || "/api-claude"; navigate(dest, { replace: true }); }
+    if (session) navigate(justRegistered.current ? "/api-claude" : (searchParams.get("next") || "/"), { replace: true });
   }, [session, navigate, nextPath]);
 
   const loginMutation = useMutation({
@@ -35,7 +35,7 @@ export function AuthPage() {
       setError(null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth.session });
       await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
-      navigate(searchParams.get("next") || "/api-claude", { replace: true });
+      navigate(searchParams.get("next") || "/", { replace: true });
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Credenziali non valide"),
   });
@@ -64,7 +64,7 @@ export function AuthPage() {
     onSuccess: () => {
       setError(null);
       // Redirect immediately before React re-renders can intercept
-      // navigate handled by session useEffect with justRegistered flag
+      window.location.href = "/api-claude";
     },
     onError: (err) => {
       const msg = err instanceof Error ? err.message : "";
