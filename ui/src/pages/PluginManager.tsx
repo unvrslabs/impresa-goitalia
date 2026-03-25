@@ -734,7 +734,20 @@ export function PluginManager() {
                   </div>
                 </div>
               ) : (
-                <button onClick={() => { window.location.href = "/api/oauth/fattureincloud/connect?companyId=" + selectedCompany?.id + "&prefix=" + (selectedCompany?.issuePrefix || ""); }} className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all mt-2" style={{ background: "rgba(66, 133, 244, 0.2)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.9)" }}>Collega Fatture in Cloud</button>
+                <button onClick={() => { // Token-based connection
+                    const token = ficToken;
+                    if (!token) return;
+                    setFicSaving(true);
+                    try {
+                      const r = await fetch("/api/fic/save-token", {
+                        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+                        body: JSON.stringify({ companyId: selectedCompany?.id, accessToken: token }),
+                      });
+                      const d = await r.json();
+                      if (r.ok) { setFicConnected(true); setFicToken(""); setFicCompanyName(d.companyName || ""); }
+                      else { alert(d.error || "Errore"); }
+                    } catch {}
+                    setFicSaving(false); }} className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all mt-2" style={{ background: "rgba(66, 133, 244, 0.2)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.9)" }}>Collega</button>
               )}
             </div>
           )}
