@@ -58,6 +58,45 @@ export function fattureincloudRoutes(db: Db) {
     res.json({ connected: !!token, companyName: token?.company_name });
   });
 
+  // POST /fic/save-token - Save token directly (no OAuth)
+  router.post("/fic/save-token", async (req, res) => {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const { companyId, accessToken } = req.body as { companyId: string; accessToken: string };
+    if (!companyId || !accessToken) { res.status(400).json({ error: "Token richiesto" }); return; }
+
+    // Test token - get companies
+    try {
+      const r = await fetch("https://api-v2.fattureincloud.it/user/companies", {
+        headers: { Authorization: "Bearer " + accessToken },
+      });
+      if (!r.ok) { res.status(400).json({ error: "Token non valido" }); return; }
+      const data = await r.json() as any;
+      const companies = data.data?.companies || [];
+      const ficCompany = companies[0];
+      if (!ficCompany) { res.status(400).json({ error: "Nessuna azienda trovata" }); return; }
+
+      const ficData = {
+        access_token: accessToken,
+        refresh_token: "",
+        expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year for manual tokens
+        fic_company_id: ficCompany.id,
+        company_name: ficCompany.name,
+      };
+
+      const encrypted = encrypt(JSON.stringify(ficData));
+      const existing = await db.select().from(companySecrets)
+        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "fattureincloud_tokens")))
+        .then((rows) => rows[0]);
+      if (existing) {
+        await db.update(companySecrets).set({ description: encrypted, updatedAt: new Date() }).where(eq(companySecrets.id, existing.id));
+      } else {
+        await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "fattureincloud_tokens", provider: "encrypted", description: encrypted });
+      }
+      res.json({ connected: true, companyName: ficCompany.name });
+    } catch { res.status(400).json({ error: "Errore verifica token" }); }
+  });
+
   // GET /fic/connect?companyId=xxx&prefix=xxx - Start OAuth
   router.get("/oauth/fattureincloud/connect", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
@@ -73,6 +112,7 @@ export function fattureincloudRoutes(db: Db) {
     const redirectUri = (process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL || "https://impresa.goitalia.eu") + "/api/oauth/fattureincloud/callback";
 
     const authUrl = FIC_API + "/oauth/authorize?" + new URLSearchParams({
+      prompt: "login",
       response_type: "code",
       client_id: getFicClientId(),
       redirect_uri: redirectUri,
