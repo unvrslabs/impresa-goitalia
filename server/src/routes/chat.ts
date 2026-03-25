@@ -87,6 +87,52 @@ const TOOLS = [
       required: ["agente_id", "istruzioni"],
     },
   },
+  {
+    name: "salva_info_azienda",
+    description: "Salva o aggiorna le informazioni dell'azienda del cliente in memoria (ragione sociale, P.IVA, CF, indirizzo, settore, PEC, telefono, codice SDI, email, sito web, ecc.)",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        ragione_sociale: { type: "string", description: "Ragione sociale / nome azienda" },
+        partita_iva: { type: "string", description: "Partita IVA" },
+        codice_fiscale: { type: "string", description: "Codice Fiscale" },
+        indirizzo: { type: "string", description: "Indirizzo sede legale" },
+        citta: { type: "string", description: "Città" },
+        cap: { type: "string", description: "CAP" },
+        provincia: { type: "string", description: "Provincia (sigla)" },
+        settore: { type: "string", description: "Settore / attività principale" },
+        pec: { type: "string", description: "Indirizzo PEC" },
+        telefono: { type: "string", description: "Telefono" },
+        email: { type: "string", description: "Email di contatto" },
+        codice_sdi: { type: "string", description: "Codice destinatario SDI" },
+        sito_web: { type: "string", description: "Sito web" },
+        note: { type: "string", description: "Note aggiuntive sull'azienda" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "salva_nota",
+    description: "Salva una nota o informazione importante da ricordare per il futuro. Usa questo quando il cliente dice 'ricorda che...', quando apprendi qualcosa di rilevante, o per salvare preferenze e decisioni.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        contenuto: { type: "string", description: "Il contenuto della nota da salvare" },
+        categoria: { type: "string", description: "Categoria opzionale (preferenze, decisioni, contatti, altro)" },
+      },
+      required: ["contenuto"],
+    },
+  },
+  {
+    name: "leggi_memoria",
+    description: "Leggi tutte le informazioni salvate in memoria sull'azienda del cliente: dati aziendali, note, preferenze.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [] as string[],
+    },
+  },
+
 
 
   {
@@ -246,6 +292,9 @@ const TOOL_CONNECTOR: Record<string, string | null> = {
   elimina_agente: null,
   crea_agente: null,
   esegui_task_agente: null,
+  salva_info_azienda: null,
+  salva_nota: null,
+  leggi_memoria: null,
   // Fatture in Cloud
   lista_clienti: "fic",
   cerca_cliente: "fic",
@@ -260,6 +309,98 @@ const TOOL_CONNECTOR: Record<string, string | null> = {
   credit_score: "oai_risk",
   cerca_cap: "oai_cap",
 };
+
+
+const CEO_SYSTEM_PROMPT = `Sei il CEO, il direttore operativo AI dell'azienda del cliente sulla piattaforma GoItalIA.
+
+## IL TUO RUOLO
+Sei il punto di riferimento principale per il cliente (PMI). Coordini tutto: agenti, connettori, task, analisi.
+Il cliente parla SOLO con te. Tu decidi cosa fare, a chi delegare, e rispondi sempre in prima persona.
+
+## REGOLE FONDAMENTALI
+- Rispondi SEMPRE in italiano, in modo professionale ma amichevole
+- Sii conciso e operativo: fai le cose, non descrivere cosa faresti
+- Usa i tool per eseguire le richieste, non limitarti a parlare
+- Se non hai le info necessarie, chiedi al cliente
+- Se un task richiede un connettore non attivo, suggerisci di attivarlo da Connettori nel menu
+
+## ONBOARDING NUOVO CLIENTE
+Quando un nuovo cliente arriva (nessuna info aziendale in memoria):
+1. Presentati: "Ciao! Sono il CEO della tua azienda AI su GoItalIA."
+2. Chiedi le informazioni aziendali essenziali:
+   - Ragione sociale
+   - Partita IVA
+   - Codice Fiscale
+   - Indirizzo sede
+   - Settore/attività
+   - PEC
+   - Telefono
+   - Codice SDI
+   - Email di contatto
+   - Sito web (se c'è)
+3. Salva TUTTO in memoria con salva_info_azienda
+4. Suggerisci di andare su Connettori per collegare i servizi (Google, WhatsApp, Telegram, ecc.)
+5. Quando il cliente collega un connettore, proponi di creare un agente specializzato per gestirlo
+
+## GESTIONE AGENTI
+- Usa lista_agenti per vedere chi c'è
+- Usa crea_agente per creare nuovi agenti specializzati
+- Usa esegui_task_agente per delegare compiti agli agenti che hanno i connettori giusti
+- Ogni agente ha i suoi connettori: delega solo a chi ha gli strumenti per farlo
+- NON fare tu il lavoro se c'è un agente specializzato — delega!
+
+## GESTIONE CONNETTORI
+Connettori disponibili sulla piattaforma:
+- **Google Workspace**: Gmail, Calendar, Drive, Sheets, Docs
+- **Telegram**: bot per customer service, auto-reply
+- **WhatsApp**: messaggi, vocali, auto-reply via WaSender
+- **Instagram + Facebook**: post, engagement, analytics via Meta
+- **LinkedIn**: profilo, post, publishing
+- **Fal.ai**: genera immagini (Nano Banana 2) e video (Veo 3.1, Kling v3, Seedance 1.5)
+- **Fatture in Cloud**: clienti, fatture, SDI, fatturazione elettronica
+- **OpenAPI.it**: dati aziendali, visure camerali, risk score, codice SDI, CAP, PEC
+
+## TOOL DISPONIBILI
+
+### Gestione interna (sempre disponibili)
+- lista_agenti: vedi tutti gli agenti e il loro stato
+- crea_task: crea un task e assegnalo a un agente
+- stato_task: controlla lo stato dei lavori
+- commenta_task: aggiungi istruzioni a un task
+- crea_agente: crea un nuovo agente specializzato
+- elimina_agente: elimina un agente (MAI eliminare il CEO)
+- esegui_task_agente: delega un compito a un agente specifico
+
+### Memoria (sempre disponibili)
+- salva_info_azienda: salva/aggiorna le informazioni dell'azienda del cliente
+- salva_nota: salva una nota o informazione da ricordare
+- leggi_memoria: leggi tutte le info salvate sull'azienda
+
+### Fatture in Cloud (se connesso)
+- lista_clienti, cerca_cliente, crea_cliente
+- crea_fattura, lista_fatture, invia_fattura_sdi
+
+### OpenAPI.it (se connesso)
+- cerca_azienda_piva: info azienda da P.IVA o CF
+- cerca_azienda_nome: cerca aziende per nome
+- credit_score: rating di rischio aziendale
+- codice_sdi: codice destinatario SDI
+- cerca_cap: info su codice postale
+
+## MEMORIA
+Hai accesso alla memoria dell'azienda. Usala SEMPRE:
+- Prima di rispondere, controlla se hai già le info in memoria
+- Quando il cliente ti dà info importanti, salvale subito
+- Se il cliente dice "ricorda che...", usa salva_nota immediatamente
+- Le info aziendali vanno in salva_info_azienda (strutturate)
+- Tutto il resto va in salva_nota (note libere)
+
+## STILE DI COMUNICAZIONE
+- Professionale ma umano, mai robotico
+- Usa "noi" quando parli dell'azienda del cliente
+- Se fai un'operazione, conferma cosa hai fatto
+- Se deleghi a un agente, dì "Ho chiesto a [nome agente] di..."
+- Se qualcosa va storto, spiega il problema e proponi una soluzione`;
 
 function filterToolsForAgent(agentRole: string, connectors: Record<string, boolean>): typeof TOOLS {
   // CEO/Direttore gets all tools
@@ -684,6 +825,64 @@ async function executeChatTool(
         const data = await r.json();
         return JSON.stringify(data, null, 2).substring(0, 1000);
       }
+
+      case "salva_info_azienda": {
+        const fields = toolInput as Record<string, string>;
+        // Load existing memory
+        const existingMem = await db.execute(sql`SELECT company_info FROM ceo_memory WHERE company_id = ${companyId}`);
+        const rows = (existingMem as any).rows || existingMem;
+        const existing = rows[0]?.company_info || {};
+        // Merge non-empty fields
+        const updated: Record<string, string> = { ...existing };
+        for (const [k, v] of Object.entries(fields)) {
+          if (v && typeof v === "string" && v.trim()) updated[k] = v.trim();
+        }
+        if (rows.length > 0) {
+          await db.execute(sql`UPDATE ceo_memory SET company_info = ${JSON.stringify(updated)}::jsonb, updated_at = NOW() WHERE company_id = ${companyId}`);
+        } else {
+          await db.execute(sql`INSERT INTO ceo_memory (company_id, company_info) VALUES (${companyId}, ${JSON.stringify(updated)}::jsonb)`);
+        }
+        const savedFields = Object.keys(fields).filter(k => fields[k]?.trim()).join(", ");
+        return "Info azienda aggiornate: " + savedFields;
+      }
+
+      case "salva_nota": {
+        const { contenuto, categoria } = toolInput as { contenuto: string; categoria?: string };
+        if (!contenuto) return "Errore: contenuto della nota obbligatorio.";
+        const nota = { contenuto, categoria: categoria || "generale", data: new Date().toISOString().split("T")[0] };
+        const memRows = await db.execute(sql`SELECT notes FROM ceo_memory WHERE company_id = ${companyId}`);
+        const mRows = (memRows as any).rows || memRows;
+        if (mRows.length > 0) {
+          const notes = Array.isArray(mRows[0].notes) ? mRows[0].notes : [];
+          notes.push(nota);
+          await db.execute(sql`UPDATE ceo_memory SET notes = ${JSON.stringify(notes)}::jsonb, updated_at = NOW() WHERE company_id = ${companyId}`);
+        } else {
+          await db.execute(sql`INSERT INTO ceo_memory (company_id, notes) VALUES (${companyId}, ${JSON.stringify([nota])}::jsonb)`);
+        }
+        return "Nota salvata: " + contenuto.substring(0, 100);
+      }
+
+      case "leggi_memoria": {
+        const memResult = await db.execute(sql`SELECT company_info, notes, preferences FROM ceo_memory WHERE company_id = ${companyId}`);
+        const memR = (memResult as any).rows || memResult;
+        if (memR.length === 0) return "Nessuna informazione salvata in memoria per questa azienda.";
+        const mem = memR[0];
+        let output = "";
+        if (mem.company_info && Object.keys(mem.company_info).length > 0) {
+          output += "DATI AZIENDA:\n";
+          for (const [k, v] of Object.entries(mem.company_info)) {
+            output += "- " + k + ": " + v + "\n";
+          }
+        }
+        if (mem.notes && Array.isArray(mem.notes) && mem.notes.length > 0) {
+          output += "\nNOTE SALVATE:\n";
+          for (const n of mem.notes) {
+            output += "- [" + (n.categoria || "generale") + " " + (n.data || "") + "] " + n.contenuto + "\n";
+          }
+        }
+        return output || "Memoria vuota.";
+      }
+
       case "esegui_task_agente": {
         if (!apiKey) return "Errore: API key non disponibile per esecuzione agente.";
         const targetId = toolInput.agente_id as string;
@@ -814,16 +1013,38 @@ export function chatRoutes(db: Db) {
           if (typeof adapterConfig?.model === "string" && adapterConfig.model) { agentModel = adapterConfig.model; }
           const capabilities = agent.capabilities ?? "";
 
-          systemPrompt = promptTemplate || `Sei ${agent.name}, ${agent.title ?? agent.role} presso l'azienda del cliente.
-
-Competenze: ${capabilities}
-
-Hai a disposizione dei tool per gestire l'azienda. Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.
-
-Rispondi sempre in italiano, in modo professionale e conciso.
-Usa i tool per eseguire le richieste, non limitarti a descrivere cosa faresti.`;
+          // CEO gets the hardcoded prompt, other agents get their custom prompt
+          if (agent.role === "ceo") {
+            systemPrompt = CEO_SYSTEM_PROMPT;
+          } else {
+            systemPrompt = promptTemplate || `Sei ${agent.name}, ${agent.title ?? agent.role} presso l'azienda del cliente.\n\nCompetenze: ${capabilities}\n\nEsegui il compito assegnato usando i tool a disposizione. Rispondi in italiano, in modo professionale e conciso.`;
+          }
         }
       }
+
+      // Load CEO memory
+      let memoryContext = "";
+      try {
+        const memResult = await db.execute(sql`SELECT company_info, notes, preferences FROM ceo_memory WHERE company_id = ${companyId}`);
+        const memRows = (memResult as any).rows || memResult;
+        if (memRows.length > 0 && memRows[0]) {
+          const mem = memRows[0];
+          if (mem.company_info && Object.keys(mem.company_info).length > 0) {
+            memoryContext += "\n\n--- MEMORIA AZIENDA ---\n";
+            for (const [k, v] of Object.entries(mem.company_info)) {
+              memoryContext += k + ": " + v + "\n";
+            }
+          }
+          if (mem.notes && Array.isArray(mem.notes) && mem.notes.length > 0) {
+            memoryContext += "\nNOTE SALVATE:\n";
+            for (const n of (mem.notes as Array<{contenuto: string; categoria?: string; data?: string}>)) {
+              memoryContext += "- [" + (n.categoria || "generale") + "] " + n.contenuto + "\n";
+            }
+          }
+          memoryContext += "--- FINE MEMORIA ---";
+        }
+      } catch (e) { console.error("Memory load error:", e); }
+      systemPrompt += memoryContext;
 
       // Build dynamic context for Direttore
       let dynamicContext = "";
