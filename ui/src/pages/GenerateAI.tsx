@@ -301,7 +301,7 @@ export function GenerateAI() {
           clearInterval(interval);
           const rr = await fetch("/api/fal/result/" + job.modelKey + "/" + job.requestId + "?companyId=" + job.companyId, { credentials: "include" });
           const res = await rr.json();
-          const newResults = [];
+          const newResults: ResultItem[] = [];
           if (res.images) res.images.forEach((img: any) => newResults.push({ id: crypto.randomUUID(), url: img.url, type: "image" }));
           if (res.video) newResults.push({ id: crypto.randomUUID(), url: res.video.url, type: "video" });
           setResults((prev) => [...newResults, ...prev]);
@@ -1001,7 +1001,7 @@ export function GenerateAI() {
                 </button>
               ))}
             </div>
-            {publishResult && publishResult.map((r, i) => (
+            {publishResult && publishResult.map((r: any, i: number) => (
               <div key={i} className={"text-xs px-2 py-1 rounded " + (r.success ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400")}>
                 {r.platform}: {r.success ? "Pubblicato!" : r.error || "Errore"}
               </div>
