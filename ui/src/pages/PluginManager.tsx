@@ -68,6 +68,9 @@ export function PluginManager() {
   const [linkedinStatus, setLinkedinStatus] = useState<{ connected: boolean; name?: string; email?: string } | null>(null);
   const [metaStatus, setMetaStatus] = useState<{ connected: boolean; userName?: string; pages?: Array<{ id: string; name: string }>; instagram?: Array<{ id: string; username: string; pageName: string }> } | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [falConnected, setFalConnected] = useState(false);
+  const [falKey, setFalKey] = useState("");
+  const [falSaving, setFalSaving] = useState(false);
   const [showVoiceSetup, setShowVoiceSetup] = useState(false);
   const [openaiKey, setOpenaiKey] = useState("");
   const [voiceSaving, setVoiceSaving] = useState(false);
@@ -88,6 +91,7 @@ export function PluginManager() {
       .then((r) => r.json())
       .then((d) => setTelegramStatus(d))
       .catch(() => setTelegramStatus({ connected: false }));
+    fetch("/api/fal/status?companyId=" + selectedCompany.id, { credentials: "include" }).then((r) => r.json()).then((d) => setFalConnected(d.connected)).catch(() => {});
     fetch("/api/voice/status?companyId=" + selectedCompany.id, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setVoiceEnabled(d.enabled || false))
@@ -216,6 +220,7 @@ export function PluginManager() {
   const isMetaConnected = metaStatus?.connected ?? false;
   const isLinkedinConnected = linkedinStatus?.connected ?? false;
   const isVoiceConnected = voiceEnabled;
+  const isFalConnected = falConnected;
 
 
   // Uniform row style for sub-items
