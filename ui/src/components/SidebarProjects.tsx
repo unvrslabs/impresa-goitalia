@@ -117,9 +117,6 @@ export function SidebarProjects() {
 
       <CollapsibleContent>
         <div className="flex flex-col gap-0.5 mt-0.5">
-          {visibleProjects.length === 0 && (
-            <div className="px-6 py-1 text-[10px] text-muted-foreground/40">Nessun progetto</div>
-          )}
           {visibleProjects.map((project) => (
             <NavLink
               key={project.id}
