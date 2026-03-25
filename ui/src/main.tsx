@@ -21,10 +21,12 @@ import "./index.css";
 
 initPluginBridge(React, ReactDOM);
 
+// Unregister any existing service worker
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js");
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((r) => r.unregister());
   });
+  caches.keys().then((keys) => keys.forEach((key) => caches.delete(key)));
 }
 
 const queryClient = new QueryClient({
