@@ -20,7 +20,7 @@ import {
   ShieldCheck,
   Key,
   LogOut,
-  FolderOpen, Sparkles, Receipt, Globe,
+  FolderOpen, Sparkles, Receipt, Globe, CalendarClock,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -61,6 +61,7 @@ export function Sidebar() {
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [telegramUnread, setTelegramUnread] = useState(0);
   const [waUnread, setWaUnread] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     if (!selectedCompanyId) return;
@@ -90,6 +91,10 @@ export function Sidebar() {
       fetch("/api/openapi-it/status?companyId=" + selectedCompanyId, { credentials: "include" })
         .then((r) => r.json())
         .then((d) => setHasOpenapi(d.connected || false))
+        .catch(() => {});
+      fetch("/api/routines/pending?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setPendingCount(Array.isArray(d) ? d.length : 0))
         .catch(() => {});
       Promise.all([
         fetch("/api/oauth/meta/status?companyId=" + selectedCompanyId, { credentials: "include" }).then((r) => r.json()).catch(() => ({ connected: false })),
@@ -256,6 +261,7 @@ export function Sidebar() {
 
         {/* Impostazioni */}
         <SidebarSection label="Impostazioni">
+          <div className={!isComplete ? "opacity-30 pointer-events-none" : ""}><SidebarNavItem to="/scheduled" label="Attività" icon={CalendarClock} badge={pendingCount > 0 ? pendingCount : undefined} /></div>
           {isStep3 ? (
             <div className="relative" id="connettori-nav">
               <div className="absolute inset-0 rounded-lg animate-pulse" style={glowStyle} />

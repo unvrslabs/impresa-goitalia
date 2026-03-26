@@ -51,6 +51,7 @@ import { Fatturazione } from "./pages/Fatturazione";
 import { AnalisiAziende } from "./pages/AnalisiAziende";
 import { ProjectsPmi } from "./pages/ProjectsPmi";
 import { NewAgent } from "./pages/NewAgent";
+import { ScheduledActivities } from "./pages/ScheduledActivities";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
 import { InviteLandingPage } from "./pages/InviteLanding";
@@ -182,6 +183,7 @@ function boardRoutes() {
       <Route path="issues/:issueId" element={<IssueDetail />} />
       <Route path="routines" element={<Routines />} />
       <Route path="routines/:routineId" element={<RoutineDetail />} />
+      <Route path="scheduled" element={<ScheduledActivities />} />
       <Route path="execution-workspaces/:workspaceId" element={<ExecutionWorkspaceDetail />} />
       <Route path="goals" element={<Goals />} />
       <Route path="goals/:goalId" element={<GoalDetail />} />
@@ -356,6 +358,7 @@ export function App() {
           <Route path="issues/:issueId" element={<UnprefixedBoardRedirect />} />
           <Route path="routines" element={<UnprefixedBoardRedirect />} />
           <Route path="routines/:routineId" element={<UnprefixedBoardRedirect />} />
+          <Route path="scheduled" element={<UnprefixedBoardRedirect />} />
           <Route path="skills/*" element={<UnprefixedBoardRedirect />} />
           <Route path="mail" element={<UnprefixedBoardRedirect />} />
           <Route path="calendario" element={<UnprefixedBoardRedirect />} />
