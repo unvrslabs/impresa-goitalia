@@ -98,6 +98,48 @@ export function PluginManager() {
     } catch {} return null;
   });
 
+  // Disconnect confirmation dialog state
+  const [disconnectDialog, setDisconnectDialog] = useState<{
+    label: string;
+    connectorType: string; // for finding associated agent
+    onDisconnect: () => Promise<void>;
+  } | null>(null);
+  const [disconnectLoading, setDisconnectLoading] = useState(false);
+
+  const showDisconnectDialog = (label: string, connectorType: string, onDisconnect: () => Promise<void>) => {
+    setDisconnectDialog({ label, connectorType, onDisconnect });
+  };
+
+  const executeDisconnect = async (alsoDeleteAgent: boolean) => {
+    if (!disconnectDialog) return;
+    setDisconnectLoading(true);
+    try {
+      await disconnectDialog.onDisconnect();
+      if (alsoDeleteAgent && selectedCompany?.id) {
+        // Find and terminate agents associated with this connector
+        try {
+          const res = await fetch("/api/companies/" + selectedCompany.id + "/agents", { credentials: "include" });
+          const agents = await res.json();
+          for (const agent of agents) {
+            if (agent.role === "ceo") continue;
+            const connectors = agent.adapterConfig?.connectors || {};
+            const connType = disconnectDialog.connectorType;
+            // Check if this agent has the connector active
+            let hasConnector = false;
+            if (connType === "google") hasConnector = connectors.gmail === true || connectors.drive === true;
+            else if (connType === "telegram") hasConnector = Object.keys(connectors).some(k => k.startsWith("tg_") && connectors[k]);
+            else hasConnector = connectors[connType] === true;
+            if (hasConnector) {
+              await fetch("/api/agents/" + agent.id + "/terminate", { method: "POST", credentials: "include" });
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+    setDisconnectLoading(false);
+    setDisconnectDialog(null);
+  };
+
   useEffect(() => {
     if (!selectedCompany?.id) return;
     fetch("/api/oauth/google/status?companyId=" + selectedCompany?.id, { credentials: "include" })
@@ -317,11 +359,12 @@ export function PluginManager() {
                       {miniGoogle}
                       <span className="flex-1 truncate">{email}</span>
                     </div>
-                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
-                        if (!confirm("Sei sicuro di voler disconnettere questo account?")) return;
-                        await fetch("/api/oauth/google/disconnect?companyId=" + selectedCompany?.id + "&email=" + encodeURIComponent(email as string), { credentials: "include" });
-                        const newAccounts = (googleStatus!.accounts || []).filter((a) => a !== email);
-                        setGoogleStatus(newAccounts.length > 0 ? { connected: true, email: newAccounts[0], accounts: newAccounts } : { connected: false });
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => {
+                        showDisconnectDialog("Google (" + email + ")", "google", async () => {
+                          await fetch("/api/oauth/google/disconnect?companyId=" + selectedCompany?.id + "&email=" + encodeURIComponent(email as string), { credentials: "include" });
+                          const newAccounts = (googleStatus!.accounts || []).filter((a) => a !== email);
+                          setGoogleStatus(newAccounts.length > 0 ? { connected: true, email: newAccounts[0], accounts: newAccounts } : { connected: false });
+                        });
                       }} title="Disconnetti">{xIcon}</button>
                     </div>
                   ))}
@@ -382,11 +425,12 @@ export function PluginManager() {
                           })}
                       </div>
                     </div>
-                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
-                      if (!confirm("Sei sicuro di voler disconnettere questo bot?")) return;
-                      await fetch("/api/telegram/disconnect?companyId=" + selectedCompany?.id + "&bot=" + bot.username, { method: "POST", credentials: "include" });
-                      const newBots = (telegramStatus!.bots || []).filter((b) => b.username !== bot.username);
-                      setTelegramStatus(newBots.length > 0 ? { connected: true, bots: newBots } : { connected: false });
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => {
+                      showDisconnectDialog("Telegram @" + bot.username, "telegram", async () => {
+                        await fetch("/api/telegram/disconnect?companyId=" + selectedCompany?.id + "&bot=" + bot.username, { method: "POST", credentials: "include" });
+                        const newBots = (telegramStatus!.bots || []).filter((b) => b.username !== bot.username);
+                        setTelegramStatus(newBots.length > 0 ? { connected: true, bots: newBots } : { connected: false });
+                      });
                     }} title="Disconnetti">{xIcon}</button>
                     </div>
                   ))}
@@ -456,11 +500,12 @@ export function PluginManager() {
                           })}
                       </div>
                     </div>
-                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
-                          if (!confirm("Sei sicuro di voler disconnettere questo numero?")) return;
-                          await fetch("/api/whatsapp/disconnect?companyId=" + selectedCompany?.id + "&phone=" + encodeURIComponent(num.phoneNumber), { method: "POST", credentials: "include" });
-                          const newNums = (waStatus!.numbers || []).filter((n) => n.phoneNumber !== num.phoneNumber);
-                          setWaStatus(newNums.length > 0 ? { connected: true, numbers: newNums } : { connected: false });
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => {
+                          showDisconnectDialog("WhatsApp " + num.phoneNumber, "whatsapp", async () => {
+                            await fetch("/api/whatsapp/disconnect?companyId=" + selectedCompany?.id + "&phone=" + encodeURIComponent(num.phoneNumber), { method: "POST", credentials: "include" });
+                            const newNums = (waStatus!.numbers || []).filter((n) => n.phoneNumber !== num.phoneNumber);
+                            setWaStatus(newNums.length > 0 ? { connected: true, numbers: newNums } : { connected: false });
+                          });
                         }} title="Disconnetti">{xIcon}</button>
                     </div>
                   ))}
@@ -571,10 +616,11 @@ export function PluginManager() {
                   ))}
                   <div className="flex items-center justify-between pt-2">
                     {agentBtn("Ho collegato Instagram e Facebook. Crea un agente per gestire i social media.")}
-                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
-                      if (!confirm("Sei sicuro di voler disconnettere Instagram e Facebook?")) return;
-                      await fetch("/api/oauth/meta/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
-                      setMetaStatus({ connected: false });
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => {
+                      showDisconnectDialog("Instagram + Facebook", "meta", async () => {
+                        await fetch("/api/oauth/meta/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
+                        setMetaStatus({ connected: false });
+                      });
                     }} title="Disconnetti">{xIcon}</button>
                   </div>
                 </>
@@ -610,10 +656,11 @@ export function PluginManager() {
                     {miniLi}
                     <span className="flex-1 truncate">{linkedinStatus!.name}</span>
                   </div>
-                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
-                      if (!confirm("Sei sicuro di voler disconnettere LinkedIn?")) return;
-                      await fetch("/api/oauth/linkedin/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
-                      setLinkedinStatus({ connected: false });
+                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => {
+                      showDisconnectDialog("LinkedIn", "linkedin", async () => {
+                        await fetch("/api/oauth/linkedin/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
+                        setLinkedinStatus({ connected: false });
+                      });
                     }} title="Disconnetti">{xIcon}</button>
                   </div>
                   <div className={actionRow}>
@@ -653,7 +700,7 @@ export function PluginManager() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
                     <span className="flex-1 text-xs">OpenAI Whisper — Attivo</span>
                   </div>
-                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => { if (!confirm("Sei sicuro di voler disattivare Vocali AI?")) return; await fetch("/api/voice/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setVoiceEnabled(false); }} title="Disattiva">{xIcon}</button>
+                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => { showDisconnectDialog("Vocali AI", "voice", async () => { await fetch("/api/voice/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setVoiceEnabled(false); }); }} title="Disattiva">{xIcon}</button>
                   </div>
                 </div>
               ) : (
@@ -708,7 +755,7 @@ export function PluginManager() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                     <span className="flex-1 text-xs">Fal.ai — 11 modelli AI</span>
                   </div>
-                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => { if (!confirm("Sei sicuro di voler disconnettere Fal.ai?")) return; await fetch("/api/fal/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setFalConnected(false); }} title="Disconnetti">{xIcon}</button>
+                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => { showDisconnectDialog("Fal.ai", "fal", async () => { await fetch("/api/fal/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setFalConnected(false); }); }} title="Disconnetti">{xIcon}</button>
                   </div>
                   <div className={actionRow}>
                     {agentBtn("Ho collegato Fal.ai per la generazione di contenuti. Crea un agente specializzato in generazione immagini e video con AI.")}
@@ -764,7 +811,7 @@ export function PluginManager() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     <span className="flex-1 text-xs">{ficCompany || "Fatture in Cloud"}</span>
                   </div>
-                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => { if (!confirm("Sei sicuro di voler disconnettere Fatture in Cloud?")) return; await fetch("/api/fic/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" }); setFicConnected(false); setFicCompany(null); }} title="Disconnetti">{xIcon}</button>
+                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => { showDisconnectDialog("Fatture in Cloud", "fic", async () => { await fetch("/api/fic/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" }); setFicConnected(false); setFicCompany(null); }); }} title="Disconnetti">{xIcon}</button>
                   </div>
                   <div className={actionRow}>
                     {agentBtn("Ho collegato Fatture in Cloud. Crea un agente per gestire la fatturazione elettronica, emettere fatture e monitorare i pagamenti.")}
@@ -888,6 +935,39 @@ export function PluginManager() {
         </div>
 
       </div>
+
+      {/* Disconnect confirmation dialog */}
+      {disconnectDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => !disconnectLoading && setDisconnectDialog(null)}>
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} />
+          <div className="relative rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4" onClick={(e) => e.stopPropagation()} style={{ background: "rgba(30,30,30,0.9)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>Disconnetti {disconnectDialog.label}</h3>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>Vuoi disconnettere solo il connettore o anche eliminare l'agente associato?</p>
+            </div>
+            <div className="space-y-2">
+              <button
+                disabled={disconnectLoading}
+                onClick={() => executeDisconnect(false)}
+                className="w-full px-4 py-2.5 rounded-xl text-xs font-medium transition-all disabled:opacity-40"
+                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "rgba(239,68,68,0.9)" }}
+              >{disconnectLoading ? "..." : "Disconnetti solo connettore"}</button>
+              <button
+                disabled={disconnectLoading}
+                onClick={() => executeDisconnect(true)}
+                className="w-full px-4 py-2.5 rounded-xl text-xs font-medium transition-all disabled:opacity-40"
+                style={{ background: "rgba(239,68,68,0.3)", border: "1px solid rgba(239,68,68,0.5)", color: "white" }}
+              >{disconnectLoading ? "..." : "Disconnetti e elimina agente"}</button>
+              <button
+                disabled={disconnectLoading}
+                onClick={() => setDisconnectDialog(null)}
+                className="w-full px-4 py-2 rounded-xl text-xs transition-all"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >Annulla</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Uninstall dialog */}
       <Dialog open={uninstallPluginId !== null} onOpenChange={(open) => { if (!open) setUninstallPluginId(null); }}>
