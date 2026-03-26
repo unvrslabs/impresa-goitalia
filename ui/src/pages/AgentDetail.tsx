@@ -2469,34 +2469,114 @@ function AgentConnectorsTab({ companyId, agentRole, agentId, primaryConnector }:
   const { selectedCompany } = useCompany();
   const [agentConnectors, setAgentConnectors] = useState<Record<string, boolean>>({});
   const [savingConnectors, setSavingConnectors] = useState(false);
+  // Mapping from UI key to connector_account UUID (for relational API)
+  const [connectorKeyToAccountId, setConnectorKeyToAccountId] = useState<Record<string, string>>({});
 
-  // Load agent connector settings
+  // Build UI key from a connector_account row
+  const buildUiKeys = (row: { connectorType: string; accountId: string }): string[] => {
+    switch (row.connectorType) {
+      case "google":
+        // One Google account -> 5 sub-services
+        return ["gmail", "calendar", "drive", "sheets", "docs"];
+      case "telegram":
+        return ["tg_" + row.accountId];
+      case "whatsapp":
+        return ["whatsapp"];
+      case "meta_ig":
+        return ["ig_" + row.accountId];
+      case "meta_fb":
+        return ["fb_" + row.accountId];
+      case "linkedin":
+        return ["linkedin"];
+      case "fal":
+        return ["fal_nano", "fal_veo", "fal_kling", "fal_seedance"];
+      case "fic":
+        return ["fic"];
+      case "openapi":
+        return ["oai_company", "oai_risk", "oai_cap", "oai_sdi"];
+      default:
+        return [row.connectorType + "_" + row.accountId];
+    }
+  };
+
+  // Load agent connector settings from relational API
   useEffect(() => {
     if (!companyId || !agentId) return;
-    fetch("/api/agents/" + agentId + "?companyId=" + companyId, { credentials: "include" })
-      .then((r) => r.json())
-      .then((agent: any) => {
-        const config = agent.adapterConfig || {};
-        setAgentConnectors(config.connectors || {});
-      })
-      .catch(() => {});
+
+    // Fetch all company connector accounts (for key→id mapping)
+    const companyAccountsP = fetch("/api/connector-accounts?companyId=" + companyId, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : []).catch(() => []);
+    // Fetch active agent connector accounts
+    const agentAccountsP = fetch("/api/agents/" + agentId + "/connector-accounts", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : []).catch(() => []);
+
+    Promise.all([companyAccountsP, agentAccountsP]).then(([companyAccounts, agentAccounts]: [any[], any[]]) => {
+      // Build mapping: UI key -> connectorAccountId (UUID from connector_accounts table)
+      const keyToId: Record<string, string> = {};
+      for (const ca of companyAccounts) {
+        const keys = buildUiKeys(ca);
+        for (const k of keys) {
+          keyToId[k] = ca.id;
+        }
+      }
+      setConnectorKeyToAccountId(keyToId);
+
+      if (agentAccounts.length > 0) {
+        // Derive active state from relational data
+        const active: Record<string, boolean> = {};
+        for (const aa of agentAccounts) {
+          const keys = buildUiKeys(aa);
+          for (const k of keys) {
+            active[k] = true;
+          }
+        }
+        setAgentConnectors(active);
+      } else {
+        // Legacy fallback: read from adapterConfig.connectors
+        fetch("/api/agents/" + agentId + "?companyId=" + companyId, { credentials: "include" })
+          .then((r) => r.json())
+          .then((agent: any) => {
+            const config = agent.adapterConfig || {};
+            setAgentConnectors(config.connectors || {});
+          })
+          .catch(() => {});
+      }
+    });
   }, [companyId, agentId]);
 
   const toggleConnector = async (key: string) => {
-    const newVal = { ...agentConnectors, [key]: !agentConnectors[key] };
+    const currentlyOn = agentConnectors[key] === true;
+    const newVal = { ...agentConnectors, [key]: !currentlyOn };
     setAgentConnectors(newVal);
     setSavingConnectors(true);
     try {
       if (agentId) {
-        const res = await fetch("/api/agents/" + agentId + "?companyId=" + companyId, { credentials: "include" });
-        if (res.ok) {
-          const a = await res.json();
-          const config = a.adapterConfig || {};
-          config.connectors = newVal;
-          await fetch("/api/agents/" + agentId + "?companyId=" + companyId, {
-            method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
-            body: JSON.stringify({ adapterConfig: config }),
-          });
+        const connAccountId = connectorKeyToAccountId[key];
+        if (connAccountId) {
+          // Use relational API
+          if (!currentlyOn) {
+            // Activate: POST
+            await fetch("/api/agents/" + agentId + "/connector-accounts/" + connAccountId, {
+              method: "POST", credentials: "include",
+            });
+          } else {
+            // Deactivate: DELETE
+            await fetch("/api/agents/" + agentId + "/connector-accounts/" + connAccountId, {
+              method: "DELETE", credentials: "include",
+            });
+          }
+        } else {
+          // Fallback to legacy PATCH if no connector_account mapping found
+          const res = await fetch("/api/agents/" + agentId + "?companyId=" + companyId, { credentials: "include" });
+          if (res.ok) {
+            const a = await res.json();
+            const config = a.adapterConfig || {};
+            config.connectors = newVal;
+            await fetch("/api/agents/" + agentId + "?companyId=" + companyId, {
+              method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+              body: JSON.stringify({ adapterConfig: config }),
+            });
+          }
         }
       }
     } catch {}

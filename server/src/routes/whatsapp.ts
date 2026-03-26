@@ -5,6 +5,7 @@ import { companySecrets, agents } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 
 const WASENDER_API = "https://www.wasenderapi.com/api";
 function getWasenderPat() { return process.env.WASENDER_PAT || ""; }
@@ -104,6 +105,9 @@ export function whatsappRoutes(db: Db) {
         await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "whatsapp_sessions", provider: "encrypted", description: encSessions });
       }
 
+      // Sync connector_accounts
+      await upsertConnectorAccount(db, companyId, "whatsapp", phoneNumber, name);
+
       // Connect new session to get QR
       const connectRes = await fetch(WASENDER_API + "/whatsapp-sessions/" + sessionData.id + "/connect", {
         method: "POST",
@@ -198,6 +202,12 @@ export function whatsappRoutes(db: Db) {
           await db.update(companySecrets).set({ description: encrypt(JSON.stringify(filtered)), updatedAt: new Date() }).where(eq(companySecrets.id, secret.id));
         } else {
           await db.delete(companySecrets).where(eq(companySecrets.id, secret.id));
+        }
+        // Sync connector_accounts
+        if (phoneToRemove) {
+          await removeConnectorAccount(db, companyId, "whatsapp", phoneToRemove);
+        } else {
+          await removeConnectorAccount(db, companyId, "whatsapp");
         }
       } catch {}
     }

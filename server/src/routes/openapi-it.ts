@@ -3,6 +3,7 @@ import type { Db } from "@goitalia/db";
 import { companySecrets } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 import crypto from "node:crypto";
 
 interface OpenApiCreds {
@@ -84,6 +85,7 @@ export function openapiItRoutes(db: Db) {
       await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "openapi_it_creds", provider: "encrypted", description: encrypted });
     }
 
+    await upsertConnectorAccount(db, companyId, "openapi", "default", creds.email || "OpenAPI.it");
     res.json({ connected: true, services: Object.keys(creds.tokens) });
   });
 
@@ -104,6 +106,7 @@ export function openapiItRoutes(db: Db) {
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
     const companyId = req.query.companyId as string || req.body?.companyId;
     await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "openapi_it_creds")));
+    await removeConnectorAccount(db, companyId, "openapi", "default");
     res.json({ disconnected: true });
   });
 

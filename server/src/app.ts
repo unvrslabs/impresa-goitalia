@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Db } from "@goitalia/db";
+import { companySecrets, agents, connectorAccounts as caTableImport } from "@goitalia/db";
 import type { DeploymentExposure, DeploymentMode } from "@goitalia/shared";
 import type { StorageService } from "./storage/types.js";
 import { httpLogger, errorHandler } from "./middleware/index.js";
@@ -20,7 +21,7 @@ import { driveRoutes } from "./routes/drive.js";
 import { telegramRoutes, telegramWebhookRouter as telegramWebhookRouterFn } from "./routes/telegram.js";
 import { fattureincloudRoutes } from "./routes/fattureincloud.js";
 import { falAiRoutes } from "./routes/fal-ai.js";
-import { sql } from "drizzle-orm";
+import { sql, eq, and, ne } from "drizzle-orm";
 import { openapiItRoutes } from "./routes/openapi-it.js";
 import { projectsPmiRoutes } from "./routes/projects-pmi.js";
 import { whatsappRoutes, whatsappWebhookRouter } from "./routes/whatsapp.js";
@@ -28,6 +29,7 @@ import { voiceRoutes } from "./routes/voice.js";
 import { metaRoutes } from "./routes/meta.js";
 import { linkedinRoutes } from "./routes/linkedin.js";
 import { socialRoutes } from "./routes/social.js";
+import { connectorAccountRoutes } from "./routes/connector-accounts.js";
 import { companySkillRoutes } from "./routes/company-skills.js";
 import { agentRoutes } from "./routes/agents.js";
 import { projectRoutes } from "./routes/projects.js";
@@ -197,6 +199,7 @@ app.use(express.json({
   api.use(telegramRoutes(db));
   api.use(fattureincloudRoutes(db));
   api.use(falAiRoutes(db));
+  api.use(connectorAccountRoutes(db));
 
   // Company profile (ceo_memory)
   api.get("/company-profile", async (req, res) => {
@@ -255,6 +258,124 @@ app.use(express.json({
   api.use(dashboardRoutes(db));
   api.use(sidebarBadgeRoutes(db));
   api.use(instanceSettingsRoutes(db));
+
+  // One-shot migration: populate connector_accounts from company_secrets
+  api.post("/migrate-connectors", async (req, res) => {
+    const { decrypt: dec } = await import("./utils/crypto.js");
+    const { upsertConnectorAccount } = await import("./utils/connector-sync.js");
+    const { agentConnectorAccounts: acaTable } = await import("@goitalia/db");
+
+    const allSecrets = await db.select().from(companySecrets);
+    let created = 0;
+    const errors: string[] = [];
+
+    for (const secret of allSecrets) {
+      if (!secret.description) continue;
+      try {
+        const raw = dec(secret.description);
+        const cid = secret.companyId;
+
+        if (secret.name === "google_oauth_tokens") {
+          const arr = JSON.parse(raw);
+          for (const a of (Array.isArray(arr) ? arr : [])) {
+            if (a.email) { await upsertConnectorAccount(db, cid, "google", a.email, a.email); created++; }
+          }
+        } else if (secret.name === "telegram_bots") {
+          const arr = JSON.parse(raw);
+          for (const b of (Array.isArray(arr) ? arr : [])) {
+            if (b.username) { await upsertConnectorAccount(db, cid, "telegram", b.username, b.name || b.username); created++; }
+          }
+        } else if (secret.name === "whatsapp_sessions") {
+          const arr = JSON.parse(raw);
+          for (const s of (Array.isArray(arr) ? arr : [])) {
+            if (s.phoneNumber) { await upsertConnectorAccount(db, cid, "whatsapp", s.phoneNumber, s.phoneNumber); created++; }
+          }
+        } else if (secret.name === "meta_tokens") {
+          const obj = JSON.parse(raw);
+          for (const ig of (obj.instagram || [])) {
+            if (ig.username) { await upsertConnectorAccount(db, cid, "meta_ig", ig.username, ig.username); created++; }
+          }
+          for (const fb of (obj.pages || [])) {
+            if (fb.id) { await upsertConnectorAccount(db, cid, "meta_fb", String(fb.id), fb.name || String(fb.id)); created++; }
+          }
+        } else if (secret.name === "linkedin_tokens") {
+          const arr = JSON.parse(raw);
+          for (const a of (Array.isArray(arr) ? arr : [])) {
+            if (a.email) { await upsertConnectorAccount(db, cid, "linkedin", a.email, a.name || a.email); created++; }
+          }
+        } else if (secret.name === "fal_api_key") {
+          await upsertConnectorAccount(db, cid, "fal", "default", "Fal.ai"); created++;
+        } else if (secret.name === "fattureincloud_tokens") {
+          const obj = JSON.parse(raw);
+          await upsertConnectorAccount(db, cid, "fic", obj.fic_company_id || "default", obj.company_name || "Fatture in Cloud"); created++;
+        } else if (secret.name === "openapi_it_creds") {
+          const obj = JSON.parse(raw);
+          await upsertConnectorAccount(db, cid, "openapi", "default", obj.email || "OpenAPI.it"); created++;
+        } else if (secret.name === "openai_api_key") {
+          await upsertConnectorAccount(db, cid, "voice", "default", "Vocali AI"); created++;
+        }
+      } catch (e) {
+        errors.push(`${secret.name}/${secret.companyId}: ${(e as Error).message}`);
+      }
+    }
+
+    // Step 2: migrate agent_connector_accounts from adapterConfig.connectors
+    let linked = 0;
+    const allAgents = await db.select().from(agents).where(ne(agents.status, "terminated"));
+    for (const agent of allAgents) {
+      const config = agent.adapterConfig as Record<string, unknown> | null;
+      const connectors = (config?.connectors as Record<string, boolean>) || {};
+      for (const [key, val] of Object.entries(connectors)) {
+        if (val !== true) continue;
+        // Map key to connector_type + account_id
+        let connType = "";
+        let accountId = "";
+        if (["gmail", "calendar", "drive", "sheets", "docs"].includes(key)) {
+          connType = "google";
+        } else if (key.startsWith("tg_")) {
+          connType = "telegram"; accountId = key.slice(3);
+        } else if (key === "whatsapp") {
+          connType = "whatsapp";
+        } else if (key.startsWith("ig_")) {
+          connType = "meta_ig"; accountId = key.slice(3);
+        } else if (key.startsWith("fb_")) {
+          connType = "meta_fb"; accountId = key.slice(3);
+        } else if (key === "meta") {
+          connType = "meta_ig";
+        } else if (key === "linkedin") {
+          connType = "linkedin";
+        } else if (key === "fal") {
+          connType = "fal"; accountId = "default";
+        } else if (key === "fic") {
+          connType = "fic";
+        } else if (["oai_company", "oai_risk", "oai_cap", "oai_sdi"].includes(key)) {
+          connType = "openapi"; accountId = "default";
+        } else if (key === "voice") {
+          connType = "voice"; accountId = "default";
+        }
+
+        if (!connType) continue;
+
+        // Find matching connector_account
+        const conditions = [
+          eq(caTableImport.companyId, agent.companyId),
+          eq(caTableImport.connectorType, connType),
+        ];
+        if (accountId) conditions.push(eq(caTableImport.accountId, accountId));
+
+        const ca = await db.select().from(caTableImport).where(and(...conditions)).then(r => r[0]);
+        if (ca) {
+          try {
+            await db.insert(acaTable).values({ agentId: agent.id, connectorAccountId: ca.id }).onConflictDoNothing();
+            linked++;
+          } catch {}
+        }
+      }
+    }
+
+    res.json({ created, linked, errors });
+  });
+
   const hostServicesDisposers = new Map<string, () => void>();
   const workerManager = createPluginWorkerManager();
   const pluginRegistry = pluginRegistryService(db);

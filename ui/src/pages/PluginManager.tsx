@@ -116,22 +116,49 @@ export function PluginManager() {
     try {
       await disconnectDialog.onDisconnect();
       if (alsoDeleteAgent && selectedCompany?.id) {
+        const connType = disconnectDialog.connectorType;
+        // Map UI connector type to DB connector_account types
+        const dbTypes: string[] = connType === "meta" ? ["meta_ig", "meta_fb"] : [connType];
         // Find and terminate agents associated with this connector
         try {
           const res = await fetch("/api/companies/" + selectedCompany.id + "/agents", { credentials: "include" });
           const agents = await res.json();
           for (const agent of agents) {
             if (agent.role === "ceo") continue;
-            const connectors = agent.adapterConfig?.connectors || {};
-            const connType = disconnectDialog.connectorType;
-            // Check if this agent has the connector active
             let hasConnector = false;
-            if (connType === "google") hasConnector = connectors.gmail === true || connectors.drive === true;
-            else if (connType === "telegram") hasConnector = Object.keys(connectors).some(k => k.startsWith("tg_") && connectors[k]);
-            else hasConnector = connectors[connType] === true;
+            // Try new relational API first
+            try {
+              const caRes = await fetch("/api/agents/" + agent.id + "/connector-accounts", { credentials: "include" });
+              if (caRes.ok) {
+                const accounts = await caRes.json();
+                if (Array.isArray(accounts) && accounts.length > 0) {
+                  hasConnector = accounts.some((ca: any) => dbTypes.includes(ca.connectorType));
+                } else {
+                  // Fallback to old adapterConfig method
+                  const connectors = agent.adapterConfig?.connectors || {};
+                  if (connType === "google") hasConnector = connectors.gmail === true || connectors.drive === true;
+                  else if (connType === "telegram") hasConnector = Object.keys(connectors).some(k => k.startsWith("tg_") && connectors[k]);
+                  else hasConnector = connectors[connType] === true;
+                }
+              } else {
+                throw new Error("API not available");
+              }
+            } catch {
+              // Fallback to old adapterConfig method
+              const connectors = agent.adapterConfig?.connectors || {};
+              if (connType === "google") hasConnector = connectors.gmail === true || connectors.drive === true;
+              else if (connType === "telegram") hasConnector = Object.keys(connectors).some(k => k.startsWith("tg_") && connectors[k]);
+              else hasConnector = connectors[connType] === true;
+            }
             if (hasConnector) {
               await fetch("/api/agents/" + agent.id + "/terminate", { method: "POST", credentials: "include" });
             }
+          }
+        } catch {}
+        // Clean up relational connector_accounts table
+        try {
+          for (const dt of dbTypes) {
+            await fetch("/api/connector-accounts?companyId=" + selectedCompany.id + "&connectorType=" + dt, { method: "DELETE", credentials: "include" });
           }
         } catch {}
       }

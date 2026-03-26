@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Db } from "@goitalia/db";
-import { companySecrets, agents, companyMemberships, companies, issues } from "@goitalia/db";
+import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts } from "@goitalia/db";
 import { eq, and, ne, inArray, desc, sql, asc } from "drizzle-orm";
 import { decrypt as decryptSecret, decrypt, encrypt } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
@@ -640,8 +640,58 @@ function filterToolsForAgent(agentRole: string, connectors: Record<string, boole
   });
 }
 
+/**
+ * Build the connectors Record<string, boolean> from agent_connector_accounts.
+ * Falls back to adapterConfig.connectors if no rows found (backward compat during migration).
+ */
+async function getAgentConnectorsFromDb(
+  db: Db,
+  agentId: string,
+  fallbackConnectors?: Record<string, boolean>,
+): Promise<Record<string, boolean>> {
+  const rows = await db.select({
+    connectorType: connectorAccounts.connectorType,
+    accountId: connectorAccounts.accountId,
+  })
+    .from(agentConnectorAccounts)
+    .innerJoin(connectorAccounts, eq(agentConnectorAccounts.connectorAccountId, connectorAccounts.id))
+    .where(eq(agentConnectorAccounts.agentId, agentId));
 
+  // Fallback to legacy adapterConfig.connectors if no relational data yet
+  if (rows.length === 0 && fallbackConnectors && Object.keys(fallbackConnectors).length > 0) {
+    return fallbackConnectors;
+  }
 
+  const connectors: Record<string, boolean> = {};
+  for (const row of rows) {
+    const t = row.connectorType;
+    const acct = row.accountId;
+    if (t === "google") {
+      connectors.gmail = true; connectors.calendar = true; connectors.drive = true;
+      connectors.sheets = true; connectors.docs = true;
+    } else if (t === "telegram") {
+      connectors["tg_" + acct] = true;
+    } else if (t === "whatsapp") {
+      connectors.whatsapp = true;
+    } else if (t === "meta_ig") {
+      connectors["ig_" + acct] = true;
+    } else if (t === "meta_fb") {
+      connectors["fb_" + acct] = true;
+    } else if (t === "linkedin") {
+      connectors.linkedin = true;
+    } else if (t === "fal") {
+      connectors.fal = true;
+    } else if (t === "fic") {
+      connectors.fic = true;
+    } else if (t === "openapi") {
+      connectors.oai_company = true; connectors.oai_risk = true;
+      connectors.oai_cap = true; connectors.oai_sdi = true;
+    } else if (t === "voice") {
+      connectors.voice = true;
+    }
+  }
+  return connectors;
+}
 
 async function getOaiToken(db: Db, companyId: string, service: string): Promise<string | null> {
   const secret = await db.select().from(companySecrets)
@@ -706,7 +756,8 @@ async function executeAgentTask(
 
   const adapterConfig = agent.adapterConfig as Record<string, unknown> | null;
   const agentModel = (typeof adapterConfig?.model === "string" && adapterConfig.model) || "claude-haiku-4-5-20251001";
-  const connectors = (adapterConfig?.connectors as Record<string, boolean>) || {};
+  const legacyConnectors = (adapterConfig?.connectors as Record<string, boolean>) || {};
+  const connectors = await getAgentConnectorsFromDb(db, targetAgentId, legacyConnectors);
   const promptTemplate = typeof adapterConfig?.promptTemplate === "string" ? adapterConfig.promptTemplate : "";
   const capabilities = agent.capabilities ?? "";
 
@@ -928,6 +979,30 @@ async function executeChatTool(
           reportsTo: agentId,
           status: "idle",
         }).returning();
+
+        // Link agent to connector_account via relational table
+        if (conn) {
+          // Map connector name to connector_type in connector_accounts table
+          let connType = conn; // default: same name
+          if (conn === "meta") connType = acctId ? "meta_ig" : "meta_ig"; // meta always maps to ig for now
+          const accountIdForLookup = acctId || "default";
+
+          const connAccount = await db.select().from(connectorAccounts)
+            .where(and(
+              eq(connectorAccounts.companyId, companyId),
+              eq(connectorAccounts.connectorType, connType),
+              eq(connectorAccounts.accountId, accountIdForLookup),
+            ))
+            .then(r => r[0]);
+
+          if (connAccount) {
+            await db.insert(agentConnectorAccounts).values({
+              agentId: newAgent.id,
+              connectorAccountId: connAccount.id,
+            }).onConflictDoNothing();
+          }
+        }
+
         return `Agente creato: ${input.nome} (${input.titolo}) — id: ${newAgent.id} — connettore: ${conn || "nessuno"}. L'agente ha attivo solo il connettore ${conn}. Il cliente può abilitare altri connettori dalla pagina agente > Connettori.`;
       }
 
@@ -1298,7 +1373,8 @@ export function chatRoutes(db: Db) {
           resolvedAgentId = agent.id;
           const adapterConfig = agent.adapterConfig as Record<string, unknown> | null;
           agentRole = agent.role || "general";
-          agentConnectors = (adapterConfig?.connectors as Record<string, boolean>) || {};
+          const legacyConn = (adapterConfig?.connectors as Record<string, boolean>) || {};
+          agentConnectors = await getAgentConnectorsFromDb(db, agent.id, legacyConn);
           const promptTemplate = typeof adapterConfig?.promptTemplate === "string" ? adapterConfig.promptTemplate : "";
           if (typeof adapterConfig?.model === "string" && adapterConfig.model) { agentModel = adapterConfig.model; }
           const capabilities = agent.capabilities ?? "";
@@ -1348,33 +1424,47 @@ export function chatRoutes(db: Db) {
           status: agents.status,
         }).from(agents).where(eq(agents.companyId, companyId));
 
-        // Get connector status — check all connectors dynamically
-        const secrets = await db.select({ name: companySecrets.name }).from(companySecrets).where(eq(companySecrets.companyId, companyId));
-        const secretNames = secrets.map((s) => s.name);
+        // Get connector status from connector_accounts table
+        const companyConnectorRows = await db.select({
+          connectorType: connectorAccounts.connectorType,
+          accountId: connectorAccounts.accountId,
+          accountLabel: connectorAccounts.accountLabel,
+        }).from(connectorAccounts).where(eq(connectorAccounts.companyId, companyId));
 
-        // Map secret names to connector keys
-        const connectorSecretMap: Record<string, string> = {
-          google_oauth_tokens: "google",
-          telegram_bots: "telegram",
-          wasender_sessions: "whatsapp",
-          meta_oauth_tokens: "meta",
-          linkedin_oauth_tokens: "linkedin",
-          fal_api_key: "fal",
-          fic_token: "fic",
-          openapi_it_creds: "openapi",
-          openai_voice_key: "voice",
+        // Map connector_type to CONNECTOR_GUIDES keys
+        const typeToGuideKey: Record<string, string> = {
+          google: "google", telegram: "telegram", whatsapp: "whatsapp",
+          meta_ig: "meta", meta_fb: "meta",
+          linkedin: "linkedin", fal: "fal", fic: "fic",
+          openapi: "openapi", voice: "voice",
         };
 
-        const activeConnectors: string[] = [];
-        const inactiveConnectors: string[] = [];
-        for (const guide of CONNECTOR_GUIDES) {
-          const secretKey = Object.entries(connectorSecretMap).find(([_, v]) => v === guide.key)?.[0];
-          if (secretKey && secretNames.includes(secretKey)) {
-            activeConnectors.push(guide.key);
-          } else {
-            inactiveConnectors.push(guide.key);
-          }
+        const activeGuideKeys = new Set<string>();
+        const activeDetails: string[] = [];
+        for (const row of companyConnectorRows) {
+          const guideKey = typeToGuideKey[row.connectorType] || row.connectorType;
+          activeGuideKeys.add(guideKey);
+          activeDetails.push(`${row.connectorType}:${row.accountLabel || row.accountId}`);
         }
+
+        // Fallback: also check secrets for connectors not yet migrated
+        const secrets = await db.select({ name: companySecrets.name }).from(companySecrets).where(eq(companySecrets.companyId, companyId));
+        const secretNames = secrets.map((s) => s.name);
+        const connectorSecretMap: Record<string, string> = {
+          google_oauth_tokens: "google", telegram_bots: "telegram",
+          whatsapp_sessions: "whatsapp", meta_tokens: "meta",
+          linkedin_tokens: "linkedin", fal_api_key: "fal",
+          fattureincloud_tokens: "fic", openapi_it_creds: "openapi",
+          openai_api_key: "voice",
+        };
+        for (const [secretName, guideKey] of Object.entries(connectorSecretMap)) {
+          if (secretNames.includes(secretName)) activeGuideKeys.add(guideKey);
+        }
+
+        const activeConnectors = Array.from(activeGuideKeys);
+        const inactiveConnectors = CONNECTOR_GUIDES
+          .filter((g) => !activeGuideKeys.has(g.key))
+          .map((g) => g.key);
 
         const hasClaudeKey = secretNames.includes("claude_api_key");
 

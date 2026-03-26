@@ -5,6 +5,7 @@ import { companySecrets, agents } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
@@ -85,6 +86,9 @@ export function telegramRoutes(db: Db) {
         body: JSON.stringify({ url: webhookUrl, secret_token: crypto.createHash("sha256").update(token).digest("hex").slice(0, 32) }),
       });
 
+      // Sync connector_accounts
+      await upsertConnectorAccount(db, companyId, "telegram", botData.username, botData.name);
+
       // telegram_messages table created via migration
       await db.execute(sql`CREATE INDEX IF NOT EXISTS telegram_messages_company_idx ON telegram_messages(company_id, created_at DESC)`);
 
@@ -146,9 +150,11 @@ export function telegramRoutes(db: Db) {
         } else {
           await db.delete(companySecrets).where(eq(companySecrets.id, secret.id));
         }
+        // Sync connector_accounts
+        await removeConnectorAccount(db, companyId, "telegram", botUsername || undefined);
       } catch {}
     }
-    
+
     res.json({ disconnected: true });
   });
 

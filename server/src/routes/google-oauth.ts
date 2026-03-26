@@ -4,6 +4,7 @@ import { companySecrets, companyMemberships } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET || "";
@@ -159,6 +160,12 @@ export function googleOAuthRoutes(db: Db) {
         });
       }
 
+      // Sync connector_accounts
+      const email = newAccount.email;
+      if (email) {
+        await upsertConnectorAccount(db, stateData.companyId, "google", email, email);
+      }
+
       // Redirect back to plugins page with success
       const prefix = stateData.prefix || "";
       res.redirect(prefix ? "/" + prefix + "/plugins?google_connected=true" : "/?google_connected=true");
@@ -225,10 +232,12 @@ export function googleOAuthRoutes(db: Db) {
           }
         } catch {}
       }
+      await removeConnectorAccount(db, companyId, "google", emailToRemove);
     } else {
       // Remove all
       await db.delete(companySecrets)
         .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "google_oauth_tokens")));
+      await removeConnectorAccount(db, companyId, "google");
     }
 
     res.json({ disconnected: true });

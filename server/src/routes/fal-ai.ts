@@ -4,6 +4,7 @@ import type { Db } from "@goitalia/db";
 import { companySecrets } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
 
@@ -82,6 +83,7 @@ export function falAiRoutes(db: Db) {
     } else {
       await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "fal_api_key", provider: "encrypted", description: encrypted });
     }
+    await upsertConnectorAccount(db, companyId, "fal", "default", "Fal.ai");
     res.json({ connected: true });
   });
 
@@ -219,6 +221,7 @@ export function falAiRoutes(db: Db) {
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
     const companyId = req.query.companyId as string;
     await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "fal_api_key")));
+    await removeConnectorAccount(db, companyId, "fal", "default");
     res.json({ disconnected: true });
   });
 

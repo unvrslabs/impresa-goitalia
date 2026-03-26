@@ -4,6 +4,7 @@ import { companySecrets } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 
 export function voiceRoutes(db: Db) {
   const router = Router();
@@ -34,6 +35,7 @@ export function voiceRoutes(db: Db) {
       await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "openai_api_key", provider: "encrypted", description: encrypted });
     }
 
+    await upsertConnectorAccount(db, companyId, "voice", "default", "Vocali AI");
     res.json({ saved: true });
   });
 
@@ -56,6 +58,7 @@ export function voiceRoutes(db: Db) {
     const companyId = req.query.companyId as string;
     if (!companyId) { res.json({ deleted: true }); return; }
     await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "openai_api_key")));
+    await removeConnectorAccount(db, companyId, "voice", "default");
     res.json({ deleted: true });
   });
 

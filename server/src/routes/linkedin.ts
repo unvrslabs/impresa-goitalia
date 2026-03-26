@@ -4,6 +4,7 @@ import { companySecrets } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID || "";
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET || "";
@@ -106,6 +107,8 @@ export function linkedinRoutes(db: Db) {
         await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId: stateData.companyId, name: "linkedin_tokens", provider: "encrypted", description: encrypted });
       }
 
+      await upsertConnectorAccount(db, stateData.companyId, "linkedin", newAccount.email, newAccount.name);
+
       const prefix = stateData.prefix || "";
       res.redirect(prefix ? "/" + prefix + "/plugins?linkedin_connected=true" : "/?linkedin_connected=true");
     } catch (err) {
@@ -158,9 +161,11 @@ export function linkedinRoutes(db: Db) {
           }
         } catch {}
       }
+      await removeConnectorAccount(db, companyId, "linkedin", emailToRemove);
     } else {
       // Remove all
       await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "linkedin_tokens")));
+      await removeConnectorAccount(db, companyId, "linkedin");
     }
     res.json({ disconnected: true });
   });

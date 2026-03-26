@@ -4,6 +4,7 @@ import { companySecrets } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeAllConnectorAccountsByType } from "../utils/connector-sync.js";
 
 const META_APP_ID = process.env.META_APP_ID || "";
 const META_APP_SECRET = process.env.META_APP_SECRET || "";
@@ -108,6 +109,14 @@ export function metaRoutes(db: Db) {
         await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId: stateData.companyId, name: "meta_tokens", provider: "encrypted", description: encrypted });
       }
 
+      // Sync connector_accounts
+      for (const ig of igAccounts) {
+        await upsertConnectorAccount(db, stateData.companyId, "meta_ig", ig.username, ig.username);
+      }
+      for (const page of pages) {
+        await upsertConnectorAccount(db, stateData.companyId, "meta_fb", page.id, page.name);
+      }
+
       const prefix = stateData.prefix || "";
       res.redirect(prefix ? "/" + prefix + "/plugins?meta_connected=true" : "/?meta_connected=true");
     } catch (err) {
@@ -146,6 +155,8 @@ export function metaRoutes(db: Db) {
     const companyId = req.query.companyId as string || req.body?.companyId;
     if (!companyId) { res.json({ disconnected: true }); return; }
     await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "meta_tokens")));
+    await removeAllConnectorAccountsByType(db, companyId, "meta_ig");
+    await removeAllConnectorAccountsByType(db, companyId, "meta_fb");
     res.json({ disconnected: true });
   });
 

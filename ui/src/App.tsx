@@ -256,6 +256,8 @@ function OnboardingRoutePage() {
 function CompanyRootRedirect() {
   const { companies, selectedCompany, loading } = useCompany();
   const location = useLocation();
+  const healthQuery = useQuery({ queryKey: queryKeys.health, queryFn: () => healthApi.get() });
+  const isLocalTrusted = healthQuery.data?.deploymentMode === "local_trusted";
 
   if (loading) {
     return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground">Loading...</div>;
@@ -264,6 +266,7 @@ function CompanyRootRedirect() {
   const targetCompany = selectedCompany ?? companies[0] ?? null;
   if (!targetCompany) {
     if (
+      !isLocalTrusted &&
       shouldRedirectCompanylessRouteToOnboarding({
         pathname: location.pathname,
         hasCompanies: false,
@@ -280,6 +283,8 @@ function CompanyRootRedirect() {
 function UnprefixedBoardRedirect() {
   const location = useLocation();
   const { companies, selectedCompany, loading } = useCompany();
+  const healthQuery = useQuery({ queryKey: queryKeys.health, queryFn: () => healthApi.get() });
+  const isLocalTrusted = healthQuery.data?.deploymentMode === "local_trusted";
 
   if (loading) {
     return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground">Loading...</div>;
@@ -288,6 +293,7 @@ function UnprefixedBoardRedirect() {
   const targetCompany = selectedCompany ?? companies[0] ?? null;
   if (!targetCompany) {
     if (
+      !isLocalTrusted &&
       shouldRedirectCompanylessRouteToOnboarding({
         pathname: location.pathname,
         hasCompanies: false,

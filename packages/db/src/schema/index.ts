@@ -53,3 +53,5 @@ export { pluginEntities } from "./plugin_entities.js";
 export { pluginJobs, pluginJobRuns } from "./plugin_jobs.js";
 export { pluginWebhookDeliveries } from "./plugin_webhooks.js";
 export { pluginLogs } from "./plugin_logs.js";
+export { connectorAccounts } from "./connector_accounts.js";
+export { agentConnectorAccounts } from "./agent_connector_accounts.js";

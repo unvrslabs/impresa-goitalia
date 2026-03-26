@@ -4,6 +4,7 @@ import { companySecrets } from "@goitalia/db";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
+import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 
 const FIC_API = "https://api-v2.fattureincloud.it";
 function getFicClientId() { return process.env.FIC_CLIENT_ID || ""; }
@@ -93,6 +94,7 @@ export function fattureincloudRoutes(db: Db) {
       } else {
         await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId, name: "fattureincloud_tokens", provider: "encrypted", description: encrypted });
       }
+      await upsertConnectorAccount(db, companyId, "fic", String(ficCompany.id), ficCompany.name);
       res.json({ connected: true, companyName: ficCompany.name });
     } catch { res.status(400).json({ error: "Errore verifica token" }); }
   });
@@ -185,6 +187,8 @@ export function fattureincloudRoutes(db: Db) {
         await db.insert(companySecrets).values({ id: crypto.randomUUID(), companyId: stateData.companyId, name: "fattureincloud_tokens", provider: "encrypted", description: encrypted });
       }
 
+      await upsertConnectorAccount(db, stateData.companyId, "fic", String(ficCompanyId), companyName);
+
       const prefix = stateData.prefix || "";
       res.redirect(prefix ? "/" + prefix + "/plugins?fic_connected=true" : "/?fic_connected=true");
     } catch (err) {
@@ -199,6 +203,7 @@ export function fattureincloudRoutes(db: Db) {
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
     const companyId = req.body?.companyId || req.query.companyId;
     await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "fattureincloud_tokens")));
+    await removeConnectorAccount(db, companyId, "fic");
     res.json({ disconnected: true });
   });
 
