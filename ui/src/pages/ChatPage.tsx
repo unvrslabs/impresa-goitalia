@@ -152,7 +152,7 @@ export function ChatPage() {
         setIsStreaming(false);
       }).catch(() => { setIsStreaming(false); });
     }
-  }, [isOnboarding, autoStarted, ceoAgent, messages.length, isStreaming, selectedCompanyId, historyLoaded]);
+  }, [isOnboarding, autoStarted, ceoAgent, messages.length, isStreaming, selectedCompanyId, historyLoaded, onboardingReady]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
