@@ -67,13 +67,12 @@ export function ChatPage() {
   }, [setBreadcrumbs]);
 
   // Load chat history from DB
-  useEffect(() => {
+  const loadHistory = () => {
     if (!selectedCompany?.id) return;
     fetch("/api/chat/history?companyId=" + selectedCompany.id, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         if (data.messages?.length > 0) {
-          // Separate pending messages from regular messages
           const pending = data.messages.filter((m: any) => m.role === "pending_user");
           const regular = data.messages.filter((m: any) => m.role !== "pending_user");
           const loaded = regular.map((m: any) => ({
@@ -83,19 +82,26 @@ export function ChatPage() {
             timestamp: new Date(m.created_at),
           }));
           setMessages(loaded);
-          // If there are pending messages, queue the last one for auto-send
           if (pending.length > 0) {
             const lastPending = pending[pending.length - 1];
             pendingMsgRef.current = lastPending.content;
             setInput(lastPending.content);
             setPendingMsgTrigger(t => t + 1);
-            // Delete pending messages from DB
             fetch("/api/chat/clear-pending?companyId=" + selectedCompany.id, { method: "POST", credentials: "include" });
           }
         }
         setHistoryLoaded(true);
       })
       .catch(() => { setHistoryLoaded(true); });
+  };
+  useEffect(() => { loadHistory(); }, [selectedCompany?.id]);
+  // Re-check for pending messages when page becomes visible (handles SPA navigation)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") loadHistory(); };
+    const onFocus = () => loadHistory();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("focus", onFocus); };
   }, [selectedCompany?.id]);
 
   // Auto-send message from connector create-agent flow or legacy ?msg= param
