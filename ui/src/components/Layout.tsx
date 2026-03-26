@@ -403,7 +403,6 @@ function OnboardingTooltipPopup({ companyId, sidebarOpen }: { companyId: string 
     return () => clearInterval(id);
   }, [targetId, sidebarOpen, dismissed]);
   if (onboardingStep === null || onboardingStep === 2 || onboardingStep >= 4) return null;
-  if (onboardingStep === 0 && hasApiKey !== false) return null;
   if (dismissed) return null;
   const stepConfig = onboardingStep === 0
     ? { title: "Configura API Claude", text: "Per attivare il tuo CEO AI e sbloccare tutte le funzionalita, inserisci la tua API key di Anthropic nella sezione qui sotto." }
