@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { getStripeApiKey } from "./stripe-connector.js";
+import { getProjectFilesContent } from "./project-files.js";
 import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts, routines, routineTriggers, routineRuns } from "@goitalia/db";
 import { parseCron, nextCronTick } from "../services/cron.js";
 import { nextCronTickInTimeZone } from "../services/routines.js";
@@ -336,6 +337,25 @@ export const TOOLS = [
     },
   },
 
+  // Project files tool
+  {
+    name: "leggi_file_progetto",
+    description: "Legge i file allegati a un progetto (upload diretto o link Google Drive). Usa questo tool quando l'utente dice 'ho caricato un file nel progetto', 'guarda il documento nel progetto', ecc.",
+    input_schema: { type: "object" as const, properties: { project_id: { type: "string", description: "ID del progetto" } }, required: ["project_id"] as string[] },
+  },
+
+  // Google Drive tools
+  {
+    name: "cerca_file_drive",
+    description: "Cerca file su Google Drive per nome o contenuto. Restituisce nome, tipo, link e ID del file.",
+    input_schema: { type: "object" as const, properties: { query: { type: "string", description: "Nome o parola chiave del file da cercare" } }, required: ["query"] as string[] },
+  },
+  {
+    name: "leggi_file_drive",
+    description: "Legge il contenuto testuale di un file Google Drive (Google Doc, Fogli, file TXT, CSV). Usa l'ID file ottenuto da cerca_file_drive.",
+    input_schema: { type: "object" as const, properties: { file_id: { type: "string", description: "ID del file Google Drive (es: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms)" }, file_name: { type: "string", description: "Nome del file (opzionale, per log)" } }, required: ["file_id"] as string[] },
+  },
+
   // Stripe tools
   {
     name: "stripe_lista_clienti",
@@ -430,6 +450,11 @@ export const TOOL_CONNECTOR: Record<string, string | null> = {
   salva_info_azienda: null,
   salva_nota: null,
   leggi_memoria: null,
+  // Project files
+  leggi_file_progetto: null,
+  // Google Drive
+  cerca_file_drive: "drive",
+  leggi_file_drive: "drive",
   // Fatture in Cloud
   lista_clienti: "fic",
   cerca_cliente: "fic",
@@ -891,6 +916,34 @@ async function getOaiToken(db: Db, companyId: string, service: string): Promise<
     return creds.tokens?.[service] || null;
   } catch { return null; }
 }
+async function getGoogleTokenForChat(db: Db, companyId: string): Promise<string | null> {
+  const secret = await db.select().from(companySecrets)
+    .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "google_oauth_tokens")))
+    .then((r) => r[0]);
+  if (!secret?.description) return null;
+  try {
+    const decrypted = JSON.parse(decrypt(secret.description));
+    const accounts = Array.isArray(decrypted) ? decrypted : [decrypted];
+    const tokenData = accounts[0];
+    if (!tokenData) return null;
+    if (tokenData.expires_at && tokenData.expires_at < Date.now() && tokenData.refresh_token) {
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || "", client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || "", refresh_token: tokenData.refresh_token, grant_type: "refresh_token" }),
+      });
+      if (res.ok) {
+        const t = await res.json() as { access_token: string; expires_in: number };
+        tokenData.access_token = t.access_token;
+        tokenData.expires_at = Date.now() + t.expires_in * 1000;
+        accounts[0] = tokenData;
+        await db.update(companySecrets).set({ description: encrypt(JSON.stringify(accounts)), updatedAt: new Date() }).where(eq(companySecrets.id, secret.id));
+      }
+    }
+    return tokenData.access_token || null;
+  } catch { return null; }
+}
+
 async function getFicTokenForChat(db: Db, companyId: string): Promise<{ access_token: string; fic_company_id: number } | null> {
   const secret = await db.select().from(companySecrets)
     .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "fattureincloud_tokens")))
@@ -1585,6 +1638,61 @@ export async function executeChatTool(
         const replySubject = ogg.startsWith("Re:") ? ogg : "Re: " + ogg;
         await sendPecMessage(pecCreds, dest, replySubject, testo);
         return `Risposta PEC inviata a ${dest}. Oggetto: "${replySubject}"`;
+      }
+
+      case "leggi_file_progetto": {
+        const projectId = toolInput.project_id as string;
+        if (!projectId) return "project_id obbligatorio.";
+        return await getProjectFilesContent(db, projectId);
+      }
+
+      case "cerca_file_drive": {
+        const googleToken = await getGoogleTokenForChat(db, companyId);
+        if (!googleToken) return "Google Drive non connesso. Collega Google da Connettori.";
+        const q = encodeURIComponent(`name contains '${(toolInput.query as string).replace(/'/g, "\\'")}' and trashed=false`);
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType,webViewLink,modifiedTime,size)&orderBy=modifiedTime desc&pageSize=20`, {
+          headers: { Authorization: "Bearer " + googleToken },
+        });
+        if (!r.ok) return "Errore ricerca Drive: " + r.status;
+        const data = await r.json() as { files: Array<{ id: string; name: string; mimeType: string; webViewLink?: string; modifiedTime?: string }> };
+        if (!data.files.length) return `Nessun file trovato per "${toolInput.query}".`;
+        const typeLabel = (m: string) => m.includes("document") ? "Google Doc" : m.includes("spreadsheet") ? "Foglio" : m.includes("presentation") ? "Presentazione" : m.includes("folder") ? "Cartella" : m.includes("zip") ? "ZIP" : "File";
+        return data.files.map((f) => `📄 ${f.name} [${typeLabel(f.mimeType)}] | ID: ${f.id} | ${f.modifiedTime?.split("T")[0] || ""} | ${f.webViewLink || ""}`).join("\n");
+      }
+
+      case "leggi_file_drive": {
+        const googleToken = await getGoogleTokenForChat(db, companyId);
+        if (!googleToken) return "Google Drive non connesso.";
+        const fileId = toolInput.file_id as string;
+        // First get file metadata to know the type
+        const metaR = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
+          headers: { Authorization: "Bearer " + googleToken },
+        });
+        if (!metaR.ok) return "File non trovato o non accessibile (ID: " + fileId + ")";
+        const meta = await metaR.json() as { name: string; mimeType: string; size?: string };
+        const isGoogleDoc = meta.mimeType === "application/vnd.google-apps.document";
+        const isGoogleSheet = meta.mimeType === "application/vnd.google-apps.spreadsheet";
+        const isText = meta.mimeType.startsWith("text/") || meta.mimeType === "application/json";
+        if (isGoogleDoc) {
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`, { headers: { Authorization: "Bearer " + googleToken } });
+          if (!r.ok) return "Errore esportazione Google Doc: " + r.status;
+          const text = await r.text();
+          return `📄 ${meta.name}\n\n${text.substring(0, 8000)}${text.length > 8000 ? "\n\n[...troncato a 8000 caratteri]" : ""}`;
+        } else if (isGoogleSheet) {
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/csv`, { headers: { Authorization: "Bearer " + googleToken } });
+          if (!r.ok) return "Errore esportazione foglio: " + r.status;
+          const text = await r.text();
+          return `📊 ${meta.name}\n\n${text.substring(0, 8000)}`;
+        } else if (isText) {
+          const fileSize = parseInt(meta.size || "0");
+          if (fileSize > 500000) return `File troppo grande (${Math.round(fileSize / 1024)}KB). Massimo supportato: 500KB.`;
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: "Bearer " + googleToken } });
+          if (!r.ok) return "Errore download file: " + r.status;
+          const text = await r.text();
+          return `📄 ${meta.name}\n\n${text.substring(0, 8000)}${text.length > 8000 ? "\n\n[...troncato]" : ""}`;
+        } else {
+          return `Il file "${meta.name}" (${meta.mimeType}) non può essere letto come testo. Sono supportati: Google Doc, Google Fogli, file TXT/CSV. Per file ZIP: estrai prima il contenuto e caricalo come file TXT.`;
+        }
       }
 
       case "stripe_lista_clienti": {

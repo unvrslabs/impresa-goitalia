@@ -31,6 +31,7 @@ import { linkedinRoutes } from "./routes/linkedin.js";
 import { pecRoutes } from "./routes/pec.js";
 import { billingRoutes, billingWebhookRouter } from "./routes/billing.js";
 import { stripeConnectorRoutes } from "./routes/stripe-connector.js";
+import { projectFilesRoutes } from "./routes/project-files.js";
 import { socialRoutes } from "./routes/social.js";
 import { connectorAccountRoutes } from "./routes/connector-accounts.js";
 import { companySkillRoutes } from "./routes/company-skills.js";
@@ -249,6 +250,7 @@ app.use(express.json({
   api.use(linkedinRoutes(db));
   api.use(pecRoutes(db));
   api.use(stripeConnectorRoutes(db));
+  api.use(projectFilesRoutes(db));
   api.use(billingRoutes(db));
   api.use(socialRoutes(db));
   api.use("/companies", companyRoutes(db, opts.storageService));

@@ -48,16 +48,151 @@ function resolveProjectTab(pathname: string, projectId: string): ProjectTab | nu
   return null;
 }
 
+/* ── Project Files component ── */
+
+type ProjectFile = { id: string; name: string; type: string; mimeType?: string | null; sizeBytes?: number | null; driveUrl?: string | null; hasContent: boolean; createdAt: string };
+
+function ProjectFiles({ projectId, companyId, googleConnected }: { projectId: string; companyId: string; googleConnected: boolean }) {
+  const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [driveUrl, setDriveUrl] = useState("");
+  const [addingDrive, setAddingDrive] = useState(false);
+  const [showDriveInput, setShowDriveInput] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch(`/api/project-files?projectId=${projectId}`, { credentials: "include" })
+      .then((r) => r.json()).then((d) => setFiles(d.files || [])).catch(() => {});
+  }, [projectId]);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("projectId", projectId);
+      form.append("companyId", companyId);
+      const r = await fetch("/api/project-files/upload", { method: "POST", credentials: "include", body: form });
+      const d = await r.json();
+      if (r.ok) setFiles((prev) => [...prev, d.file]);
+      else alert(d.error || "Errore upload");
+    } catch {}
+    setUploading(false);
+  };
+
+  const handleDriveLink = async () => {
+    if (!driveUrl.trim()) return;
+    setAddingDrive(true);
+    try {
+      const r = await fetch("/api/project-files/drive-link", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, companyId, driveUrl: driveUrl.trim() }),
+      });
+      const d = await r.json();
+      if (r.ok) { setFiles((prev) => [...prev, d.file]); setDriveUrl(""); setShowDriveInput(false); }
+      else alert(d.error || "Errore");
+    } catch {}
+    setAddingDrive(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    await fetch(`/api/project-files/${id}`, { method: "DELETE", credentials: "include" });
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const formatSize = (bytes?: number | null) => {
+    if (!bytes) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const fileIcon = (f: ProjectFile) => {
+    if (f.type === "drive_link") return "🔗";
+    if (f.mimeType?.includes("zip")) return "🗜️";
+    if (f.mimeType?.includes("pdf")) return "📕";
+    if (f.mimeType?.startsWith("image/")) return "🖼️";
+    if (f.mimeType?.includes("csv") || f.mimeType?.includes("sheet")) return "📊";
+    return "📄";
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-muted-foreground">File del progetto</h3>
+        <div className="flex items-center gap-2">
+          {googleConnected && (
+            <button onClick={() => setShowDriveInput(!showDriveInput)} className="text-xs px-2.5 py-1 rounded-lg transition-colors" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
+              🔗 Drive
+            </button>
+          )}
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="text-xs px-2.5 py-1 rounded-lg transition-colors disabled:opacity-40" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
+            {uploading ? "Caricamento..." : "↑ Carica file"}
+          </button>
+          <input ref={fileInputRef} type="file" className="hidden" accept=".txt,.csv,.zip,.pdf,.md,.json" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ""; }} />
+        </div>
+      </div>
+
+      {showDriveInput && (
+        <div className="flex gap-2">
+          <input
+            type="url" value={driveUrl} onChange={(e) => setDriveUrl(e.target.value)}
+            placeholder="Incolla link Google Drive..."
+            className="flex-1 px-3 py-2 rounded-xl text-xs bg-transparent outline-none"
+            style={{ border: "1px solid rgba(255,255,255,0.12)" }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleDriveLink(); }}
+          />
+          <button onClick={handleDriveLink} disabled={addingDrive || !driveUrl.trim()} className="px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-40" style={{ background: "rgba(66,133,244,0.2)", border: "1px solid rgba(66,133,244,0.3)", color: "rgba(66,133,244,0.9)" }}>
+            {addingDrive ? "..." : "Aggiungi"}
+          </button>
+        </div>
+      )}
+
+      {files.length === 0 && (
+        <p className="text-xs text-muted-foreground/50 py-2">Nessun file allegato. Carica un file o aggiungi un link Google Drive — il CEO potrà leggerlo.</p>
+      )}
+
+      <div className="space-y-1.5">
+        {files.map((f) => (
+          <div key={f.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl group" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <span className="text-base shrink-0">{fileIcon(f)}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium truncate text-white/80">{f.name}</div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {f.hasContent ? (
+                  <span className="text-[10px] text-green-400/70">✓ leggibile dal CEO</span>
+                ) : (
+                  <span className="text-[10px] text-amber-400/60">⚠ contenuto non estratto</span>
+                )}
+                {f.sizeBytes ? <span className="text-[10px] text-white/30">{formatSize(f.sizeBytes)}</span> : null}
+                {f.driveUrl && <a href={f.driveUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400/60 hover:text-blue-400">apri ↗</a>}
+              </div>
+            </div>
+            <button onClick={() => handleDelete(f.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400/50 hover:text-red-400 text-xs shrink-0">✕</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Overview tab content ── */
 
 function OverviewContent({
   project,
   onUpdate,
   imageUploadHandler,
+  projectId,
+  companyId,
+  googleConnected,
 }: {
   project: { description: string | null; status: string; targetDate: string | null };
   onUpdate: (data: Record<string, unknown>) => void;
   imageUploadHandler?: (file: File) => Promise<string>;
+  projectId: string;
+  companyId: string;
+  googleConnected: boolean;
 }) {
   return (
     <div className="space-y-6">
@@ -85,6 +220,8 @@ function OverviewContent({
           </div>
         )}
       </div>
+
+      <ProjectFiles projectId={projectId} companyId={companyId} googleConnected={googleConnected} />
     </div>
   );
 }
@@ -216,6 +353,7 @@ export function ProjectDetail() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
+  const [googleConnected, setGoogleConnected] = useState(false);
   const [fieldSaveStates, setFieldSaveStates] = useState<Partial<Record<ProjectConfigFieldKey, ProjectFieldSaveState>>>({});
   const fieldSaveRequestIds = useRef<Partial<Record<ProjectConfigFieldKey, number>>>({});
   const fieldSaveTimers = useRef<Partial<Record<ProjectConfigFieldKey, ReturnType<typeof setTimeout>>>>({});
@@ -265,6 +403,12 @@ export function ProjectDetail() {
     if (!project?.companyId || project.companyId === selectedCompanyId) return;
     setSelectedCompanyId(project.companyId, { source: "route_sync" });
   }, [project?.companyId, selectedCompanyId, setSelectedCompanyId]);
+
+  useEffect(() => {
+    if (!resolvedCompanyId) return;
+    fetch(`/api/google/status?companyId=${resolvedCompanyId}`, { credentials: "include" })
+      .then((r) => r.json()).then((d) => setGoogleConnected(d.connected || false)).catch(() => {});
+  }, [resolvedCompanyId]);
 
   const invalidateProject = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(routeProjectRef) });
@@ -588,6 +732,9 @@ export function ProjectDetail() {
             const asset = await uploadImage.mutateAsync(file);
             return asset.contentPath;
           }}
+          projectId={project.id}
+          companyId={resolvedCompanyId ?? ""}
+          googleConnected={googleConnected}
         />
       )}
 
