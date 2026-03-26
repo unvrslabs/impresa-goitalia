@@ -13,6 +13,15 @@ const oauthStates = new Map<string, { companyId: string; userId: string; prefix:
 // Cleanup expired states every 5 minutes
 setInterval(() => { const now = Date.now(); for (const [k, v] of oauthStates) { if (v.expiresAt < now) oauthStates.delete(k); } }, 300000);
 
+interface LinkedInAccount {
+  accessToken: string;
+  expiresAt: number;
+  sub: string;
+  name: string;
+  email: string;
+  picture?: string;
+}
+
 export function linkedinRoutes(db: Db) {
   const router = Router();
 
@@ -55,20 +64,42 @@ export function linkedinRoutes(db: Db) {
       });
       const profile = await profileRes.json() as { sub?: string; name?: string; email?: string; picture?: string };
 
-      const linkedinData = {
+      const newAccount: LinkedInAccount = {
         accessToken: tokens.access_token,
         expiresAt: Date.now() + tokens.expires_in * 1000,
-        sub: profile.sub,
-        name: profile.name,
-        email: profile.email,
+        sub: profile.sub || "",
+        name: profile.name || "",
+        email: profile.email || "",
         picture: profile.picture,
       };
 
-      const encrypted = encrypt(JSON.stringify(linkedinData));
+      // Multi-account: read existing accounts, merge or add
       const existing = await db.select().from(companySecrets)
         .where(and(eq(companySecrets.companyId, stateData.companyId), eq(companySecrets.name, "linkedin_tokens")))
         .then((rows) => rows[0]);
 
+      let accounts: LinkedInAccount[] = [];
+      if (existing?.description) {
+        try {
+          const decrypted = JSON.parse(decrypt(existing.description));
+          // Migrate from single-account to array
+          if (Array.isArray(decrypted)) {
+            accounts = decrypted;
+          } else {
+            accounts = [decrypted];
+          }
+        } catch {}
+      }
+
+      // Update existing or add new
+      const emailIndex = accounts.findIndex((a) => a.email === newAccount.email);
+      if (emailIndex >= 0) {
+        accounts[emailIndex] = newAccount;
+      } else {
+        accounts.push(newAccount);
+      }
+
+      const encrypted = encrypt(JSON.stringify(accounts));
       if (existing) {
         await db.update(companySecrets).set({ description: encrypted, updatedAt: new Date() }).where(eq(companySecrets.id, existing.id));
       } else {
@@ -93,8 +124,14 @@ export function linkedinRoutes(db: Db) {
       .then((rows) => rows[0]);
     if (!secret?.description) { res.json({ connected: false }); return; }
     try {
-      const data = JSON.parse(decrypt(secret.description));
-      res.json({ connected: true, name: data.name, email: data.email, picture: data.picture });
+      const decrypted = JSON.parse(decrypt(secret.description));
+      const accounts: LinkedInAccount[] = Array.isArray(decrypted) ? decrypted : [decrypted];
+      res.json({
+        connected: true,
+        name: accounts[0]?.name,
+        email: accounts[0]?.email,
+        accounts: accounts.map((a) => ({ name: a.name, email: a.email, picture: a.picture })),
+      });
     } catch { res.json({ connected: false }); }
   });
 
@@ -102,7 +139,29 @@ export function linkedinRoutes(db: Db) {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
     const companyId = req.query.companyId as string || req.body?.companyId;
-    await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "linkedin_tokens")));
+    const emailToRemove = req.query.email as string || req.body?.email;
+
+    if (emailToRemove) {
+      // Remove single account
+      const secret = await db.select().from(companySecrets)
+        .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "linkedin_tokens")))
+        .then((rows) => rows[0]);
+      if (secret?.description) {
+        try {
+          const decrypted = JSON.parse(decrypt(secret.description));
+          const accounts: LinkedInAccount[] = Array.isArray(decrypted) ? decrypted : [decrypted];
+          const filtered = accounts.filter((a) => a.email !== emailToRemove);
+          if (filtered.length > 0) {
+            await db.update(companySecrets).set({ description: encrypt(JSON.stringify(filtered)), updatedAt: new Date() }).where(eq(companySecrets.id, secret.id));
+          } else {
+            await db.delete(companySecrets).where(eq(companySecrets.id, secret.id));
+          }
+        } catch {}
+      }
+    } else {
+      // Remove all
+      await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "linkedin_tokens")));
+    }
     res.json({ disconnected: true });
   });
 

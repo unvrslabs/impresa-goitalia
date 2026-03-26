@@ -65,7 +65,7 @@ export function PluginManager() {
   const [waConnecting, setWaConnecting] = useState(false);
   const [waQrCode, setWaQrCode] = useState<string | null>(null);
   const [showWaForm, setShowWaForm] = useState(false);
-  const [linkedinStatus, setLinkedinStatus] = useState<{ connected: boolean; name?: string; email?: string } | null>(null);
+  const [linkedinStatus, setLinkedinStatus] = useState<{ connected: boolean; name?: string; email?: string; accounts?: Array<{ name: string; email: string; picture?: string }> } | null>(null);
   const [metaStatus, setMetaStatus] = useState<{ connected: boolean; userName?: string; pages?: Array<{ id: string; name: string }>; instagram?: Array<{ id: string; username: string; pageName: string }> } | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [falConnected, setFalConnected] = useState(false);
@@ -672,21 +672,27 @@ export function PluginManager() {
             <div className="px-4 pb-3 pt-3 space-y-2 border-t border-white/5">
               {isLinkedinConnected ? (
                 <>
-                  <div className="flex items-center gap-2">
-                  <div className={row + " flex-1"} style={rowBg}>
-                    {greenDot}
-                    {miniLi}
-                    <span className="flex-1 truncate">{linkedinStatus!.name}</span>
-                  </div>
-                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => {
-                      showDisconnectDialog("LinkedIn", "linkedin", async () => {
-                        await fetch("/api/oauth/linkedin/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
-                        setLinkedinStatus({ connected: false });
-                      });
-                    }} title="Disconnetti">{xIcon}</button>
-                  </div>
+                  {(linkedinStatus!.accounts || [{ name: linkedinStatus!.name, email: linkedinStatus!.email }]).map((acct) => (
+                    <div key={acct.email} className="flex items-center gap-2">
+                    <div className={row + " flex-1"} style={rowBg}>
+                      {greenDot}
+                      {miniLi}
+                      <span className="flex-1 truncate">{acct.name}</span>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button onClick={() => navigateToChat("linkedin", acct.name)} className="text-xs px-3 py-1.5 rounded-lg transition-all shrink-0" style={{ background: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.25)", color: "rgba(255,255,255,0.7)" }}>Crea agente</button>
+                      </div>
+                    </div>
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => {
+                        showDisconnectDialog("LinkedIn (" + acct.name + ")", "linkedin", async () => {
+                          await fetch("/api/oauth/linkedin/disconnect?companyId=" + selectedCompany?.id + "&email=" + encodeURIComponent(acct.email || ""), { method: "POST", credentials: "include" });
+                          const newAccounts = (linkedinStatus!.accounts || []).filter((a) => a.email !== acct.email);
+                          setLinkedinStatus(newAccounts.length > 0 ? { connected: true, accounts: newAccounts, name: newAccounts[0]?.name, email: newAccounts[0]?.email } : { connected: false });
+                        });
+                      }} title="Disconnetti">{xIcon}</button>
+                    </div>
+                  ))}
                   <div className={actionRow}>
-                    {agentBtn("linkedin")}
+                    {actionBtn("+ Aggiungi account", () => { window.location.href = "/api/oauth/linkedin/connect?companyId=" + selectedCompany?.id + "&prefix=" + (selectedCompany?.issuePrefix || ""); })}
                   </div>
                 </>
               ) : (
