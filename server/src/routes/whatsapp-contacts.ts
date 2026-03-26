@@ -158,13 +158,14 @@ export function whatsappContactsRoutes(db: Db) {
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
     const { name, notes, customInstructions, autoMode } = req.body;
 
-    const [updated] = await db.update(whatsappContacts).set({
-      name: name ?? undefined,
-      notes: notes ?? undefined,
-      customInstructions: customInstructions ?? undefined,
-      autoMode: autoMode ?? undefined,
-      updatedAt: new Date(),
-    }).where(eq(whatsappContacts.id, req.params.id as string)).returning();
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if ("name" in req.body) updates.name = name || null;
+    if ("notes" in req.body) updates.notes = notes || null;
+    if ("customInstructions" in req.body) updates.customInstructions = customInstructions || null;
+    if ("autoMode" in req.body) updates.autoMode = autoMode;
+
+    const [updated] = await db.update(whatsappContacts).set(updates)
+      .where(eq(whatsappContacts.id, req.params.id as string)).returning();
 
     if (!updated) { res.status(404).json({ error: "Contatto non trovato" }); return; }
     res.json({ contact: updated });
