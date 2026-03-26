@@ -54,7 +54,8 @@ export function AuthPage() {
           const stepData = await stepRes.json();
           if (stepData.step === 0) { navigate("/" + prefix + "/api-claude", { replace: true }); return; }
           if (stepData.step === 1) { navigate("/" + prefix + "/chat", { replace: true }); return; }
-          if (stepData.step === 2) { navigate("/" + prefix + "/plugins", { replace: true }); return; }
+          if (stepData.step === 2) { navigate("/" + prefix + "/chat", { replace: true }); return; }
+          if (stepData.step === 3) { navigate("/" + prefix + "/plugins", { replace: true }); return; }
         } catch {}
         navigate("/" + prefix + "/dashboard", { replace: true });
       } else {

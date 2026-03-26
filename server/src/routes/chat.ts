@@ -335,7 +335,6 @@ Quando un nuovo cliente arriva (nessuna info aziendale in memoria):
    - Settore/attività
    - PEC
    - Telefono
-   - Codice SDI
    - Email di contatto
    - Sito web (se c'è)
 3. Salva TUTTO in memoria con salva_info_azienda

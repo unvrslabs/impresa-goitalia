@@ -259,7 +259,7 @@ export function Sidebar() {
         </div>
         {/* Impostazioni - nel menu principale */}
         <SidebarSection label="Impostazioni">
-          {onboardingStep === 2 ? (
+          {onboardingStep === 3 ? (
             <div className="relative" id="connettori-nav">
               <div className="absolute inset-0 rounded-lg animate-pulse" style={{ background: "hsl(158 64% 42% / 0.25)", boxShadow: "0 0 15px hsl(158 64% 42% / 0.4)" }} />
               <SidebarNavItem to="/plugins" label="Connettori" icon={Plug} className="relative z-10 !text-white font-bold" />

@@ -376,7 +376,7 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
   }, [companyId]);
 
   // Determine which element to point at
-  const targetId = onboardingStep === 0 ? "api-claude-nav" : onboardingStep === 1 ? "chat-ceo-nav" : onboardingStep === 2 ? "connettori-nav" : null;
+  const targetId = onboardingStep === 0 ? "api-claude-nav" : onboardingStep === 1 ? "chat-ceo-nav" : onboardingStep === 3 ? "connettori-nav" : null;
 
   useEffect(() => {
     if (!targetId || !sidebarOpen || dismissed) { setPos(null); return; }
@@ -394,7 +394,7 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
   // Step 0: no key -> show tooltip for API Claude
   // Step 1: has key, hasn't seen chat -> show tooltip for Chat CEO
   // Step 2+: done
-  if (onboardingStep === null || onboardingStep >= 3) return null;
+  if (onboardingStep === null || onboardingStep === 2 || onboardingStep >= 4) return null;
   if (onboardingStep === 0 && hasApiKey !== false) return null;
   if (dismissed) return null;
 
@@ -413,9 +413,9 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
       window.dispatchEvent(new Event("onboarding-step-changed"));
       window.dispatchEvent(new Event("onboarding-chat-start"));
     }
-    if (onboardingStep === 2 && companyId) {
-      fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId, step: 3 }) });
-      setOnboardingStep(3);
+    if (onboardingStep === 3 && companyId) {
+      fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId, step: 99 }) });
+      setOnboardingStep(99);
       window.dispatchEvent(new Event("onboarding-step-changed"));
     }
   };

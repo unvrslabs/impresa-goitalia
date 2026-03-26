@@ -413,7 +413,7 @@ export function ChatPage() {
           </div>
         ))}
         {/* Ho capito button after CEO response during onboarding */}
-        {!isStreaming && messages.length >= 2 && messages[messages.length - 1]?.role === "assistant" && onboardingReady && !showOnboardingButton && (() => {
+        {!isStreaming && messages.length >= 4 && messages[messages.length - 1]?.role === "assistant" && onboardingReady && !showOnboardingButton && (() => {
           // Check if we should show the button (step 2 in DB = user chatted, CEO replied with summary)
           const lastMsg = messages[messages.length - 1]?.content || "";
           if (lastMsg.includes("Connettori") || lastMsg.includes("connettori") || lastMsg.includes("collegare") || lastMsg.length > 200) {
@@ -422,7 +422,7 @@ export function ChatPage() {
                 <button
                   onClick={() => {
                     setShowOnboardingButton(true);
-                    fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompanyId, step: 2 }) })
+                    fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompanyId, step: 3 }) })
                       .then(() => {
                         window.dispatchEvent(new Event("onboarding-step-changed"));
                         window.location.href = window.location.pathname.replace("/chat", "/plugins");
