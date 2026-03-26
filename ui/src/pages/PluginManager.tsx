@@ -311,11 +311,13 @@ export function PluginManager() {
               {isGoogleConnected ? (
                 <>
                   {(googleStatus!.accounts || [googleStatus!.email]).map((email) => (
-                    <div key={email} className={row} style={rowBg}>
+                    <div key={email} className="flex items-center gap-2">
+                    <div className={row + " flex-1"} style={rowBg}>
                       {greenDot}
                       {miniGoogle}
                       <span className="flex-1 truncate">{email}</span>
-                      <button className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-all shrink-0" onClick={async () => {
+                    </div>
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
                         if (!confirm("Sei sicuro di voler disconnettere questo account?")) return;
                         await fetch("/api/oauth/google/disconnect?companyId=" + selectedCompany?.id + "&email=" + encodeURIComponent(email as string), { credentials: "include" });
                         const newAccounts = (googleStatus!.accounts || []).filter((a) => a !== email);
@@ -437,11 +439,12 @@ export function PluginManager() {
               {isWaConnected ? (
                 <>
                   {waStatus!.numbers!.map((num) => (
-                    <div key={num.phoneNumber} className={row} style={rowBg}>
+                    <div key={num.phoneNumber} className="flex items-center gap-2">
+                    <div className={row + " flex-1"} style={rowBg}>
                       {greenDot}
                       {miniWa}
                       <span className="flex-1 truncate">{num.phoneNumber}</span>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-3 shrink-0">
                         <button onClick={() => { if (selectedCompany?.id) fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, step: 99 }) }); sessionStorage.setItem("goitalia_pending_msg", "Ho collegato WhatsApp " + num.phoneNumber + ". Crea un agente dedicato per rispondere ai messaggi di questo numero."); window.location.href = "/" + (selectedCompany?.issuePrefix || "") + "/chat"; }} className="text-xs px-3 py-1.5 rounded-lg transition-all shrink-0" style={{ background: "rgba(34, 197, 94, 0.15)", border: "1px solid rgba(34, 197, 94, 0.3)", color: "rgba(255,255,255,0.9)" }}>Crea agente</button>
                         {toggleBtn(waAutoReply[num.phoneNumber] ?? true, async () => {
                             const newVal = !waAutoReply[num.phoneNumber];
@@ -451,13 +454,14 @@ export function PluginManager() {
                               body: JSON.stringify({ companyId: selectedCompany?.id, autoReply: newVal, phoneNumber: num.phoneNumber }),
                             });
                           })}
-                        <button className="text-red-400/50 hover:text-red-400 transition-colors" onClick={async () => {
+                      </div>
+                    </div>
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
                           if (!confirm("Sei sicuro di voler disconnettere questo numero?")) return;
                           await fetch("/api/whatsapp/disconnect?companyId=" + selectedCompany?.id + "&phone=" + encodeURIComponent(num.phoneNumber), { method: "POST", credentials: "include" });
                           const newNums = (waStatus!.numbers || []).filter((n) => n.phoneNumber !== num.phoneNumber);
                           setWaStatus(newNums.length > 0 ? { connected: true, numbers: newNums } : { connected: false });
                         }} title="Disconnetti">{xIcon}</button>
-                      </div>
                     </div>
                   ))}
                   <div className={actionRow}>
@@ -568,11 +572,11 @@ export function PluginManager() {
                   ))}
                   <div className="flex items-center justify-between pt-2">
                     {agentBtn("Ho collegato Instagram e Facebook. Crea un agente per gestire i social media.")}
-                    <button className="flex items-center gap-1 text-[10px] text-red-400/60 hover:text-red-400 transition-all" onClick={async () => {
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
                       if (!confirm("Sei sicuro di voler disconnettere Instagram e Facebook?")) return;
                       await fetch("/api/oauth/meta/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
                       setMetaStatus({ connected: false });
-                    }}>{xIcon} <span>Disconnetti</span></button>
+                    }} title="Disconnetti">{xIcon}</button>
                   </div>
                 </>
               ) : (
@@ -601,15 +605,17 @@ export function PluginManager() {
             <div className="px-4 pb-3 pt-3 space-y-2 border-t border-white/5">
               {isLinkedinConnected ? (
                 <>
-                  <div className={row} style={rowBg}>
+                  <div className="flex items-center gap-2">
+                  <div className={row + " flex-1"} style={rowBg}>
                     {greenDot}
                     {miniLi}
                     <span className="flex-1 truncate">{linkedinStatus!.name}</span>
-                    <button className="flex items-center gap-1 text-[10px] text-red-400/60 hover:text-red-400 transition-all" onClick={async () => {
+                  </div>
+                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
                       if (!confirm("Sei sicuro di voler disconnettere LinkedIn?")) return;
                       await fetch("/api/oauth/linkedin/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
                       setLinkedinStatus({ connected: false });
-                    }}>{xIcon} <span>Disconnetti</span></button>
+                    }} title="Disconnetti">{xIcon}</button>
                   </div>
                   <div className={actionRow}>
                     {agentBtn("Ho collegato LinkedIn. Crea un agente per gestire il profilo LinkedIn.")}
@@ -642,11 +648,13 @@ export function PluginManager() {
               <p className="text-xs text-muted-foreground pt-1">Trascrive automaticamente i messaggi vocali ricevuti su WhatsApp e Telegram in testo, usando OpenAI Whisper.</p>
               {isVoiceConnected ? (
                 <div className="space-y-2">
-                  <div className={row} style={rowBg}>
+                  <div className="flex items-center gap-2">
+                  <div className={row + " flex-1"} style={rowBg}>
                     {greenDot}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
                     <span className="flex-1 text-xs">OpenAI Whisper — Attivo</span>
-                    <button className="flex items-center gap-1 text-[10px] text-red-400/60 hover:text-red-400 transition-all" onClick={async () => { if (!confirm("Sei sicuro di voler disattivare Vocali AI?")) return; await fetch("/api/voice/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setVoiceEnabled(false); }}>{xIcon} <span>Disattiva</span></button>
+                  </div>
+                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => { if (!confirm("Sei sicuro di voler disattivare Vocali AI?")) return; await fetch("/api/voice/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setVoiceEnabled(false); }} title="Disattiva">{xIcon}</button>
                   </div>
                 </div>
               ) : (
@@ -695,11 +703,13 @@ export function PluginManager() {
               <p className="text-xs text-muted-foreground pt-1">Genera immagini e video con AI. Ottieni la key da <a href="https://Fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Fal.ai/dashboard/keys</a></p>
               {isFalConnected ? (
                 <div className="space-y-2">
-                  <div className={row} style={rowBg}>
+                  <div className="flex items-center gap-2">
+                  <div className={row + " flex-1"} style={rowBg}>
                     {greenDot}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                     <span className="flex-1 text-xs">Fal.ai — 11 modelli AI</span>
-                    <button className="flex items-center gap-1 text-[10px] text-red-400/60 hover:text-red-400 transition-all" onClick={async () => { if (!confirm("Sei sicuro di voler disconnettere Fal.ai?")) return; await fetch("/api/fal/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setFalConnected(false); }}>{xIcon} <span>Disconnetti</span></button>
+                  </div>
+                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => { if (!confirm("Sei sicuro di voler disconnettere Fal.ai?")) return; await fetch("/api/fal/key?companyId=" + selectedCompany?.id, { method: "DELETE", credentials: "include" }); setFalConnected(false); }} title="Disconnetti">{xIcon}</button>
                   </div>
                   <div className={actionRow}>
                     {agentBtn("Ho collegato Fal.ai per la generazione di contenuti. Crea un agente specializzato in generazione immagini e video con AI.")}
@@ -749,11 +759,13 @@ export function PluginManager() {
             <div className="px-4 pb-3 pt-3 space-y-2 border-t border-white/5">
               {isFicConnected ? (
                 <div className="space-y-2">
-                  <div className={row} style={rowBg}>
+                  <div className="flex items-center gap-2">
+                  <div className={row + " flex-1"} style={rowBg}>
                     {greenDot}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     <span className="flex-1 text-xs">{ficCompany || "Fatture in Cloud"}</span>
-                    <button className="flex items-center gap-1 text-[10px] text-red-400/60 hover:text-red-400 transition-all" onClick={async () => { if (!confirm("Sei sicuro di voler disconnettere Fatture in Cloud?")) return; await fetch("/api/fic/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" }); setFicConnected(false); setFicCompany(null); }}>{xIcon} <span>Disconnetti</span></button>
+                  </div>
+                  <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => { if (!confirm("Sei sicuro di voler disconnettere Fatture in Cloud?")) return; await fetch("/api/fic/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" }); setFicConnected(false); setFicCompany(null); }} title="Disconnetti">{xIcon}</button>
                   </div>
                   <div className={actionRow}>
                     {agentBtn("Ho collegato Fatture in Cloud. Crea un agente per gestire la fatturazione elettronica, emettere fatture e monitorare i pagamenti.")}
