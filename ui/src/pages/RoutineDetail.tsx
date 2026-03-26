@@ -744,7 +744,7 @@ export function RoutineDetail() {
           <span>in</span>
           <InlineEntitySelector
             ref={projectSelectorRef}
-            value={editDraft.projectId}
+            value={editDraft.projectId ?? ""}
             options={projectOptions}
             placeholder="Project"
             noneLabel="No project"
