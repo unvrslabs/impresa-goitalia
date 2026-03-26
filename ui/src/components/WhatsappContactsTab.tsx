@@ -10,6 +10,8 @@ interface Contact {
   notes: string | null;
   customInstructions: string | null;
   autoMode: "auto" | "manual" | "inherit";
+  lastSummary: string | null;
+  lastSummaryAt: string | null;
   createdAt: string;
   files: ContactFile[];
 }
@@ -269,55 +271,67 @@ export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; c
 
             {/* Expanded details */}
             {expanded && (
-              <div className="border-t border-white/8 p-4 space-y-3">
-                {/* Editable fields */}
-                <EditableField label="Nome" value={contact.name || ""} onSave={v => updateContact(contact.id, { name: v || null } as any)} />
-                <EditableField label="Note" value={contact.notes || ""} onSave={v => updateContact(contact.id, { notes: v || null } as any)} multiline />
+              <div className="border-t border-white/8 p-4 space-y-4">
+                {/* Summary — most important, shown first */}
+                {contact.lastSummary && (
+                  <div className="rounded-lg bg-amber-500/8 border border-amber-500/15 p-3">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <MessageSquare className="w-3 h-3 text-amber-400/70" />
+                      <span className="text-[10px] font-semibold text-amber-400/70 uppercase tracking-wider">Ultimo riassunto</span>
+                      {contact.lastSummaryAt && <span className="text-[10px] text-white/25 ml-auto">{new Date(contact.lastSummaryAt).toLocaleString("it-IT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>}
+                    </div>
+                    <p className="text-xs text-white/70 whitespace-pre-line leading-relaxed">{contact.lastSummary}</p>
+                  </div>
+                )}
+
+                {/* Info grid — compact 2-col layout */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <EditableField label="Nome" value={contact.name || ""} onSave={v => updateContact(contact.id, { name: v || null } as any)} />
+                  <EditableField label="Note" value={contact.notes || ""} onSave={v => updateContact(contact.id, { notes: v || null } as any)} />
+                </div>
                 <EditableField label="Istruzioni agente" value={contact.customInstructions || ""} onSave={v => updateContact(contact.id, { customInstructions: v || null } as any)} multiline />
 
-                {/* Files section */}
-                <div className="space-y-2 pt-1">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-3.5 h-3.5 text-white/40" />
-                    <span className="text-xs font-medium text-white/70">File allegati</span>
-                  </div>
-
-                  {contact.files.map(file => (
-                    <div key={file.id} className="flex items-center gap-2 text-xs rounded-lg border border-white/8 bg-white/5 px-3 py-2">
-                      <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span className="flex-1 truncate text-white/80">{file.name}</span>
-                      {file.driveUrl && (
-                        <a href={file.driveUrl} target="_blank" rel="noopener" className="text-blue-400 hover:text-blue-300 transition-colors" onClick={e => e.stopPropagation()}>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                      <button onClick={() => deleteFile(contact.id, file.id)} className="text-white/20 hover:text-red-400 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Upload + Drive link */}
-                  <div className="flex items-center gap-2 pt-1">
+                {/* Files — compact inline */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">File</span>
                     <input type="file" ref={fileInputRef} className="hidden" onChange={e => {
                       if (e.target.files?.[0]) uploadFile(contact.id, e.target.files[0]);
                       e.target.value = "";
                     }} />
-                    <Button size="sm" variant="ghost" className="text-xs h-7 text-white/50 hover:text-white/80" onClick={() => fileInputRef.current?.click()} disabled={uploadingFor === contact.id}>
-                      <Upload className="w-3.5 h-3.5 mr-1" />
-                      {uploadingFor === contact.id ? "Caricamento..." : "Upload"}
-                    </Button>
-                    <div className="flex-1 flex items-center gap-1.5">
-                      <input
-                        placeholder="Link Google Drive..."
-                        className="flex-1 h-7 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors"
-                        value={driveUrl}
-                        onChange={e => setDriveUrl(e.target.value)}
-                      />
-                      <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-white/50 hover:text-white/80" onClick={() => addDriveLink(contact.id)} disabled={!driveUrl.trim() || driveLinking}>
+                    <button className="text-[10px] text-white/30 hover:text-white/60 transition-colors" onClick={() => fileInputRef.current?.click()} disabled={uploadingFor === contact.id}>
+                      {uploadingFor === contact.id ? "..." : "+ Upload"}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {contact.files.map(file => (
+                      <div key={file.id} className="inline-flex items-center gap-1.5 text-[11px] rounded-md bg-white/5 border border-white/8 px-2 py-1 group">
+                        <FileText className="w-3 h-3 text-amber-400/70 shrink-0" />
+                        <span className="text-white/60 max-w-[120px] truncate">{file.name}</span>
+                        {file.driveUrl && (
+                          <a href={file.driveUrl} target="_blank" rel="noopener" className="text-blue-400/50 hover:text-blue-400" onClick={e => e.stopPropagation()}>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        )}
+                        <button onClick={() => deleteFile(contact.id, file.id)} className="text-white/0 group-hover:text-white/30 hover:!text-red-400 transition-colors">
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Drive link — compact */}
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      placeholder="Link Google Drive..."
+                      className="flex-1 h-6 rounded border border-white/8 bg-transparent px-2 text-[11px] text-white/50 placeholder:text-white/20 focus:outline-none focus:border-white/20 transition-colors"
+                      value={driveUrl}
+                      onChange={e => setDriveUrl(e.target.value)}
+                    />
+                    {driveUrl.trim() && (
+                      <button className="text-[10px] text-white/40 hover:text-white/70" onClick={() => addDriveLink(contact.id)} disabled={driveLinking}>
                         {driveLinking ? "..." : "Aggiungi"}
-                      </Button>
-                    </div>
+                      </button>
+                    )}
                   </div>
                 </div>
 

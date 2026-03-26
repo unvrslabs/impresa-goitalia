@@ -11,6 +11,8 @@ export const whatsappContacts = pgTable("whatsapp_contacts", {
   notes: text("notes"),
   customInstructions: text("custom_instructions"),
   autoMode: text("auto_mode").notNull().default("inherit"), // "auto" | "manual" | "inherit"
+  lastSummary: text("last_summary"),
+  lastSummaryAt: timestamp("last_summary_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({

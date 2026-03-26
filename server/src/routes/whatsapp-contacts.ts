@@ -241,13 +241,27 @@ export function whatsappContactsRoutes(db: Db) {
       .where(eq(whatsappContacts.id, req.params.id as string)).then(r => r[0]);
     if (!contact) { res.status(404).json({ error: "Contatto non trovato" }); return; }
 
-    // Search by phone number in from_name (WaSender LID format) or remote_jid
+    // First find remote_jid from an incoming message with this phone number
     const cleanPhone = contact.phoneNumber.replace(/^\+/, "");
+    const jidRow = await db.execute(sql`
+      SELECT remote_jid FROM whatsapp_messages
+      WHERE company_id = ${contact.companyId}
+        AND direction = 'incoming'
+        AND (from_name LIKE ${"%" + cleanPhone + "%"} OR remote_jid LIKE ${"%" + cleanPhone + "%"})
+      ORDER BY created_at DESC LIMIT 1
+    `) as any[];
+
+    if (!jidRow || jidRow.length === 0) {
+      res.json({ messages: [] }); return;
+    }
+
+    // Get ALL messages (incoming + outgoing) for that remote_jid
+    const remoteJid = jidRow[0].remote_jid;
     const rows = await db.execute(sql`
       SELECT message_text, direction, from_name, message_type, media_url, created_at
       FROM whatsapp_messages
       WHERE company_id = ${contact.companyId}
-        AND (from_name LIKE ${"%" + cleanPhone + "%"} OR remote_jid LIKE ${"%" + cleanPhone + "%"})
+        AND remote_jid = ${remoteJid}
       ORDER BY created_at DESC
       LIMIT ${limit}
     `) as any[];

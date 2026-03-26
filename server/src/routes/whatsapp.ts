@@ -7,6 +7,7 @@ import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
 import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 import { getContactContext, normalizePhoneNumber } from "./whatsapp-contacts.js";
+import { whatsappContacts } from "@goitalia/db";
 
 const WASENDER_API = "https://www.wasenderapi.com/api";
 function getWasenderPat() { return process.env.WASENDER_PAT || ""; }
@@ -683,6 +684,13 @@ export function whatsappWebhookRouter(db: Db) {
                           try {
                             await db.execute(sql`INSERT INTO whatsapp_messages (company_id, remote_jid, from_name, message_text, direction) VALUES (${companyId}, ${remoteJid}, ${agent.name || "Bot"}, ${reply}, ${"outgoing"})`);
                           } catch {}
+
+                          // Auto-generate conversation summary (async, don't block)
+                          if (contactInfo && lookupNumber) {
+                            generateConversationSummary(db, companyId, remoteJid, lookupNumber, claudeKey, agent.name || "Agente").catch(err =>
+                              console.error("[wa-summary] error:", err)
+                            );
+                          }
                         }
                       }
                     }
@@ -696,7 +704,58 @@ export function whatsappWebhookRouter(db: Db) {
     }
   });
 
-  
+  // Auto-generate conversation summary after each reply
+  async function generateConversationSummary(db: Db, companyId: string, remoteJid: string, phoneNumber: string, claudeKey: string, agentName: string) {
+    const normalized = normalizePhoneNumber(phoneNumber);
+    const contact = await db.select().from(whatsappContacts)
+      .where(and(eq(whatsappContacts.companyId, companyId), eq(whatsappContacts.phoneNumber, normalized)))
+      .then(r => r[0]);
+    if (!contact) return;
+
+    // Only re-summarize if last summary is older than 5 minutes (avoid spam)
+    if (contact.lastSummaryAt && (Date.now() - new Date(contact.lastSummaryAt).getTime()) < 5 * 60 * 1000) return;
+
+    // Get recent conversation
+    const rows = await db.execute(sql`
+      SELECT message_text, direction, from_name, created_at
+      FROM whatsapp_messages
+      WHERE company_id = ${companyId} AND remote_jid = ${remoteJid}
+      ORDER BY created_at DESC LIMIT 30
+    `) as any[];
+    if (!rows || rows.length < 2) return;
+
+    const msgs = rows.reverse();
+    const transcript = msgs.map((m: any) => {
+      const who = m.direction === "incoming" ? (contact.name || phoneNumber) : agentName;
+      const time = new Date(m.created_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+      return `[${time}] ${who}: ${m.message_text}`;
+    }).join("\n");
+
+    const summaryRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 500,
+        system: "Sei un assistente che riassume conversazioni WhatsApp per il titolare dell'azienda. Scrivi un riassunto conciso in italiano con: 1) Cosa si sono detti 2) Punti importanti da sapere 3) Eventuali azioni richieste o promesse fatte. Sii breve e diretto, usa bullet points.",
+        messages: [{ role: "user", content: `Riassumi questa conversazione:\n\n${transcript}` }],
+      }),
+    });
+
+    if (summaryRes.ok) {
+      const data = await summaryRes.json() as { content?: Array<{ text?: string }> };
+      const summary = data.content?.find(b => b.text)?.text;
+      if (summary) {
+        await db.update(whatsappContacts).set({
+          lastSummary: summary,
+          lastSummaryAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(whatsappContacts.id, contact.id));
+      }
+    }
+  }
+
+
 
   
 

@@ -330,6 +330,13 @@
       "when": 1774800000000,
       "tag": "0046_whatsapp_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1774850000000,
+      "tag": "0047_whatsapp_contacts_summary",
+      "breakpoints": true
     }
   ]
 }
