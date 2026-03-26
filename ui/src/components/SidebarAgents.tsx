@@ -53,18 +53,55 @@ const CONNECTOR_ICONS: Record<string, { icon: React.ReactNode; color: string }> 
   },
 };
 
-function getConnectorInfo(agent: Agent): { icon: React.ReactNode; displayName: string } | null {
+function detectConnector(agent: Agent): string | null {
+  // 1. Check primaryConnector in adapterConfig
   const config = agent.adapterConfig as Record<string, unknown> | null;
-  const primaryConnector = config?.primaryConnector as string | undefined;
-  if (!primaryConnector || agent.role === "ceo") return null;
+  const pc = config?.primaryConnector as string | undefined;
+  if (pc && CONNECTOR_ICONS[pc]) return pc;
 
-  const connInfo = CONNECTOR_ICONS[primaryConnector];
+  // 2. Check connectors keys in adapterConfig
+  const connectors = config?.connectors as Record<string, boolean> | undefined;
+  if (connectors) {
+    const keys = Object.keys(connectors).filter((k) => connectors[k]);
+    if (keys.some((k) => ["gmail", "calendar", "drive", "sheets", "docs"].includes(k))) return "google";
+    if (keys.some((k) => k.startsWith("tg_")) || keys.includes("telegram")) return "telegram";
+    if (keys.includes("whatsapp")) return "whatsapp";
+    if (keys.some((k) => k.startsWith("ig_") || k.startsWith("fb_")) || keys.includes("meta")) return "meta";
+    if (keys.includes("linkedin")) return "linkedin";
+    if (keys.includes("fal")) return "fal";
+    if (keys.includes("fic")) return "fic";
+    if (keys.some((k) => k.startsWith("oai_"))) return "openapi";
+    if (keys.includes("voice")) return "voice";
+  }
+
+  // 3. Guess from agent name
+  const n = agent.name.toLowerCase();
+  if (n.includes("@") && (n.includes("gmail") || n.includes("google"))) return "google";
+  if (n.includes("@") && !n.includes("+")) return "meta"; // @username = likely IG
+  if (n.includes("+")) return "whatsapp"; // +phone
+  if (n.includes("bot") || n.includes("_bot")) return "telegram";
+  if (n.includes("linkedin")) return "linkedin";
+
+  return null;
+}
+
+function getConnectorInfo(agent: Agent): { icon: React.ReactNode; displayName: string } | null {
+  if (agent.role === "ceo") return null;
+
+  const connKey = detectConnector(agent);
+  if (!connKey) return null;
+
+  const connInfo = CONNECTOR_ICONS[connKey];
   if (!connInfo) return null;
 
-  // Clean name: remove "AG. " prefix
-  let displayName = agent.name.replace(/^AG\.\s*/i, "");
-  // Remove @ prefix for cleaner look
-  displayName = displayName.replace(/^@/, "");
+  // Clean name: remove "AG. " prefix, "@" prefix, and connector type suffix
+  let displayName = agent.name.replace(/^AG\.\s*/i, "").replace(/^@/, "");
+  // Remove trailing connector type words (e.g. "Emanuele Maccari LinkedIn" → "Emanuele Maccari")
+  const connLabels = ["linkedin", "whatsapp", "telegram", "instagram", "facebook", "google", "meta"];
+  for (const label of connLabels) {
+    const re = new RegExp("\\s+" + label + "\\s*$", "i");
+    displayName = displayName.replace(re, "");
+  }
 
   return { icon: connInfo.icon, displayName };
 }
