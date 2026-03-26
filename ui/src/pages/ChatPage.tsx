@@ -101,24 +101,40 @@ export function ChatPage() {
   };
   const checkPendingMsg = () => {
     let msg: string | null = null;
-    // Check structured create-agent request first
-    const createAgentData = sessionStorage.getItem("goitalia_create_agent");
-    if (createAgentData) {
-      sessionStorage.removeItem("goitalia_create_agent");
-      sessionStorage.removeItem("goitalia_pending_msg"); // clear any stale legacy msg
-      try {
-        const data = JSON.parse(createAgentData);
-        const label = CONNECTOR_LABELS[data.connector] || data.connector;
-        const detail = data.detail ? " (" + data.detail + ")" : "";
-        msg = "Ho collegato " + label + detail + ". Crea un agente dedicato per questo connettore.";
-      } catch {}
+    const params = new URLSearchParams(window.location.search);
+
+    // PRIORITY 1: URL ?create_agent= param (most reliable, no caching)
+    const createAgentConnector = params.get("create_agent");
+    if (createAgentConnector) {
+      const label = CONNECTOR_LABELS[createAgentConnector] || createAgentConnector;
+      const detail = params.get("detail");
+      const detailStr = detail ? " (" + detail + ")" : "";
+      const now = new Date().toLocaleTimeString("it-IT");
+      msg = "[" + now + "] Ho collegato " + label + detailStr + ". Crea un agente dedicato per questo connettore.";
     }
-    // Fallback: legacy ?msg= or goitalia_pending_msg
+
+    // PRIORITY 2: URL ?msg= param
+    if (!msg) msg = params.get("msg");
+
+    // PRIORITY 3: sessionStorage (legacy fallback)
     if (!msg) {
-      const params = new URLSearchParams(window.location.search);
-      msg = params.get("msg");
+      const createAgentData = sessionStorage.getItem("goitalia_create_agent");
+      if (createAgentData) {
+        sessionStorage.removeItem("goitalia_create_agent");
+        try {
+          const data = JSON.parse(createAgentData);
+          const label = CONNECTOR_LABELS[data.connector] || data.connector;
+          const detail = data.detail ? " (" + data.detail + ")" : "";
+          msg = "Ho collegato " + label + detail + ". Crea un agente dedicato per questo connettore.";
+        } catch {}
+      }
     }
     if (!msg) { msg = sessionStorage.getItem("goitalia_pending_msg"); sessionStorage.removeItem("goitalia_pending_msg"); }
+
+    // Clean up all storage
+    sessionStorage.removeItem("goitalia_create_agent");
+    sessionStorage.removeItem("goitalia_pending_msg");
+
     if (msg && !pendingMsgRef.current) {
       pendingMsgRef.current = msg;
       setInput(msg);

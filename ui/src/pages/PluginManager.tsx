@@ -308,11 +308,14 @@ export function PluginManager() {
   );
   const navigateToChat = (connector: string, detail?: string) => {
     if (selectedCompany?.id) fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, step: 99 }) });
-    // Clear any stale messages before writing new one
+    // Pass everything in URL — no sessionStorage, no caching issues
     sessionStorage.removeItem("goitalia_create_agent");
     sessionStorage.removeItem("goitalia_pending_msg");
-    sessionStorage.setItem("goitalia_create_agent", JSON.stringify({ connector, detail, ts: Date.now() }));
-    window.location.href = window.location.origin + "/" + (selectedCompany?.issuePrefix || "") + "/chat#agent=" + Date.now();
+    const params = new URLSearchParams();
+    params.set("create_agent", connector);
+    if (detail) params.set("detail", detail);
+    params.set("_t", String(Date.now()));
+    window.location.href = window.location.origin + "/" + (selectedCompany?.issuePrefix || "") + "/chat?" + params.toString();
   };
   const agentBtn = (connector: string, detail?: string) => (
     <button onClick={() => navigateToChat(connector, detail)} className="text-xs px-3 py-1.5 rounded-lg transition-all" style={{ background: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.25)", color: "rgba(255,255,255,0.7)" }}>Crea agente</button>
