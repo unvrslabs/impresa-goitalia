@@ -29,7 +29,7 @@ export function ScheduledActivities() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>("all");
 
-  useBreadcrumbs([{ label: "Attività Programmate" }]);
+  useBreadcrumbs();
 
   const routinesQuery = useQuery({
     queryKey: [...queryKeys.routines.list(selectedCompanyId!), "scheduled"],
