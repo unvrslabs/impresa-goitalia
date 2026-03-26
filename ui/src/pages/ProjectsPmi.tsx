@@ -65,6 +65,10 @@ export function ProjectsPmi() {
   const [repoUrl, setRepoUrl] = useState("");
   const [repoToken, setRepoToken] = useState("");
   const [linkingRepo, setLinkingRepo] = useState(false);
+  const [showDriveInput, setShowDriveInput] = useState(false);
+  const [driveUrl, setDriveUrl] = useState("");
+  const [addingDrive, setAddingDrive] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -81,6 +85,11 @@ export function ProjectsPmi() {
   };
 
   useEffect(() => { fetchProjects(); }, [selectedCompany?.id]);
+  useEffect(() => {
+    if (!selectedCompany?.id) return;
+    fetch(`/api/google/status?companyId=${selectedCompany.id}`, { credentials: "include" })
+      .then((r) => r.json()).then((d) => setGoogleConnected(d.connected || false)).catch(() => {});
+  }, [selectedCompany?.id]);
 
   const fetchFiles = async (project: PmiProject) => {
     if (!selectedCompany?.id) return;
@@ -120,6 +129,25 @@ export function ProjectsPmi() {
     if (selectedProject?.id === id) { setSelectedProject(null); setFiles([]); }
     fetchProjects();
     queryClient.invalidateQueries({ queryKey: ["pmi-projects"] });
+  };
+
+  const addDriveLink = async () => {
+    if (!selectedCompany?.id || !selectedProject || !driveUrl.trim()) return;
+    setAddingDrive(true);
+    try {
+      const r = await fetch("/api/project-files/drive-link", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: selectedProject.id, companyId: selectedCompany.id, driveUrl: driveUrl.trim() }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setDriveUrl(""); setShowDriveInput(false);
+        // Add synthetic file entry to list
+        setFiles((prev) => [...prev, { id: d.file.id, name: d.file.name, webViewLink: d.file.driveUrl || driveUrl, mimeType: "application/drive-link", size: 0, createdAt: new Date().toISOString(), source: "drive" }]);
+      } else alert(d.error || "Errore");
+    } catch {}
+    setAddingDrive(false);
   };
 
   const uploadFile = async (file: File) => {
@@ -180,6 +208,11 @@ export function ProjectsPmi() {
                 </div>
                 <div className="flex items-center gap-2">
                   <input type="file" ref={fileInputRef} className="hidden" multiple onChange={(e) => { Array.from(e.target.files || []).forEach(uploadFile); e.target.value = ""; }} />
+                  {googleConnected && (
+                    <button onClick={() => setShowDriveInput(!showDriveInput)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(66,133,244,0.1)", border: "1px solid rgba(66,133,244,0.25)", color: "rgba(255,255,255,0.7)" }}>
+                      🔗 Drive
+                    </button>
+                  )}
                   <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.3)", color: "rgba(255,255,255,0.8)" }}>
                     <Upload className="w-3.5 h-3.5" /> {uploading ? "Caricamento..." : "Carica file"}
                   </button>
@@ -188,6 +221,24 @@ export function ProjectsPmi() {
                   </button>
                 </div>
               </div>
+
+              {/* Drive link input */}
+              {showDriveInput && (
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="url" value={driveUrl} onChange={(e) => setDriveUrl(e.target.value)}
+                    placeholder="Incolla link Google Drive..."
+                    className="flex-1 px-3 py-2 rounded-xl text-xs bg-transparent outline-none"
+                    style={{ border: "1px solid rgba(66,133,244,0.3)" }}
+                    onKeyDown={(e) => { if (e.key === "Enter") addDriveLink(); if (e.key === "Escape") setShowDriveInput(false); }}
+                    autoFocus
+                  />
+                  <button onClick={addDriveLink} disabled={addingDrive || !driveUrl.trim()} className="px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-40" style={{ background: "rgba(66,133,244,0.2)", border: "1px solid rgba(66,133,244,0.3)", color: "rgba(66,133,244,0.9)" }}>
+                    {addingDrive ? "..." : "Aggiungi"}
+                  </button>
+                  <button onClick={() => setShowDriveInput(false)} className="text-xs text-muted-foreground px-2">✕</button>
+                </div>
+              )}
 
               {/* GitHub path breadcrumb */}
               {selectedProject.storage_type === "github" && ghPath && (
