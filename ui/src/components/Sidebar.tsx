@@ -26,7 +26,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
 import { SidebarNavItem } from "./SidebarNavItem";
 import { SidebarProjects } from "./SidebarProjects";
-import { SidebarAgents } from "./SidebarAgents";
+import { SidebarAgents, ConnectorAgentList, sortByHierarchy } from "./SidebarAgents";
 import { agentsApi } from "../api/agents";
 import { useDialog } from "../context/DialogContext";
 import { useLocation } from "@/lib/router";
@@ -38,7 +38,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { useInboxBadge } from "../hooks/useInboxBadge";
 import { PluginSlotOutlet } from "@/plugins/slots";
 import { CompanyPatternIcon } from "./CompanyPatternIcon";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export function Sidebar() {
   const { openNewIssue } = useDialog();
@@ -183,6 +183,18 @@ export function Sidebar() {
   });
   const liveRunCount = liveRuns?.length ?? 0;
 
+  const liveCountByAgent = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const run of liveRuns ?? []) {
+      counts.set(run.agentId, (counts.get(run.agentId) ?? 0) + 1);
+    }
+    return counts;
+  }, [liveRuns]);
+
+  const sortedAgents = useMemo(() => {
+    return sortByHierarchy((sidebarAgents ?? []).filter((a) => a.status !== "terminated"));
+  }, [sidebarAgents]);
+
   const { data: session } = useQuery({
     queryKey: queryKeys.auth.session,
     queryFn: () => authApi.getSession(),
@@ -259,13 +271,21 @@ export function Sidebar() {
           )}
           <div className={!isComplete ? "opacity-30 pointer-events-none" : ""}>
             {hasPec && <SidebarNavItem to="/pec" label="PEC" icon={Shield} badge={pecUnread > 0 ? pecUnread : undefined} />}
+            {hasPec && <ConnectorAgentList connectorKeys="pec" agents={sortedAgents} liveCountByAgent={liveCountByAgent} />}
             {hasGoogle && <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />}
+            {hasGoogle && <ConnectorAgentList connectorKeys="google" agents={sortedAgents} liveCountByAgent={liveCountByAgent} />}
             {hasWhatsApp && <SidebarNavItem to="/whatsapp" label="WhatsApp" icon={Phone} badge={waUnread > 0 ? waUnread : undefined} />}
+            {hasWhatsApp && <ConnectorAgentList connectorKeys="whatsapp" agents={sortedAgents} liveCountByAgent={liveCountByAgent} />}
             {hasTelegram && <SidebarNavItem to="/telegram" label="Telegram" icon={MessageSquare} badge={telegramUnread > 0 ? telegramUnread : undefined} />}
+            {hasTelegram && <ConnectorAgentList connectorKeys="telegram" agents={sortedAgents} liveCountByAgent={liveCountByAgent} />}
             {hasSocial && <SidebarNavItem to="/social" label="Social" icon={Share2Icon} />}
+            {hasSocial && <ConnectorAgentList connectorKeys={["meta", "linkedin"]} agents={sortedAgents} liveCountByAgent={liveCountByAgent} />}
             {hasFal && <SidebarNavItem to="/genera" label="Genera Contenuti" icon={Sparkles} />}
+            {hasFal && <ConnectorAgentList connectorKeys="fal" agents={sortedAgents} liveCountByAgent={liveCountByAgent} />}
             {hasFic && <SidebarNavItem to="/fatturazione" label="Fatture in Cloud" icon={Receipt} />}
+            {hasFic && <ConnectorAgentList connectorKeys="fic" agents={sortedAgents} liveCountByAgent={liveCountByAgent} />}
             {hasOpenapi && <SidebarNavItem to="/analisi-aziende" label="OpenAPI.it" icon={Globe} />}
+            {hasOpenapi && <ConnectorAgentList connectorKeys="openapi" agents={sortedAgents} liveCountByAgent={liveCountByAgent} />}
             {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
             {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}
           </div>
