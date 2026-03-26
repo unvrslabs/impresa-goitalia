@@ -154,35 +154,59 @@ export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; c
 
       {/* Add contact form */}
       {showAdd && (
-        <div className="glass-card p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground">Numero telefono *</label>
-              <Input placeholder="+393401234567" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="mt-1" />
+        <div className="glass-card p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-white/70">Numero telefono *</label>
+              <input
+                placeholder="+393401234567"
+                value={newPhone}
+                onChange={e => setNewPhone(e.target.value)}
+                className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-colors"
+              />
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Nome</label>
-              <Input placeholder="Mario Rossi" value={newName} onChange={e => setNewName(e.target.value)} className="mt-1" />
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-white/70">Nome</label>
+              <input
+                placeholder="Mario Rossi"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-colors"
+              />
             </div>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Note</label>
-            <textarea className="w-full mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" rows={2} placeholder="Note sul contatto..." value={newNotes} onChange={e => setNewNotes(e.target.value)} />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-white/70">Note</label>
+            <textarea
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-colors resize-none"
+              rows={2}
+              placeholder="Note sul contatto..."
+              value={newNotes}
+              onChange={e => setNewNotes(e.target.value)}
+            />
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Istruzioni personalizzate per l'agente</label>
-            <textarea className="w-full mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" rows={2} placeholder="Es: Rispondi sempre in inglese con questo cliente..." value={newInstructions} onChange={e => setNewInstructions(e.target.value)} />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-white/70">Istruzioni personalizzate per l'agente</label>
+            <textarea
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-colors resize-none"
+              rows={2}
+              placeholder="Es: Rispondi sempre in inglese con questo cliente..."
+              value={newInstructions}
+              onChange={e => setNewInstructions(e.target.value)}
+            />
           </div>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground">Modalità risposta:</label>
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-xs font-medium text-white/70 mr-1">Modalità risposta:</span>
             {(["inherit", "auto", "manual"] as const).map(mode => (
               <button key={mode} onClick={() => setNewAutoMode(mode)}
-                className={`text-xs px-2 py-1 rounded border ${newAutoMode === mode ? autoModeLabels[mode].color : "border-white/10 text-white/30"}`}>
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${newAutoMode === mode ? autoModeLabels[mode].color + " font-medium" : "border-white/10 text-white/30 hover:text-white/50 hover:border-white/20"}`}>
                 {autoModeLabels[mode].label}
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={addContact} disabled={!newPhone.trim()}>Salva contatto</Button>
+          <div className="pt-1">
+            <Button size="sm" onClick={addContact} disabled={!newPhone.trim()}>Salva contatto</Button>
+          </div>
         </div>
       )}
 
@@ -227,47 +251,52 @@ export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; c
 
             {/* Expanded details */}
             {expanded && (
-              <div className="border-t border-border p-3 space-y-3">
+              <div className="border-t border-white/8 p-4 space-y-3">
                 {/* Editable fields */}
                 <EditableField label="Nome" value={contact.name || ""} onSave={v => updateContact(contact.id, { name: v || null } as any)} />
                 <EditableField label="Note" value={contact.notes || ""} onSave={v => updateContact(contact.id, { notes: v || null } as any)} multiline />
                 <EditableField label="Istruzioni agente" value={contact.customInstructions || ""} onSave={v => updateContact(contact.id, { customInstructions: v || null } as any)} multiline />
 
                 {/* Files section */}
-                <div className="space-y-2">
+                <div className="space-y-2 pt-1">
                   <div className="flex items-center gap-2">
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium">File allegati</span>
+                    <FileText className="w-3.5 h-3.5 text-white/40" />
+                    <span className="text-xs font-medium text-white/70">File allegati</span>
                   </div>
 
                   {contact.files.map(file => (
-                    <div key={file.id} className="flex items-center gap-2 text-xs bg-white/5 rounded px-2 py-1.5">
+                    <div key={file.id} className="flex items-center gap-2 text-xs rounded-lg border border-white/8 bg-white/5 px-3 py-2">
                       <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span className="flex-1 truncate">{file.name}</span>
+                      <span className="flex-1 truncate text-white/80">{file.name}</span>
                       {file.driveUrl && (
-                        <a href={file.driveUrl} target="_blank" rel="noopener" className="text-blue-400 hover:text-blue-300" onClick={e => e.stopPropagation()}>
+                        <a href={file.driveUrl} target="_blank" rel="noopener" className="text-blue-400 hover:text-blue-300 transition-colors" onClick={e => e.stopPropagation()}>
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       )}
-                      <button onClick={() => deleteFile(contact.id, file.id)} className="text-red-400/60 hover:text-red-400">
+                      <button onClick={() => deleteFile(contact.id, file.id)} className="text-white/20 hover:text-red-400 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
 
                   {/* Upload + Drive link */}
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 pt-1">
                     <input type="file" ref={fileInputRef} className="hidden" onChange={e => {
                       if (e.target.files?.[0]) uploadFile(contact.id, e.target.files[0]);
                       e.target.value = "";
                     }} />
-                    <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => fileInputRef.current?.click()} disabled={uploadingFor === contact.id}>
+                    <Button size="sm" variant="ghost" className="text-xs h-7 text-white/50 hover:text-white/80" onClick={() => fileInputRef.current?.click()} disabled={uploadingFor === contact.id}>
                       <Upload className="w-3.5 h-3.5 mr-1" />
                       {uploadingFor === contact.id ? "Caricamento..." : "Upload"}
                     </Button>
-                    <div className="flex-1 flex items-center gap-1">
-                      <Input placeholder="Link Google Drive..." className="h-7 text-xs" value={driveUrl} onChange={e => setDriveUrl(e.target.value)} />
-                      <Button size="sm" variant="ghost" className="text-xs h-7 px-2" onClick={() => addDriveLink(contact.id)} disabled={!driveUrl.trim() || driveLinking}>
+                    <div className="flex-1 flex items-center gap-1.5">
+                      <input
+                        placeholder="Link Google Drive..."
+                        className="flex-1 h-7 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors"
+                        value={driveUrl}
+                        onChange={e => setDriveUrl(e.target.value)}
+                      />
+                      <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-white/50 hover:text-white/80" onClick={() => addDriveLink(contact.id)} disabled={!driveUrl.trim() || driveLinking}>
                         {driveLinking ? "..." : "Aggiungi"}
                       </Button>
                     </div>
@@ -290,9 +319,9 @@ function EditableField({ label, value, onSave, multiline }: { label: string; val
 
   if (!editing) {
     return (
-      <div className="flex items-start gap-2 text-xs cursor-pointer hover:bg-white/5 rounded px-2 py-1 -mx-2" onClick={() => setEditing(true)}>
-        <span className="text-muted-foreground shrink-0 w-28">{label}:</span>
-        <span className={value ? "" : "text-muted-foreground italic"}>{value || "Clicca per aggiungere"}</span>
+      <div className="flex items-start gap-2 text-xs cursor-pointer hover:bg-white/5 rounded-lg px-3 py-2 -mx-1 transition-colors" onClick={() => setEditing(true)}>
+        <span className="text-white/40 shrink-0 w-28 font-medium">{label}:</span>
+        <span className={value ? "text-white/80" : "text-white/25 italic"}>{value || "Clicca per aggiungere"}</span>
       </div>
     );
   }
@@ -300,12 +329,12 @@ function EditableField({ label, value, onSave, multiline }: { label: string; val
   const save = () => { onSave(val); setEditing(false); };
 
   return (
-    <div className="space-y-1 px-2 -mx-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <div className="space-y-1.5 px-3 -mx-1">
+      <span className="text-xs font-medium text-white/50">{label}</span>
       {multiline ? (
-        <textarea className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs" rows={2} value={val} onChange={e => setVal(e.target.value)} onBlur={save} autoFocus />
+        <textarea className="w-full rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-colors resize-none" rows={2} value={val} onChange={e => setVal(e.target.value)} onBlur={save} autoFocus />
       ) : (
-        <Input className="h-7 text-xs" value={val} onChange={e => setVal(e.target.value)} onBlur={save} onKeyDown={e => e.key === "Enter" && save()} autoFocus />
+        <input className="w-full h-7 rounded-lg border border-white/15 bg-white/8 px-3 text-xs text-white focus:outline-none focus:border-white/30 transition-colors" value={val} onChange={e => setVal(e.target.value)} onBlur={save} onKeyDown={e => e.key === "Enter" && save()} autoFocus />
       )}
     </div>
   );
