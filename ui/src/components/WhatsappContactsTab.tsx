@@ -23,9 +23,9 @@ interface ContactFile {
 }
 
 const autoModeLabels: Record<string, { label: string; color: string }> = {
-  auto: { label: "Auto", color: "bg-green-500/20 text-green-400 border-green-500/30" },
-  manual: { label: "Manuale", color: "bg-red-500/20 text-red-400 border-red-500/30" },
-  inherit: { label: "Default", color: "bg-white/10 text-white/60 border-white/20" },
+  auto: { label: "Risposta automatica", color: "bg-green-500/20 text-green-400 border-green-500/30" },
+  manual: { label: "Risposta manuale", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+  inherit: { label: "Default agente", color: "bg-white/10 text-white/60 border-white/20" },
 };
 
 export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; companyId: string }) {
