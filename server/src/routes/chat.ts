@@ -89,7 +89,7 @@ const TOOLS = [
   },
   {
     name: "salva_info_azienda",
-    description: "Salva o aggiorna le informazioni dell'azienda del cliente in memoria (ragione sociale, P.IVA, CF, indirizzo, settore, PEC, telefono, codice SDI, email, sito web, ecc.)",
+    description: "Salva o aggiorna le informazioni dell'azienda del cliente in memoria (ragione sociale, P.IVA, CF, indirizzo, settore, PEC, telefono, email, sito web, ecc.)",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -338,7 +338,7 @@ Quando un nuovo cliente arriva (nessuna info aziendale in memoria):
    - Email di contatto
    - Sito web (se c'è)
 3. Salva TUTTO in memoria con salva_info_azienda
-4. DOPO IL RIEPILOGO: mostra i dati ricevuti, elenca quelli mancanti (se ce ne sono), poi scrivi ESATTAMENTE: "Perfetto! Ora clicca su Connettori nel menu a sinistra per collegare i tuoi servizi (Google, WhatsApp, Telegram, ecc.). Dopo aver collegato i connettori potrai creare i tuoi agenti AI specializzati."
+4. DOPO IL RIEPILOGO: mostra i dati ricevuti, elenca quelli mancanti (se ce ne sono), poi scrivi ESATTAMENTE: "Perfetto! Premi il bottone qui sotto per andare ai Connettori e collegare i tuoi servizi (Google, WhatsApp, Telegram, ecc.). Dopo aver collegato i connettori potrai creare i tuoi agenti AI specializzati."
 5. NON proporre agenti da creare. NON elencare agenti possibili. NON parlare di agenti. Il cliente deve PRIMA collegare i connettori. Rispondi SOLO con il riepilogo dati + invito ad andare su Connettori.
 
 ## GESTIONE AGENTI
