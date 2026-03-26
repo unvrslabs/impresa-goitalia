@@ -135,7 +135,7 @@ export function ChatPage() {
     sessionStorage.removeItem("goitalia_create_agent");
     sessionStorage.removeItem("goitalia_pending_msg");
 
-    if (msg && !pendingMsgRef.current) {
+    if (msg) {
       pendingMsgRef.current = msg;
       setInput(msg);
       window.history.replaceState({}, "", window.location.pathname);
