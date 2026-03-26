@@ -394,7 +394,7 @@ function OnboardingTooltipPopup({ companyId, sidebarOpen }: { companyId: string 
   if (!sidebarOpen) return null;
 
   const configs: Record<number, { title: string; text: string; top: string }> = {
-    0: { title: "Configura API Claude", text: "Per attivare il tuo CEO AI e sbloccare tutte le funzionalita, inserisci la tua API key di Anthropic nella sezione qui sotto.", top: "508px" },
+    0: { title: "Configura API Claude", text: "Per attivare il tuo CEO AI e sbloccare tutte le funzionalita, inserisci la tua API key di Anthropic nella sezione qui sotto.", top: "400px" },
     1: { title: "Parla col tuo CEO AI", text: "Il tuo CEO AI e pronto! Premi Ho capito per iniziare: il CEO ti fara alcune domande per capire la tua azienda e configurare tutto al meglio.", top: "235px" },
     3: { title: "Collega i Connettori", text: "Collega i tuoi servizi (Google, WhatsApp, Telegram, ecc.). Una volta collegato un connettore, premi il bottone Crea Agente che trovi nella pagina del connettore per creare il tuo primo agente AI specializzato.", top: "432px" },
   };
