@@ -498,7 +498,6 @@ export function ChatPage() {
             color: "hsl(0 0% 98%)",
             maxHeight: "120px",
           }}
-          disabled={isStreaming}
         />
         <button
           onClick={sendMessage}
