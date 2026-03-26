@@ -359,9 +359,9 @@ export function ChatPage() {
   })();
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-5xl mx-auto">
+    <div className="flex flex-col h-full max-w-5xl mx-auto" style={{ maxHeight: "calc(100dvh - 6rem)" }}>
       {/* Header */}
-      <div className="glass-card p-4 mb-4 flex items-center gap-3">
+      <div className="glass-card p-4 mb-4 flex items-center gap-3 shrink-0">
         <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "hsl(158 64% 42% / 0.15)" }}>
           <Bot className="h-5 w-5" style={{ color: "hsl(158 64% 42%)" }} />
         </div>
@@ -466,7 +466,7 @@ export function ChatPage() {
       </div>
 
       {/* Input */}
-      <div className="glass-card p-3 flex items-end gap-2">
+      <div className="glass-card p-3 flex items-end gap-2 shrink-0">
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setInput((prev) => prev + (prev ? "\n" : "") + "[Allegato: " + f.name + "]"); } e.target.value = ""; }} />
         <button onClick={() => fileInputRef.current?.click()} className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 text-muted-foreground hover:text-foreground transition-colors" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }} disabled={isStreaming}>
           <Paperclip className="h-4 w-4" />
