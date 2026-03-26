@@ -48,6 +48,9 @@ export function AuthPage() {
           const data = await res.json();
           if (!data.hasKey) { navigate("/" + prefix + "/api-claude", { replace: true }); return; }
         } catch {}
+        // Check onboarding step
+        const step = parseInt(localStorage.getItem("goitalia_onboarding") || "0");
+        if (step < 2) { navigate("/" + prefix + "/chat", { replace: true }); return; }
         navigate("/" + prefix + "/dashboard", { replace: true });
       } else {
         navigate("/", { replace: true });

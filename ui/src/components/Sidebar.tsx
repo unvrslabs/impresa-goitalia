@@ -260,7 +260,7 @@ export function Sidebar() {
 
             </div>
           ) : (
-            <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} />
+            <div className={onboardingStep < 2 ? "opacity-30 pointer-events-none" : ""}><SidebarNavItem to="/api-claude" label="API Claude" icon={Key} /></div>
           )}
           {session?.user?.email === "emanuele@unvrslabs.dev" && (
             <SidebarNavItem to="/admin" label="GoItalIA" icon={ShieldCheck} />
