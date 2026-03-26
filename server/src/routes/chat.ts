@@ -285,6 +285,56 @@ export const TOOLS = [
       required: ["cap"],
     },
   },
+  // PEC tools
+  {
+    name: "lista_pec",
+    description: "Elenca le email PEC ricevute nella casella PEC dell'azienda.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        limit: { type: "number", description: "Numero massimo di email da restituire (default 10)" },
+      },
+      required: [] as string[],
+    },
+  },
+  {
+    name: "leggi_pec",
+    description: "Leggi una email PEC specifica con il corpo completo e i metadati di certificazione (daticert.xml).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        uid: { type: "number", description: "UID del messaggio PEC da leggere (ottenuto da lista_pec)" },
+      },
+      required: ["uid"],
+    },
+  },
+  {
+    name: "invia_pec",
+    description: "Invia una email PEC certificata a un destinatario.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        destinatario: { type: "string", description: "Indirizzo PEC del destinatario" },
+        oggetto: { type: "string", description: "Oggetto della PEC" },
+        testo: { type: "string", description: "Testo del messaggio PEC" },
+      },
+      required: ["destinatario", "oggetto", "testo"],
+    },
+  },
+  {
+    name: "rispondi_pec",
+    description: "Rispondi a una email PEC ricevuta.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        destinatario: { type: "string", description: "Indirizzo PEC a cui rispondere" },
+        oggetto: { type: "string", description: "Oggetto della risposta (di solito 'Re: oggetto originale')" },
+        testo: { type: "string", description: "Testo della risposta" },
+      },
+      required: ["destinatario", "oggetto", "testo"],
+    },
+  },
+
   {
     name: "crea_attivita_programmata",
     description: "Crea un'attività programmata (cron) per un agente. L'agente eseguirà il task all'orario specificato.",
@@ -346,6 +396,11 @@ export const TOOL_CONNECTOR: Record<string, string | null> = {
   crea_attivita_programmata: null,
   lista_attivita_programmate: null,
   elimina_attivita_programmata: null,
+  // PEC
+  lista_pec: "pec",
+  leggi_pec: "pec",
+  invia_pec: "pec",
+  rispondi_pec: "pec",
 };
 
 
@@ -622,6 +677,21 @@ const CONNECTOR_GUIDES: ConnectorGuide[] = [
     ],
     suggestions: [
       "Funziona automaticamente su WhatsApp e Telegram — ogni vocale viene trascritto in testo",
+    ],
+  },
+  {
+    key: "pec",
+    label: "PEC (Posta Certificata)",
+    capabilities: "Invio e ricezione PEC, ricevute di accettazione e consegna, valore legale",
+    questions: [
+      "Quale provider PEC usi? (Aruba, Poste Italiane, Legalmail, altro)",
+      "Per cosa usi principalmente la PEC? Fatture, contratti, comunicazioni PA?",
+      "Vuoi che l'agente risponda automaticamente alle PEC o preferisci approvare prima dell'invio?",
+    ],
+    suggestions: [
+      "Posso monitorare le PEC in arrivo e avvisarti delle più importanti",
+      "Posso preparare risposte PEC e farle approvare prima dell'invio — valore legale preservato",
+      "Posso collegare PEC + Fatture in Cloud per inviare fatture via PEC certificata",
     ],
   },
 ];
@@ -1012,6 +1082,8 @@ export async function executeChatTool(
           connectors.oai_company = true; connectors.oai_risk = true; connectors.oai_cap = true; connectors.oai_sdi = true;
         } else if (conn === "voice") {
           connectors.voice = true;
+        } else if (conn === "pec") {
+          connectors.pec = true;
         }
 
         const [newAgent] = await db.insert(agents).values({
@@ -1394,6 +1466,54 @@ export async function executeChatTool(
         return result;
       }
 
+      case "lista_pec": {
+        const { getPecCreds: getPec, listPecMessages } = await import("./pec.js");
+        const pecCreds = await getPec(db, companyId);
+        if (!pecCreds) return "PEC non connessa. Collega la casella PEC da Connettori.";
+        const limit = (toolInput.limit as number) || 10;
+        const messages = await listPecMessages(db, companyId, "INBOX", limit);
+        if (messages.length === 0) return "Nessuna email PEC ricevuta.";
+        return messages.map((m) =>
+          `UID: ${m.uid} | ${m.seen ? "✓" : "●"} | Da: ${m.from} | Oggetto: ${m.subject} | Data: ${m.date.substring(0, 10)}`
+        ).join("\n");
+      }
+
+      case "leggi_pec": {
+        const { readPecMessage } = await import("./pec.js");
+        const uid = toolInput.uid as number;
+        if (!uid) return "Errore: uid obbligatorio.";
+        const msg = await readPecMessage(db, companyId, uid);
+        let out = `Da: ${msg.from}\nA: ${msg.to}\nData: ${msg.date}\nOggetto: ${msg.subject}\n\n${msg.body.substring(0, 2000)}`;
+        if (msg.daticert && Object.keys(msg.daticert).length > 0) {
+          out += "\n\n--- CERTIFICAZIONE PEC ---\n";
+          for (const [k, v] of Object.entries(msg.daticert)) out += `${k}: ${v}\n`;
+        }
+        return out;
+      }
+
+      case "invia_pec": {
+        const { getPecCreds: getPec, sendPecMessage } = await import("./pec.js");
+        const pecCreds = await getPec(db, companyId);
+        if (!pecCreds) return "PEC non connessa. Collega la casella PEC da Connettori.";
+        const dest = toolInput.destinatario as string;
+        const ogg = toolInput.oggetto as string;
+        const testo = toolInput.testo as string;
+        await sendPecMessage(pecCreds, dest, ogg, testo);
+        return `PEC inviata con successo a ${dest}. Oggetto: "${ogg}"`;
+      }
+
+      case "rispondi_pec": {
+        const { getPecCreds: getPec, sendPecMessage } = await import("./pec.js");
+        const pecCreds = await getPec(db, companyId);
+        if (!pecCreds) return "PEC non connessa. Collega la casella PEC da Connettori.";
+        const dest = toolInput.destinatario as string;
+        const ogg = toolInput.oggetto as string;
+        const testo = toolInput.testo as string;
+        const replySubject = ogg.startsWith("Re:") ? ogg : "Re: " + ogg;
+        await sendPecMessage(pecCreds, dest, replySubject, testo);
+        return `Risposta PEC inviata a ${dest}. Oggetto: "${replySubject}"`;
+      }
+
       default:
         return "Tool sconosciuto: " + toolName;
     }
@@ -1609,7 +1729,7 @@ export function chatRoutes(db: Db) {
           google: "google", telegram: "telegram", whatsapp: "whatsapp",
           meta_ig: "meta", meta_fb: "meta",
           linkedin: "linkedin", fal: "fal", fic: "fic",
-          openapi: "openapi", voice: "voice",
+          openapi: "openapi", voice: "voice", pec: "pec",
         };
 
         const activeGuideKeys = new Set<string>();
@@ -1628,7 +1748,7 @@ export function chatRoutes(db: Db) {
           whatsapp_sessions: "whatsapp", meta_tokens: "meta",
           linkedin_tokens: "linkedin", fal_api_key: "fal",
           fattureincloud_tokens: "fic", openapi_it_creds: "openapi",
-          openai_api_key: "voice",
+          openai_api_key: "voice", pec_credentials: "pec",
         };
         for (const [secretName, guideKey] of Object.entries(connectorSecretMap)) {
           if (secretNames.includes(secretName)) activeGuideKeys.add(guideKey);

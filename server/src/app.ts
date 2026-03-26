@@ -28,6 +28,7 @@ import { whatsappRoutes, whatsappWebhookRouter } from "./routes/whatsapp.js";
 import { voiceRoutes } from "./routes/voice.js";
 import { metaRoutes } from "./routes/meta.js";
 import { linkedinRoutes } from "./routes/linkedin.js";
+import { pecRoutes } from "./routes/pec.js";
 import { socialRoutes } from "./routes/social.js";
 import { connectorAccountRoutes } from "./routes/connector-accounts.js";
 import { companySkillRoutes } from "./routes/company-skills.js";
@@ -242,6 +243,7 @@ app.use(express.json({
   api.use(voiceRoutes(db));
   api.use(metaRoutes(db));
   api.use(linkedinRoutes(db));
+  api.use(pecRoutes(db));
   api.use(socialRoutes(db));
   api.use("/companies", companyRoutes(db, opts.storageService));
   api.use(companySkillRoutes(db));

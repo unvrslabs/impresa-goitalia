@@ -78,6 +78,14 @@ export function PluginManager() {
   const [ficConnected, setFicConnected] = useState(false);
   const [ficToken, setFicToken] = useState("");
   const [ficSaving, setFicSaving] = useState(false);
+  const [pecConnected, setPecConnected] = useState(false);
+  const [pecEmail, setPecEmail] = useState<string | null>(null);
+  const [pecProvider, setPecProvider] = useState("aruba");
+  const [pecEmailInput, setPecEmailInput] = useState("");
+  const [pecPassword, setPecPassword] = useState("");
+  const [pecCustomImap, setPecCustomImap] = useState("");
+  const [pecCustomSmtp, setPecCustomSmtp] = useState("");
+  const [pecSaving, setPecSaving] = useState(false);
   const [oaiConnected, setOaiConnected] = useState(false);
   const [oaiServices, setOaiServices] = useState<string[]>([]);
   const [oaiKey, setOaiKey] = useState("");
@@ -183,6 +191,7 @@ export function PluginManager() {
       .catch(() => setTelegramStatus({ connected: false }));
     fetch("/api/fal/status?companyId=" + selectedCompany.id, { credentials: "include" }).then((r) => r.json()).then((d) => setFalConnected(d.connected)).catch(() => {});
     fetch("/api/fic/status?companyId=" + selectedCompany.id, { credentials: "include" }).then((r) => r.json()).then((d) => { setFicConnected(d.connected || false); setFicCompany(d.companyName || null); }).catch(() => {});
+    fetch("/api/pec/status?companyId=" + selectedCompany.id, { credentials: "include" }).then((r) => r.json()).then((d) => { setPecConnected(d.connected || false); setPecEmail(d.email || null); }).catch(() => {});
     fetch("/api/openapi-it/status?companyId=" + selectedCompany.id, { credentials: "include" }).then((r) => r.json()).then((d) => { setOaiConnected(d.connected || false); setOaiServices(d.services || []); }).catch(() => {});
     fetch("/api/voice/status?companyId=" + selectedCompany.id, { credentials: "include" })
       .then((r) => r.json())
@@ -315,6 +324,7 @@ export function PluginManager() {
   const isFalConnected = falConnected;
   const isFicConnected = ficConnected;
   const isOaiConnected = oaiConnected;
+  const isPecConnected = pecConnected;
 
 
   // Uniform row style for sub-items
@@ -336,7 +346,7 @@ export function PluginManager() {
   const navigateToChat = async (connector: string, detail?: string) => {
     if (!selectedCompany?.id) return;
     // Build the message
-    const LABELS: Record<string, string> = { google: "Google Workspace", telegram: "Telegram Bot", whatsapp: "WhatsApp", meta: "Instagram + Facebook", linkedin: "LinkedIn", fal: "Fal.ai", fic: "Fatture in Cloud", openapi: "OpenAPI.it", voice: "Vocali AI" };
+    const LABELS: Record<string, string> = { google: "Google Workspace", telegram: "Telegram Bot", whatsapp: "WhatsApp", meta: "Instagram + Facebook", linkedin: "LinkedIn", fal: "Fal.ai", fic: "Fatture in Cloud", openapi: "OpenAPI.it", voice: "Vocali AI", pec: "PEC (Posta Certificata)" };
     const label = LABELS[connector] || connector;
     const detailStr = detail ? " (" + detail + ")" : "";
     const message = "Ho collegato " + label + detailStr + ". Crea un agente dedicato per questo connettore.";
@@ -976,7 +986,93 @@ export function PluginManager() {
             </div>
           )}
         </div>
-        {/* 9. Prossimamente */}
+        {/* 10. PEC */}
+        <div className="rounded-xl overflow-hidden" style={glass.cardStyle}>
+          <button onClick={() => toggle("pec")} className="w-full px-4 py-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(34, 197, 94, 0.15)", border: "1px solid rgba(34, 197, 94, 0.3)" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-sm font-medium">PEC</div>
+              <div className="text-xs text-muted-foreground">Posta Elettronica Certificata — Aruba, Poste, Legalmail</div>
+            </div>
+            <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0", isPecConnected ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30")}>
+              {isPecConnected ? "Connessa" : "Non connessa"}
+            </span>
+            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform shrink-0", expandedConnector === "pec" && "rotate-180")} />
+          </button>
+          {expandedConnector === "pec" && (
+            <div className="px-4 pb-3 pt-3 space-y-2 border-t border-white/5">
+              {isPecConnected ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className={row + " flex-1"} style={rowBg}>
+                      {greenDot}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                      <span className="flex-1 text-xs">{pecEmail || "PEC connessa"}</span>
+                    </div>
+                    <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={() => {
+                      showDisconnectDialog("PEC", "pec", async () => {
+                        await fetch("/api/pec/disconnect?companyId=" + selectedCompany?.id, { method: "POST", credentials: "include" });
+                        setPecConnected(false); setPecEmail(null);
+                      });
+                    }} title="Disconnetti">{xIcon}</button>
+                  </div>
+                  <div className={actionRow}>
+                    {agentBtn("pec", pecEmail || undefined)}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] text-muted-foreground mb-1.5 block">Provider PEC</label>
+                    <select value={pecProvider} onChange={(e) => setPecProvider(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-white/10 bg-black/40 text-xs outline-none">
+                      <option value="aruba">Aruba PEC</option>
+                      <option value="poste">Poste Italiane (Postecertifica)</option>
+                      <option value="legalmail">Legalmail (InfoCert)</option>
+                      <option value="custom">Personalizzato</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted-foreground mb-1.5 block">Indirizzo PEC</label>
+                    <input type="email" value={pecEmailInput} onChange={(e) => setPecEmailInput(e.target.value)} placeholder="nome@pec.azienda.it" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted-foreground mb-1.5 block">Password PEC</label>
+                    <input type="password" value={pecPassword} onChange={(e) => setPecPassword(e.target.value)} placeholder="Password casella PEC" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" />
+                  </div>
+                  {pecProvider === "custom" && (
+                    <>
+                      <div>
+                        <label className="text-[11px] text-muted-foreground mb-1.5 block">IMAP Host (porta 993 SSL)</label>
+                        <input value={pecCustomImap} onChange={(e) => setPecCustomImap(e.target.value)} placeholder="imap.miopec.it" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-muted-foreground mb-1.5 block">SMTP Host (porta 465 SSL)</label>
+                        <input value={pecCustomSmtp} onChange={(e) => setPecCustomSmtp(e.target.value)} placeholder="smtp.miopec.it" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" />
+                      </div>
+                    </>
+                  )}
+                  <button onClick={async () => {
+                    if (!pecEmailInput || !pecPassword) return;
+                    setPecSaving(true);
+                    try {
+                      const body: Record<string, unknown> = { companyId: selectedCompany?.id, email: pecEmailInput, password: pecPassword, provider: pecProvider };
+                      if (pecProvider === "custom") { body.imapHost = pecCustomImap; body.smtpHost = pecCustomSmtp; }
+                      const r = await fetch("/api/pec/connect", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+                      const d = await r.json();
+                      if (r.ok) { setPecConnected(true); setPecEmail(d.email); setPecEmailInput(""); setPecPassword(""); } else { alert(d.error || "Errore connessione PEC"); }
+                    } catch { alert("Errore di rete"); } finally { setPecSaving(false); }
+                  }} disabled={pecSaving || !pecEmailInput || !pecPassword} className="px-4 py-2 rounded-xl text-xs font-medium disabled:opacity-40 transition-all w-full" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}>
+                    {pecSaving ? "Verifica connessione..." : "Collega PEC"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 11. Prossimamente */}
         <div className="rounded-xl overflow-hidden" style={{ ...glass.cardStyle, opacity: 0.5 }}>
           <div className="w-full px-4 py-3 flex items-center gap-3 cursor-default">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>

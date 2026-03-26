@@ -20,7 +20,7 @@ import {
   ShieldCheck,
   Key,
   LogOut,
-  FolderOpen, Sparkles, Receipt, Globe, CalendarClock,
+  FolderOpen, Sparkles, Receipt, Globe, CalendarClock, Shield,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -58,6 +58,8 @@ export function Sidebar() {
   const [hasFal, setHasFal] = useState(false);
   const [hasFic, setHasFic] = useState(false);
   const [hasOpenapi, setHasOpenapi] = useState(false);
+  const [hasPec, setHasPec] = useState(false);
+  const [pecUnread, setPecUnread] = useState(0);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [telegramUnread, setTelegramUnread] = useState(0);
   const [waUnread, setWaUnread] = useState(0);
@@ -92,6 +94,10 @@ export function Sidebar() {
         .then((r) => r.json())
         .then((d) => setHasOpenapi(d.connected || false))
         .catch(() => {});
+      fetch("/api/pec/status?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setHasPec(d.connected || false))
+        .catch(() => {});
       fetch("/api/routines/pending?companyId=" + selectedCompanyId, { credentials: "include" })
         .then((r) => r.json())
         .then((d) => setPendingCount(Array.isArray(d) ? d.length : 0))
@@ -124,6 +130,15 @@ export function Sidebar() {
     };
     fetchTgUnread();
 
+    const fetchPecUnread = () => {
+      fetch("/api/pec/unread-count?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setPecUnread(d.count || 0))
+        .catch(() => {});
+    };
+    fetchPecUnread();
+    if (location.pathname.includes("/pec")) setPecUnread(0);
+
     const fetchUnread = () => {
       fetch("/api/gmail/unread-count?companyId=" + selectedCompanyId, { credentials: "include" })
         .then((r) => r.json())
@@ -131,9 +146,10 @@ export function Sidebar() {
         .catch(() => {});
     };
     fetchUnread();
-    const interval = setInterval(() => { fetchUnread(); fetchTgUnread(); fetchWaUnread();
+    const interval = setInterval(() => { fetchUnread(); fetchTgUnread(); fetchWaUnread(); fetchPecUnread();
     if (location.pathname.includes("/whatsapp")) setWaUnread(0);
-    if (location.pathname.includes("/telegram")) setTelegramUnread(0); }, 30000);
+    if (location.pathname.includes("/telegram")) setTelegramUnread(0);
+    if (location.pathname.includes("/pec")) setPecUnread(0); }, 30000);
     const onMailUpdated = () => fetchUnread();
     const onTgRead = () => { setTelegramUnread(0); };
     const onWaRead = () => { setWaUnread(0); };
@@ -242,6 +258,7 @@ export function Sidebar() {
             </div>
           )}
           <div className={!isComplete ? "opacity-30 pointer-events-none" : ""}>
+            {hasPec && <SidebarNavItem to="/pec" label="PEC" icon={Shield} badge={pecUnread > 0 ? pecUnread : undefined} />}
             {hasGoogle && <SidebarNavItem to="/mail" label="Mail" icon={Mail} badge={mailUnread > 0 ? mailUnread : undefined} />}
             {hasWhatsApp && <SidebarNavItem to="/whatsapp" label="WhatsApp" icon={Phone} badge={waUnread > 0 ? waUnread : undefined} />}
             {hasTelegram && <SidebarNavItem to="/telegram" label="Telegram" icon={MessageSquare} badge={telegramUnread > 0 ? telegramUnread : undefined} />}

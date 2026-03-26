@@ -10,6 +10,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { ChatPage } from "./pages/ChatPage";
 import { MailPage } from "./pages/MailPage";
+import { PecPage } from "./pages/PecPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { DrivePage } from "./pages/DrivePage";
 import { TelegramPage } from "./pages/TelegramPage";
@@ -137,6 +138,7 @@ function boardRoutes() {
       <Route path="admin" element={<AdminDashboard />} />
       <Route path="chat" element={<ChatPage />} />
       <Route path="mail" element={<MailPage />} />
+      <Route path="pec" element={<PecPage />} />
       <Route path="calendario" element={<CalendarPage />} />
       <Route path="documenti" element={<DrivePage />} />
       <Route path="telegram" element={<TelegramPage />} />
