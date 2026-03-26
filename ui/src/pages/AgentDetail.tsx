@@ -879,37 +879,48 @@ export function AgentDetail() {
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-44 p-1" align="end">
+            <PopoverContent className="w-48 p-1.5 border-0" align="end" style={{ background: "rgba(30,30,30,0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "14px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
               <button
-                className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
+                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs rounded-lg transition-colors"
+                style={{ color: "rgba(255,255,255,0.8)" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 onClick={() => {
                   navigator.clipboard.writeText(agent.id);
                   setMoreOpen(false);
                 }}
               >
-                <Copy className="h-3 w-3" />
+                <Copy className="h-3.5 w-3.5" style={{ opacity: 0.6 }} />
                 Copia ID Agente
               </button>
               <button
-                className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
+                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs rounded-lg transition-colors"
+                style={{ color: "rgba(255,255,255,0.8)" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 onClick={() => {
                   resetTaskSession.mutate(null);
                   setMoreOpen(false);
                 }}
               >
-                <RotateCcw className="h-3 w-3" />
+                <RotateCcw className="h-3.5 w-3.5" style={{ opacity: 0.6 }} />
                 Reset Sessioni
               </button>
+              {agent.role !== "ceo" && (
               <button
-                className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-destructive"
+                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs rounded-lg transition-colors"
+                style={{ color: "rgba(239,68,68,0.8)" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(239,68,68,0.1)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 onClick={() => {
                   agentAction.mutate("terminate");
                   setMoreOpen(false);
                 }}
               >
-                <Trash2 className="h-3 w-3" />
-                Terminate
+                <Trash2 className="h-3.5 w-3.5" />
+                Elimina agente
               </button>
+              )}
             </PopoverContent>
           </Popover>
         </div>
