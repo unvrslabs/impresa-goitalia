@@ -600,7 +600,6 @@ export function whatsappWebhookRouter(db: Db) {
 
               // Lookup rubrica contatto per override autoMode e contesto
               const contactInfo = await getContactContext(db, agent.id, remoteJid);
-              console.log(`[wa-webhook] rubrica lookup: agentId=${agent.id}, jid=${remoteJid}, found=${!!contactInfo}, autoMode=${contactInfo?.autoMode || "none"}`);
 
               // Determina se rispondere in automatico
               let shouldAutoReply = agentAutoReply;
@@ -609,7 +608,6 @@ export function whatsappWebhookRouter(db: Db) {
                 else if (contactInfo.autoMode === "manual") shouldAutoReply = false;
                 // "inherit" → segue il default dell'agente
               }
-              console.log(`[wa-webhook] autoReply decision: agentAutoReply=${agentAutoReply}, shouldAutoReply=${shouldAutoReply}`);
 
               if (shouldAutoReply) {
                 const claudeSecret = await db.select().from(companySecrets)
