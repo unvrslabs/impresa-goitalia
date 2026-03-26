@@ -458,7 +458,7 @@ export function ChatPage() {
               onClick={async () => {
                 setShowOnboardingButton(true);
                 await advanceStep(3);
-                navigate("/plugins");
+                const prefix = window.location.pathname.split("/")[1]; window.location.href = "/" + prefix + "/plugins";
               }}
               className="px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
               style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", boxShadow: "0 4px 20px hsl(158 64% 42% / 0.4)" }}
