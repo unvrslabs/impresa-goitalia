@@ -6,7 +6,7 @@ import { decrypt as decryptSecret, decrypt, encrypt } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
 
 // Tool definitions (same as adapter)
-const TOOLS = [
+export const TOOLS = [
   {
     name: "lista_agenti",
     description: "Elenca tutti gli agenti della company con il loro stato attuale.",
@@ -286,7 +286,7 @@ const TOOLS = [
 ];
 
 // Map each tool to the connector key it requires. null = always available.
-const TOOL_CONNECTOR: Record<string, string | null> = {
+export const TOOL_CONNECTOR: Record<string, string | null> = {
   lista_agenti: null,
   crea_task: null,
   stato_task: null,
@@ -627,7 +627,7 @@ function buildCeoPrompt(): string {
   return CEO_PROMPT_BASE + buildConnectorGuides() + buildToolList();
 }
 
-function filterToolsForAgent(agentRole: string, connectors: Record<string, boolean>): typeof TOOLS {
+export function filterToolsForAgent(agentRole: string, connectors: Record<string, boolean>): typeof TOOLS {
   // CEO/Direttore gets all tools
   if (agentRole === "ceo") return TOOLS;
   
@@ -644,7 +644,7 @@ function filterToolsForAgent(agentRole: string, connectors: Record<string, boole
  * Build the connectors Record<string, boolean> from agent_connector_accounts.
  * Falls back to adapterConfig.connectors if no rows found (backward compat during migration).
  */
-async function getAgentConnectorsFromDb(
+export async function getAgentConnectorsFromDb(
   db: Db,
   agentId: string,
   fallbackConnectors?: Record<string, boolean>,
@@ -849,7 +849,7 @@ async function executeAgentTask(
   return finalResult || "Task completato ma nessuna risposta dall'agente.";
 }
 
-async function executeChatTool(
+export async function executeChatTool(
   toolName: string,
   toolInput: ToolInput,
   db: Db,
