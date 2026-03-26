@@ -256,7 +256,7 @@ export function RoutineDetail() {
   const [editDraft, setEditDraft] = useState({
     title: "",
     description: "",
-    projectId: "",
+    projectId: "" as string | null,
     assigneeAgentId: "",
     priority: "medium",
     concurrencyPolicy: "coalesce_if_active",
