@@ -227,8 +227,6 @@ export function Sidebar() {
             <div className="relative" id="chat-ceo-nav">
               <div className="absolute inset-0 rounded-lg animate-pulse" style={glowStyle} />
               <SidebarNavItem to="/chat" label="Chat (CEO)" icon={MessageCircle} className="relative z-10 !text-white font-bold" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-ping" style={{ background: "hsl(158 64% 42%)" }} />
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: "hsl(158 64% 42%)" }} />
             </div>
           ) : isStep2 ? (
             <div id="chat-ceo-nav"><SidebarNavItem to="/chat" label="Chat (CEO)" icon={MessageCircle} /></div>
@@ -262,8 +260,6 @@ export function Sidebar() {
             <div className="relative" id="connettori-nav">
               <div className="absolute inset-0 rounded-lg animate-pulse" style={glowStyle} />
               <SidebarNavItem to="/plugins" label="Connettori" icon={Plug} className="relative z-10 !text-white font-bold" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-ping" style={{ background: "hsl(158 64% 42%)" }} />
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: "hsl(158 64% 42%)" }} />
             </div>
           ) : (
             <div className={!isComplete ? "opacity-30 pointer-events-none" : ""} id="connettori-nav"><SidebarNavItem to="/plugins" label="Connettori" icon={Plug} /></div>
@@ -273,8 +269,6 @@ export function Sidebar() {
             <div className="relative" id="api-claude-nav">
               <div className="absolute inset-0 rounded-lg animate-pulse" style={glowStyle} />
               <SidebarNavItem to="/api-claude" label="API Claude" icon={Key} className="relative z-10 !text-white font-bold" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-ping" style={{ background: "hsl(158 64% 42%)" }} />
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: "hsl(158 64% 42%)" }} />
             </div>
           ) : (
             <div className={!isComplete && onboardingStep !== null && onboardingStep > 0 ? "opacity-30 pointer-events-none" : ""} id="api-claude-nav">
