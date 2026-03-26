@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { companySecrets, agents, companyMemberships, companies, issues } from "@goitalia/db";
-import { eq, and, inArray, desc, sql, asc } from "drizzle-orm";
+import { eq, and, ne, inArray, desc, sql, asc } from "drizzle-orm";
 import { decrypt as decryptSecret, decrypt, encrypt } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
 
@@ -863,8 +863,8 @@ async function executeChatTool(
 
       case "crea_agente": {
         const input = toolInput as { nome: string; titolo: string; competenze: string; istruzioni: string; connettore?: string };
-        // Check for duplicate agent name
-        const existing = await db.select({ id: agents.id }).from(agents).where(and(eq(agents.companyId, companyId), eq(agents.name, input.nome))).then(r => r[0]);
+        // Check for duplicate agent name (ignore terminated agents)
+        const existing = await db.select({ id: agents.id, status: agents.status }).from(agents).where(and(eq(agents.companyId, companyId), eq(agents.name, input.nome), ne(agents.status, "terminated"))).then(r => r[0]);
         if (existing) return "Agente " + input.nome + " esiste gia (id: " + existing.id + "). Non creo duplicati.";
 
         // Build connectors map — only the specified connector is active

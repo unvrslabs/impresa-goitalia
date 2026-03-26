@@ -502,6 +502,7 @@ export function ChatPage() {
               ) : (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               )}
+              <div className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.25)" }}>{msg.timestamp.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</div>
             </div>
             {msg.role === "user" && (
               <div className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-1" style={{ background: "rgba(255,255,255,0.08)" }}>
