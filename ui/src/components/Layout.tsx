@@ -402,7 +402,7 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
     ? { title: "Configura API Claude", text: "Per attivare il tuo CEO AI e sbloccare tutte le funzionalita, inserisci la tua API key di Anthropic nella sezione qui sotto." }
     : onboardingStep === 1
     ? { title: "Parla col tuo CEO AI", text: "Il tuo CEO AI e pronto! Premi Ho capito per iniziare: il CEO ti fara alcune domande per capire la tua azienda e configurare tutto al meglio." }
-    : { title: "Collega i Connettori", text: "Collega i tuoi servizi (Google, WhatsApp, Telegram, ecc.) per permettere ai tuoi agenti AI di lavorare al meglio." };
+    : { title: "Collega i Connettori", text: "Collega i tuoi servizi (Google, WhatsApp, Telegram, ecc.). Dopo aver collegato un connettore, premi Crea Agente per creare un agente specializzato." };
 
   const handleDismiss = () => {
     setDismissed(true);
