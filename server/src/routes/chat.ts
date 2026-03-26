@@ -924,7 +924,7 @@ async function executeChatTool(
           role: input.titolo,
           capabilities: input.competenze,
           adapterType: "claude_api",
-          adapterConfig: { promptTemplate: input.istruzioni, connectors },
+          adapterConfig: { promptTemplate: input.istruzioni, connectors, primaryConnector: conn || undefined },
           reportsTo: agentId,
           status: "idle",
         }).returning();
