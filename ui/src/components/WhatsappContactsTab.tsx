@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Upload, ExternalLink, Phone, User, FileText, ChevronDown, ChevronRight, X } from "lucide-react";
+import { Plus, Trash2, Upload, ExternalLink, Phone, User, FileText, ChevronDown, ChevronRight, X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -34,6 +34,7 @@ export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; c
   const [showAdd, setShowAdd] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   // Add form
   const [newPhone, setNewPhone] = useState("");
@@ -152,6 +153,19 @@ export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; c
         </Button>
       </div>
 
+      {/* Search */}
+      {contacts.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <input
+            placeholder="Cerca per nome o numero..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 pl-9 pr-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-colors"
+          />
+        </div>
+      )}
+
       {/* Add contact form */}
       {showAdd && (
         <div className="glass-card p-5 space-y-4">
@@ -218,7 +232,11 @@ export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; c
         </div>
       )}
 
-      {contacts.map(contact => {
+      {contacts.filter(c => {
+        if (!search.trim()) return true;
+        const q = search.toLowerCase();
+        return (c.name || "").toLowerCase().includes(q) || c.phoneNumber.includes(q);
+      }).map(contact => {
         const expanded = expandedId === contact.id;
         const editing = editingId === contact.id;
         const mode = autoModeLabels[contact.autoMode] || autoModeLabels.inherit;
