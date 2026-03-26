@@ -35,6 +35,13 @@ export function ChatPage() {
   const otherAgents = (agents ?? []).filter((a) => a.role !== "ceo");
   const isOnboarding = otherAgents.length === 0 && !!ceoAgent && (ceoAgent as any).adapterType === "claude_api";
   const [autoStarted, setAutoStarted] = useState(false);
+  const [onboardingReady, setOnboardingReady] = useState(() => parseInt(localStorage.getItem("goitalia_onboarding") || "0") >= 2);
+
+  useEffect(() => {
+    const onComplete = () => setOnboardingReady(true);
+    window.addEventListener("onboarding-step-complete", onComplete);
+    return () => window.removeEventListener("onboarding-step-complete", onComplete);
+  }, []);
 
   // Check for pre-filled message from URL
   useEffect(() => {
@@ -74,7 +81,7 @@ export function ChatPage() {
 
   // Auto-start onboarding conversation
   useEffect(() => {
-    if (isOnboarding && !autoStarted && ceoAgent && messages.length === 0 && !isStreaming && historyLoaded) {
+    if (isOnboarding && !autoStarted && ceoAgent && messages.length === 0 && !isStreaming && historyLoaded && onboardingReady) {
       setAutoStarted(true);
       // Simulate sending a start message
       const startMsg: ChatMessage = {

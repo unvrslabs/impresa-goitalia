@@ -408,13 +408,14 @@ function OnboardingTooltip({ companyId, sidebarOpen }: { companyId: string | nul
 
   const stepConfig = onboardingStep === 0
     ? { title: "Configura API Claude", text: "Per attivare il tuo CEO AI e sbloccare tutte le funzionalita, inserisci la tua API key di Anthropic nella sezione qui sotto." }
-    : { title: "Parla col tuo CEO AI", text: "Il tuo CEO AI e pronto! Apri la chat per iniziare a lavorare insieme. Puoi chiedergli qualsiasi cosa sulla tua azienda." };
+    : { title: "Parla col tuo CEO AI", text: "Il tuo CEO AI e pronto! Premi Ho capito per iniziare: il CEO ti fara alcune domande per capire la tua azienda e configurare tutto al meglio." };
 
   const handleDismiss = () => {
     setDismissed(true);
     if (onboardingStep === 1) {
       localStorage.setItem("goitalia_onboarding", "2");
       setOnboardingStep(2);
+      window.dispatchEvent(new Event("onboarding-step-complete"));
     }
   };
 
