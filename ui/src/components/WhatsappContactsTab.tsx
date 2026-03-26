@@ -115,9 +115,18 @@ export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; c
     const fd = new FormData();
     fd.append("file", file);
     fd.append("companyId", companyId);
-    await fetch(`/api/whatsapp-contacts/${contactId}/files/upload`, {
+    const r = await fetch(`/api/whatsapp-contacts/${contactId}/files/upload`, {
       method: "POST", credentials: "include", body: fd,
     });
+    if (r.ok) {
+      const data = await r.json();
+      if (data.isWaChatExport) {
+        setUploadingFor("generating-" + contactId);
+        // Wait a bit for async generation, then reload
+        setTimeout(() => { setUploadingFor(null); loadContacts(); }, 8000);
+        return;
+      }
+    }
     setUploadingFor(null);
     loadContacts();
   };
@@ -299,8 +308,8 @@ export function WhatsappContactsTab({ agentId, companyId }: { agentId: string; c
                       if (e.target.files?.[0]) uploadFile(contact.id, e.target.files[0]);
                       e.target.value = "";
                     }} />
-                    <button className="text-[10px] text-white/30 hover:text-white/60 transition-colors" onClick={() => fileInputRef.current?.click()} disabled={uploadingFor === contact.id}>
-                      {uploadingFor === contact.id ? "..." : "+ Upload"}
+                    <button className="text-[10px] text-white/30 hover:text-white/60 transition-colors" onClick={() => fileInputRef.current?.click()} disabled={!!uploadingFor}>
+                      {uploadingFor === contact.id ? "Caricamento..." : uploadingFor === "generating-" + contact.id ? "Generando istruzioni AI..." : "+ Upload"}
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">

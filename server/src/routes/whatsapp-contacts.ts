@@ -196,7 +196,15 @@ export function whatsappContactsRoutes(db: Db) {
         contentText: contentText || null,
       }).returning();
 
-      res.json({ file: { ...inserted, hasContent: !!contentText } });
+      // Detect WhatsApp chat export and auto-generate agent instructions
+      const isWaChatExport = contentText && isWhatsAppChatExport(contentText);
+      if (isWaChatExport) {
+        generateAgentPromptFromChat(db, req.params.id as string, companyId, contentText).catch(err =>
+          console.error("[wa-contacts] auto-prompt generation error:", err)
+        );
+      }
+
+      res.json({ file: { ...inserted, hasContent: !!contentText }, isWaChatExport });
     } catch (err) {
       console.error("[whatsapp-contacts] file upload error:", err);
       res.status(500).json({ error: (err as Error).message });
@@ -278,6 +286,114 @@ export function whatsappContactsRoutes(db: Db) {
   });
 
   return router;
+}
+
+/** Detect if text content is a WhatsApp chat export */
+function isWhatsAppChatExport(text: string): boolean {
+  // WA chat exports have lines like: "01/01/2024, 12:00 - Name: message" or "[01/01/2024, 12:00:00] Name: message"
+  const waPatterns = [
+    /^\d{1,2}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}/m,  // DD/MM/YYYY, HH:MM
+    /^\[\d{1,2}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}/m, // [DD/MM/YYYY, HH:MM]
+    /^\d{1,2}-\d{1,2}-\d{2,4}\s+\d{1,2}:\d{2}/m,       // DD-MM-YYYY HH:MM
+  ];
+  const lines = text.split("\n").slice(0, 20);
+  let matchCount = 0;
+  for (const line of lines) {
+    if (waPatterns.some(p => p.test(line.trim()))) matchCount++;
+  }
+  return matchCount >= 3; // At least 3 lines match WA format
+}
+
+/** Auto-generate agent prompt/instructions from a WhatsApp chat export */
+async function generateAgentPromptFromChat(db: Db, contactId: string, companyId: string, chatText: string) {
+  // Get Claude API key for this company
+  const secret = await db.select().from(companySecrets)
+    .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "claude_api_key")))
+    .then(r => r[0]);
+  if (!secret?.description) return;
+
+  const claudeKey = decrypt(secret.description);
+
+  // Get contact info for context
+  const contact = await db.select().from(whatsappContacts)
+    .where(eq(whatsappContacts.id, contactId)).then(r => r[0]);
+
+  // Truncate chat to fit in context
+  const truncatedChat = chatText.substring(0, 80000);
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      system: `Sei un esperto di AI agent design. Analizza questa chat WhatsApp esportata e genera un file di istruzioni per un agente AI che deve impersonare il titolare dell'azienda nelle conversazioni con questo contatto.
+
+Il file deve essere in formato Markdown e contenere:
+1. **Profilo del contatto**: chi è, che relazione ha col titolare, lingua preferita
+2. **Stile di comunicazione**: come parla il titolare con questa persona (formale/informale, emoji, abbreviazioni, lingua)
+3. **Argomenti ricorrenti**: di cosa parlano di solito
+4. **Regole specifiche**: cose da fare/non fare basate sulla conversazione
+5. **Tono e personalità**: come l'agente deve comportarsi con questo contatto
+6. **Frasi tipiche**: espressioni caratteristiche del titolare da replicare
+
+Scrivi le istruzioni in modo che un AI agent possa replicare fedelmente lo stile del titolare con questo contatto specifico. Sii conciso ma completo.`,
+      messages: [{
+        role: "user",
+        content: `Contatto: ${contact?.name || "Sconosciuto"} (${contact?.phoneNumber || ""})\n\nChat esportata:\n\n${truncatedChat}`,
+      }],
+    }),
+  });
+
+  if (!res.ok) {
+    console.error("[wa-contacts] Claude prompt generation failed:", res.status);
+    return;
+  }
+
+  const data = await res.json() as { content?: Array<{ text?: string }> };
+  const promptText = data.content?.find(b => b.text)?.text;
+  if (!promptText) return;
+
+  // Save as a new contact file
+  const contactName = contact?.name || "contatto";
+  await db.insert(whatsappContactFiles).values({
+    contactId,
+    companyId,
+    name: `istruzioni_agente_${contactName.toLowerCase().replace(/\s+/g, "_")}.md`,
+    type: "upload",
+    mimeType: "text/markdown",
+    sizeBytes: Buffer.byteLength(promptText, "utf-8"),
+    contentText: promptText,
+  });
+
+  // Also update customInstructions on the contact if empty
+  if (!contact?.customInstructions) {
+    // Extract a short summary from the prompt for the inline field
+    const shortRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 200,
+        messages: [{
+          role: "user",
+          content: `Riassumi in 1-2 frasi brevi le regole chiave per l'agente basandoti su queste istruzioni:\n\n${promptText.substring(0, 2000)}`,
+        }],
+      }),
+    });
+    if (shortRes.ok) {
+      const shortData = await shortRes.json() as { content?: Array<{ text?: string }> };
+      const shortText = shortData.content?.find(b => b.text)?.text;
+      if (shortText) {
+        await db.update(whatsappContacts).set({
+          customInstructions: shortText,
+          updatedAt: new Date(),
+        }).where(eq(whatsappContacts.id, contactId));
+      }
+    }
+  }
+
+  console.log(`[wa-contacts] Auto-generated agent prompt for contact ${contactId}`);
 }
 
 /** Helper: get contact context for agent prompt enrichment */
