@@ -89,7 +89,7 @@ export function ChatPage() {
   // Auto-send message from URL ?msg= param
   useEffect(() => {
     const msg = searchParams.get("msg");
-    if (!msg || !ceoAgent || !selectedCompanyId || autoStarted || isStreaming) return;
+    if (!msg || !ceoAgent || !selectedCompanyId || isStreaming) return;
     setSearchParams({}, { replace: true });
     setAutoStarted(true);
     const startMsg = { id: crypto.randomUUID(), role: "user" as const, content: msg, timestamp: new Date() };
