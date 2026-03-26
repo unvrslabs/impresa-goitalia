@@ -308,6 +308,9 @@ export function PluginManager() {
   );
   const navigateToChat = (connector: string, detail?: string) => {
     if (selectedCompany?.id) fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, step: 99 }) });
+    // Clear any stale messages before writing new one
+    sessionStorage.removeItem("goitalia_create_agent");
+    sessionStorage.removeItem("goitalia_pending_msg");
     sessionStorage.setItem("goitalia_create_agent", JSON.stringify({ connector, detail, ts: Date.now() }));
     window.location.href = window.location.origin + "/" + (selectedCompany?.issuePrefix || "") + "/chat#agent=" + Date.now();
   };

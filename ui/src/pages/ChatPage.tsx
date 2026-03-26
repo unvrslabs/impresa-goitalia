@@ -105,6 +105,7 @@ export function ChatPage() {
     const createAgentData = sessionStorage.getItem("goitalia_create_agent");
     if (createAgentData) {
       sessionStorage.removeItem("goitalia_create_agent");
+      sessionStorage.removeItem("goitalia_pending_msg"); // clear any stale legacy msg
       try {
         const data = JSON.parse(createAgentData);
         const label = CONNECTOR_LABELS[data.connector] || data.connector;
