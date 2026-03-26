@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts, routines, routineTriggers, routineRuns } from "@goitalia/db";
 import { parseCron, nextCronTick } from "../services/cron.js";
+import { nextCronTickInTimeZone } from "../services/routines.js";
 import { eq, and, ne, inArray, desc, sql, asc } from "drizzle-orm";
 import { decrypt as decryptSecret, decrypt, encrypt } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
@@ -1110,8 +1111,7 @@ export async function executeChatTool(
           createdByAgentId: agentId,
         });
 
-        const parsed = parseCron(cronExpr);
-        const nextRun = nextCronTick(parsed, new Date());
+        const nextRun = nextCronTickInTimeZone(cronExpr, "Europe/Rome", new Date());
         await db.insert(routineTriggers).values({
           id: randomUUID(),
           companyId,

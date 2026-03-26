@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Clock, User, ToggleLeft, ToggleRight, Check, X, CalendarClock } from "lucide-react";
 import { routinesApi } from "../api/routines";
@@ -79,6 +79,26 @@ export function ScheduledActivities() {
   const routines = routinesQuery.data ?? [];
   const pendingRuns = pendingQuery.data ?? [];
 
+  // Countdown timer - update every second
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function formatCountdown(nextRunAt: string | Date | null): string | null {
+    if (!nextRunAt) return null;
+    const diff = new Date(nextRunAt).getTime() - now;
+    if (diff <= 0) return "In esecuzione...";
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    if (h > 24) return `tra ${Math.floor(h / 24)}g ${h % 24}h`;
+    if (h > 0) return `tra ${h}h ${m}m`;
+    if (m > 0) return `tra ${m}m ${s}s`;
+    return `tra ${s}s`;
+  }
+
   const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: "all", label: "Tutte", count: routines.length },
     { key: "pending", label: "Da approvare", count: pendingRuns.length },
@@ -148,7 +168,12 @@ export function ScheduledActivities() {
                       {routine.nextRunAt && (
                         <span className="flex items-center gap-1">
                           <CalendarClock className="h-3 w-3" />
-                          Prossima: {new Date(routine.nextRunAt).toLocaleString("it-IT")}
+                          {new Date(routine.nextRunAt).toLocaleString("it-IT", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                        </span>
+                      )}
+                      {routine.nextRunAt && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-500/15 text-blue-400">
+                          {formatCountdown(routine.nextRunAt)}
                         </span>
                       )}
                       <span

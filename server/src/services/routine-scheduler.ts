@@ -7,7 +7,7 @@
 import type { Db } from "@goitalia/db";
 import { routineTriggers, routines, routineRuns } from "@goitalia/db";
 import { and, eq, lte } from "drizzle-orm";
-import { parseCron, nextCronTick } from "./cron.js";
+import { nextCronTickInTimeZone } from "./routines.js";
 import { randomUUID } from "node:crypto";
 
 const TICK_INTERVAL_MS = 30_000;
@@ -34,6 +34,7 @@ export function createRoutineScheduler(
           triggerId: routineTriggers.id,
           routineId: routineTriggers.routineId,
           cronExpression: routineTriggers.cronExpression,
+          timezone: routineTriggers.timezone,
           companyId: routineTriggers.companyId,
         })
         .from(routineTriggers)
@@ -73,10 +74,10 @@ export function createRoutineScheduler(
             triggeredAt: now,
           });
 
-          // Advance next_run_at
+          // Advance next_run_at (timezone-aware)
           if (trigger.cronExpression) {
-            const parsed = parseCron(trigger.cronExpression);
-            const next = nextCronTick(parsed, now);
+            const tz = trigger.timezone || "Europe/Rome";
+            const next = nextCronTickInTimeZone(trigger.cronExpression, tz, now);
             await db
               .update(routineTriggers)
               .set({ nextRunAt: next, lastFiredAt: now })
