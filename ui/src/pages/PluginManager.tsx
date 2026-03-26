@@ -84,7 +84,9 @@ export function PluginManager() {
   const [oaiTokens, setOaiTokens] = useState<Record<string, string>>({ company: "", risk: "", cap: "", sdi: "", visure: "" });
   const [oaiSaving, setOaiSaving] = useState(false);
   const [ficCompany, setFicCompany] = useState<string | null>(null);
-  const [expandedConnector, setExpandedConnector] = useState<string | null>(null);
+  const [expandedConnector, setExpandedConnector] = useState<string | null>(() => {
+    try { const p = new URLSearchParams(window.location.search); if (p.get("google_connected")) return "google"; if (p.get("telegram_connected")) return "telegram"; } catch {} return null;
+  });
 
   useEffect(() => {
     if (!selectedCompany?.id) return;
