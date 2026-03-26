@@ -27,9 +27,16 @@ export function ScheduledActivities() {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>("all");
+  const [now, setNow] = useState(Date.now());
+
+  // Countdown timer - must be before any conditional returns
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const routinesQuery = useQuery({
-    queryKey: [...queryKeys.routines.list(selectedCompanyId!), "scheduled"],
+    queryKey: [...queryKeys.routines.list(selectedCompanyId || ""), "scheduled"],
     queryFn: () => routinesApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
@@ -67,22 +74,6 @@ export function ScheduledActivities() {
     },
   });
 
-  if (!selectedCompanyId) {
-    return <EmptyState icon={CalendarClock} message="Seleziona un'azienda per vedere le attività programmate." />;
-  }
-
-  if (routinesQuery.isLoading) return <PageSkeleton />;
-
-  const routines = routinesQuery.data ?? [];
-  const pendingRuns = pendingQuery.data ?? [];
-
-  // Countdown timer - update every second
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   function formatCountdown(nextRunAt: string | Date | null): string | null {
     if (!nextRunAt) return null;
     const diff = new Date(nextRunAt).getTime() - now;
@@ -96,6 +87,15 @@ export function ScheduledActivities() {
     return `tra ${s}s`;
   }
 
+  if (!selectedCompanyId) {
+    return <EmptyState icon={CalendarClock} message="Seleziona un'azienda per vedere le attività programmate." />;
+  }
+
+  if (routinesQuery.isLoading) return <PageSkeleton />;
+
+  const routines = routinesQuery.data ?? [];
+  const pendingRuns = pendingQuery.data ?? [];
+
   const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: "all", label: "Tutte", count: routines.length },
     { key: "pending", label: "Da approvare", count: pendingRuns.length },
@@ -105,7 +105,6 @@ export function ScheduledActivities() {
     <div className="mx-auto max-w-4xl space-y-6 p-6">
       <h1 className="text-2xl font-semibold tracking-tight">Attività Programmate</h1>
 
-      {/* Tabs */}
       <div className="flex gap-2">
         {tabs.map((tab) => (
           <button
@@ -131,84 +130,83 @@ export function ScheduledActivities() {
         ))}
       </div>
 
-      {/* Tab content */}
       {activeTab === "all" && (
         <div className="space-y-3">
           {routines.length === 0 ? (
             <EmptyState icon={CalendarClock} message="Non ci sono attività programmate per questa azienda." />
           ) : (
-            routines.map((routine: any) => (
-              <div
-                key={routine.id}
-                className="rounded-xl border p-4"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  borderColor: "rgba(255,255,255,0.08)",
-                }}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-1">
-                    <h3 className="text-sm font-medium">{routine.name || routine.title || "Routine senza nome"}</h3>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      {routine.agentName && (
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {routine.agentName}
+            routines.map((routine: any) => {
+              const nextRunAt = routine.triggers?.[0]?.nextRunAt || routine.nextRunAt;
+              const cronExpr = routine.triggers?.[0]?.cronExpression || routine.cronExpression;
+              const enabled = routine.triggers?.[0]?.enabled ?? routine.enabled ?? (routine.status === "active");
+              return (
+                <div
+                  key={routine.id}
+                  className="rounded-xl border p-4"
+                  style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-1">
+                      <h3 className="text-sm font-medium">{routine.title || "Routine senza nome"}</h3>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        {routine.assigneeAgent?.name && (
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {routine.assigneeAgent.name}
+                          </span>
+                        )}
+                        {cronExpr && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {cronExpr}
+                          </span>
+                        )}
+                        {nextRunAt && (
+                          <span className="flex items-center gap-1">
+                            <CalendarClock className="h-3 w-3" />
+                            {new Date(nextRunAt).toLocaleString("it-IT", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                          </span>
+                        )}
+                        {nextRunAt && (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-500/15 text-blue-400">
+                            {formatCountdown(nextRunAt)}
+                          </span>
+                        )}
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            enabled ? "bg-green-500/15 text-green-400" : "bg-white/8 text-muted-foreground"
+                          }`}
+                        >
+                          {enabled ? "Attiva" : "Disattivata"}
                         </span>
-                      )}
-                      {routine.cronExpression && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {routine.cronExpression}
-                        </span>
-                      )}
-                      {routine.nextRunAt && (
-                        <span className="flex items-center gap-1">
-                          <CalendarClock className="h-3 w-3" />
-                          {new Date(routine.nextRunAt).toLocaleString("it-IT", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
-                        </span>
-                      )}
-                      {routine.nextRunAt && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-500/15 text-blue-400">
-                          {formatCountdown(routine.nextRunAt)}
-                        </span>
-                      )}
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          routine.enabled
-                            ? "bg-green-500/15 text-green-400"
-                            : "bg-white/8 text-muted-foreground"
-                        }`}
-                      >
-                        {routine.enabled ? "Attiva" : "Disattivata"}
-                      </span>
+                      </div>
                     </div>
+                    <button
+                      onClick={() =>
+                        toggleApproval.mutate({
+                          routineId: routine.id,
+                          approvalRequired: !routine.approvalRequired,
+                        })
+                      }
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/5 hover:text-white"
+                      title={routine.approvalRequired ? "Modalità: Manuale (richiede approvazione)" : "Modalità: Automatica"}
+                    >
+                      {routine.approvalRequired ? (
+                        <>
+                          <ToggleLeft className="h-4 w-4 text-yellow-400" />
+                          Manuale
+                        </>
+                      ) : (
+                        <>
+                          <ToggleRight className="h-4 w-4 text-green-400" />
+                          Auto
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <button
-                    onClick={() =>
-                      toggleApproval.mutate({
-                        routineId: routine.id,
-                        approvalRequired: !routine.approvalRequired,
-                      })
-                    }
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/5 hover:text-white"
-                    title={routine.approvalRequired ? "Modalità: Manuale (richiede approvazione)" : "Modalità: Automatica"}
-                  >
-                    {routine.approvalRequired ? (
-                      <>
-                        <ToggleLeft className="h-4 w-4 text-yellow-400" />
-                        Manuale
-                      </>
-                    ) : (
-                      <>
-                        <ToggleRight className="h-4 w-4 text-green-400" />
-                        Auto
-                      </>
-                    )}
-                  </button>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -224,10 +222,7 @@ export function ScheduledActivities() {
               <div
                 key={run.id}
                 className="rounded-xl border p-4"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  borderColor: "rgba(255,255,255,0.08)",
-                }}
+                style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-1">
