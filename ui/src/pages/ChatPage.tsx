@@ -109,8 +109,7 @@ export function ChatPage() {
       const label = CONNECTOR_LABELS[createAgentConnector] || createAgentConnector;
       const detail = params.get("detail");
       const detailStr = detail ? " (" + detail + ")" : "";
-      const now = new Date().toLocaleTimeString("it-IT");
-      msg = "[" + now + "] Ho collegato " + label + detailStr + ". Crea un agente dedicato per questo connettore.";
+      msg = "Ho collegato " + label + detailStr + ". Crea un agente dedicato per questo connettore.";
     }
 
     // PRIORITY 2: URL ?msg= param

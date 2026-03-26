@@ -1385,8 +1385,6 @@ export function chatRoutes(db: Db) {
         }
       }
       messages.push({ role: "user", content: message });
-      console.log("[chat] SENDING msg:", message.substring(0, 150), "| history:", messages.length - 1, "| agent:", agentRole, "| model:", agentModel);
-
       // Save user message to DB
       if (actor.userId) {
         await saveChatMessage(companyId, actor.userId, "user", message);
@@ -1418,10 +1416,9 @@ export function chatRoutes(db: Db) {
           }),
         });
 
-        console.log("[chat] Claude response status:", claudeRes.status);
         if (!claudeRes.ok) {
           const errText = await claudeRes.text();
-          console.error("[chat] Claude API error:", claudeRes.status, errText);
+          console.error("Claude API error:", claudeRes.status, errText);
           res.write("data: " + JSON.stringify({ type: "content_block_delta", delta: { text: "Errore comunicazione Claude AI" } }) + "\n\n");
           break;
         }
@@ -1432,7 +1429,6 @@ export function chatRoutes(db: Db) {
         };
 
         const content = data.content || [];
-        console.log("[chat] Claude response blocks:", content.length, "stop:", data.stop_reason, "text:", content.filter(c => c.type === "text").map(c => c.text?.substring(0, 80)).join(""));
         const textBlocks = content.filter((c) => c.type === "text");
         const toolUseBlocks = content.filter((c) => c.type === "tool_use");
 
