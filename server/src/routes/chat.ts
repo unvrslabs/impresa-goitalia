@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Db } from "@goitalia/db";
-import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts } from "@goitalia/db";
+import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts, routines, routineTriggers, routineRuns } from "@goitalia/db";
+import { parseCron, nextCronTick } from "../services/cron.js";
 import { eq, and, ne, inArray, desc, sql, asc } from "drizzle-orm";
 import { decrypt as decryptSecret, decrypt, encrypt } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
@@ -283,6 +284,37 @@ export const TOOLS = [
       required: ["cap"],
     },
   },
+  {
+    name: "crea_attivita_programmata",
+    description: "Crea un'attività programmata (cron) per un agente. L'agente eseguirà il task all'orario specificato.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        agente_id: { type: "string", description: "ID dell'agente che esegue l'attività" },
+        titolo: { type: "string", description: "Nome breve (es: Post Instagram giornaliero)" },
+        descrizione: { type: "string", description: "Istruzioni dettagliate per l'agente" },
+        orario: { type: "string", description: "Quando eseguire in italiano (es: ogni giorno alle 12, ogni lunedi alle 9)" },
+        approvazione: { type: "boolean", description: "true = richiede approvazione, false = automatico" },
+      },
+      required: ["agente_id", "titolo", "descrizione", "orario"] as string[],
+    },
+  },
+  {
+    name: "lista_attivita_programmate",
+    description: "Elenca tutte le attività programmate della company con stato, prossima esecuzione e agente.",
+    input_schema: { type: "object" as const, properties: {}, required: [] as string[] },
+  },
+  {
+    name: "elimina_attivita_programmata",
+    description: "Archivia un'attività programmata.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        routine_id: { type: "string", description: "ID dell'attività da eliminare" },
+      },
+      required: ["routine_id"] as string[],
+    },
+  },
 ];
 
 // Map each tool to the connector key it requires. null = always available.
@@ -310,6 +342,9 @@ export const TOOL_CONNECTOR: Record<string, string | null> = {
   codice_sdi: "oai_company",
   credit_score: "oai_risk",
   cerca_cap: "oai_cap",
+  crea_attivita_programmata: null,
+  lista_attivita_programmate: null,
+  elimina_attivita_programmata: null,
 };
 
 
@@ -406,6 +441,15 @@ Una volta creati, gli agenti sono il tuo team. Tu orchestra:
 - MULTI-AGENTE: coordina catena (es: "Fai fattura a Rossi e avvisalo" → FattureCloud emette + WhatsApp notifica)
 - NESSUN AGENTE: "Per questo serve il connettore [X]. Vuoi attivarlo?"
 - NON fare tu il lavoro se c'è un agente specializzato — delega con esegui_task_agente!
+
+## ATTIVITÀ PROGRAMMATE
+Puoi creare attività che vengono eseguite automaticamente a orari predefiniti:
+- Usa crea_attivita_programmata per schedulare azioni ricorrenti
+- Esempi: "pubblica post su IG ogni giorno alle 12", "manda report vendite ogni lunedì alle 9"
+- Modalità con approvazione (default): l'agente prepara il contenuto, il cliente approva prima dell'esecuzione
+- Modalità automatica: l'agente esegue senza conferma
+- Usa lista_attivita_programmate per vedere le attività attive
+- Usa elimina_attivita_programmata per rimuoverne una
 
 ## MODIFICA AGENTI
 Il cliente può tornare e dire:
@@ -1008,6 +1052,116 @@ export async function executeChatTool(
         return `Agente creato: ${input.nome} (${input.titolo}) — id: ${newAgent.id} — connettore: ${conn || "nessuno"}. L'agente ha attivo solo il connettore ${conn}. Il cliente può abilitare altri connettori dalla pagina agente > Connettori.`;
       }
 
+      case "crea_attivita_programmata": {
+        const input = toolInput as { agente_id: string; titolo: string; descrizione: string; orario: string; approvazione?: boolean };
+        // Verify agent exists
+        const targetAgent = await db.select({ id: agents.id, name: agents.name }).from(agents)
+          .where(and(eq(agents.id, input.agente_id), eq(agents.companyId, companyId), ne(agents.status, "terminated")))
+          .then(r => r[0]);
+        if (!targetAgent) return "Errore: agente non trovato con ID " + input.agente_id;
+
+        // Convert natural language to cron
+        let cronExpr = "";
+        const orarioLower = input.orario.toLowerCase().trim();
+        // Parse time "alle HH:MM" or "alle HH"
+        const timeMatch = orarioLower.match(/alle?\s+(\d{1,2})(?::(\d{2}))?/);
+        const hour = timeMatch ? parseInt(timeMatch[1]) : 9;
+        const minute = timeMatch && timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+        // Parse day pattern
+        if (orarioLower.includes("ogni giorno")) cronExpr = `${minute} ${hour} * * *`;
+        else if (orarioLower.includes("ogni ora")) cronExpr = `0 * * * *`;
+        else if (orarioLower.includes("ogni lunedi")) cronExpr = `${minute} ${hour} * * 1`;
+        else if (orarioLower.includes("ogni martedi")) cronExpr = `${minute} ${hour} * * 2`;
+        else if (orarioLower.includes("ogni mercoledi")) cronExpr = `${minute} ${hour} * * 3`;
+        else if (orarioLower.includes("ogni giovedi")) cronExpr = `${minute} ${hour} * * 4`;
+        else if (orarioLower.includes("ogni venerdi")) cronExpr = `${minute} ${hour} * * 5`;
+        else if (orarioLower.includes("ogni sabato")) cronExpr = `${minute} ${hour} * * 6`;
+        else if (orarioLower.includes("ogni domenica")) cronExpr = `${minute} ${hour} * * 0`;
+        else if (orarioLower.includes("dal lunedi al venerdi") || orarioLower.includes("giorni feriali")) cronExpr = `${minute} ${hour} * * 1-5`;
+        else if (orarioLower.includes("primo del mese")) cronExpr = `${minute} ${hour} 1 * *`;
+        else {
+          // Parse "ogni N minuti/ore"
+          const intervalMatch = orarioLower.match(/ogni\s+(\d+)\s+(minut|or)/);
+          if (intervalMatch) {
+            const n = parseInt(intervalMatch[1]);
+            cronExpr = intervalMatch[2].startsWith("minut") ? `*/${n} * * * *` : `0 */${n} * * *`;
+          } else {
+            cronExpr = `${minute} ${hour} * * *`; // fallback: daily
+          }
+        }
+
+        const routineId = randomUUID();
+        const approvalRequired = input.approvazione !== false;
+        await db.insert(routines).values({
+          id: routineId,
+          companyId,
+          title: input.titolo,
+          description: input.descrizione,
+          assigneeAgentId: input.agente_id,
+          status: "active",
+          concurrencyPolicy: "skip_if_active",
+          catchUpPolicy: "skip_missed",
+          approvalRequired,
+          createdByAgentId: agentId,
+        });
+
+        const parsed = parseCron(cronExpr);
+        const nextRun = nextCronTick(parsed, new Date());
+        await db.insert(routineTriggers).values({
+          id: randomUUID(),
+          companyId,
+          routineId,
+          kind: "cron",
+          label: input.titolo,
+          enabled: true,
+          cronExpression: cronExpr,
+          timezone: "Europe/Rome",
+          nextRunAt: nextRun,
+          createdByAgentId: agentId,
+        });
+
+        const modeStr = approvalRequired ? "con approvazione" : "automatica";
+        const nextStr = nextRun ? nextRun.toLocaleString("it-IT", { timeZone: "Europe/Rome" }) : "calcolando...";
+        return `Attività programmata creata: "${input.titolo}" — Agente: ${targetAgent.name} — Cron: ${cronExpr} (${input.orario}) — Modalità: ${modeStr} — Prossima esecuzione: ${nextStr}`;
+      }
+
+      case "lista_attivita_programmate": {
+        const allRoutines = await db.select({
+          id: routines.id,
+          title: routines.title,
+          description: routines.description,
+          status: routines.status,
+          approvalRequired: routines.approvalRequired,
+          agentName: agents.name,
+        }).from(routines)
+          .leftJoin(agents, eq(routines.assigneeAgentId, agents.id))
+          .where(and(eq(routines.companyId, companyId), ne(routines.status, "archived")));
+
+        if (allRoutines.length === 0) return "Nessuna attività programmata.";
+
+        let result = "Attività programmate:\n";
+        for (const r of allRoutines) {
+          const trigger = await db.select({ cronExpression: routineTriggers.cronExpression, nextRunAt: routineTriggers.nextRunAt, enabled: routineTriggers.enabled })
+            .from(routineTriggers)
+            .where(and(eq(routineTriggers.routineId, r.id), eq(routineTriggers.kind, "cron")))
+            .then(rows => rows[0]);
+          const nextRun = trigger?.nextRunAt ? new Date(trigger.nextRunAt).toLocaleString("it-IT", { timeZone: "Europe/Rome" }) : "N/A";
+          const stato = trigger?.enabled === false ? "pausata" : r.status;
+          const mode = r.approvalRequired ? "manuale" : "auto";
+          result += `- [${r.id.slice(0, 8)}] "${r.title}" — ${r.agentName || "N/A"} — ${stato} — ${mode} — cron: ${trigger?.cronExpression || "N/A"} — prossima: ${nextRun}\n`;
+        }
+        return result;
+      }
+
+      case "elimina_attivita_programmata": {
+        const input = toolInput as { routine_id: string };
+        const routine = await db.select({ id: routines.id, title: routines.title })
+          .from(routines).where(and(eq(routines.id, input.routine_id), eq(routines.companyId, companyId))).then(r => r[0]);
+        if (!routine) return "Errore: attività non trovata con ID " + input.routine_id;
+        await db.update(routines).set({ status: "archived" }).where(eq(routines.id, input.routine_id));
+        await db.update(routineTriggers).set({ enabled: false }).where(eq(routineTriggers.routineId, input.routine_id));
+        return `Attività "${routine.title}" archiviata e disattivata.`;
+      }
 
       case "lista_clienti": {
         console.log("[chat-tool] lista_clienti for company:", companyId);
