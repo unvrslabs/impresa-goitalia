@@ -437,6 +437,7 @@ function OnboardingTooltip({ sidebarOpen }: { sidebarOpen: boolean }) {
     } else if (step === 1) {
       await advanceStep(2);
       window.dispatchEvent(new Event("onboarding-chat-start"));
+        window.location.href = window.location.pathname.replace(/\/[^/]+$/, "/chat");
     } else if (step === 3) {
       await advanceStep(99);
     }
