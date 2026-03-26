@@ -87,7 +87,7 @@ export function ProjectsPmi() {
   useEffect(() => { fetchProjects(); }, [selectedCompany?.id]);
   useEffect(() => {
     if (!selectedCompany?.id) return;
-    fetch(`/api/google/status?companyId=${selectedCompany.id}`, { credentials: "include" })
+    fetch(`/api/oauth/google/status?companyId=${selectedCompany.id}`, { credentials: "include" })
       .then((r) => r.json()).then((d) => setGoogleConnected(d.connected || false)).catch(() => {});
   }, [selectedCompany?.id]);
 
