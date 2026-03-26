@@ -13,12 +13,6 @@ import { queryKeys } from "../lib/queryKeys";
 import { cn, agentRouteRef, agentUrl } from "../lib/utils";
 import { AgentIcon } from "./AgentIconPicker";
 import { BudgetSidebarMarker } from "./BudgetSidebarMarker";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import type { Agent } from "@goitalia/shared";
 
 const CONNECTOR_ICONS: Record<string, { icon: React.ReactNode; color: string }> = {
   google: {
@@ -57,13 +51,9 @@ const CONNECTOR_ICONS: Record<string, { icon: React.ReactNode; color: string }> 
     icon: <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#8B5CF6"/><path d="M12 7v6m0 0a2 2 0 0 1-2-2V9a2 2 0 1 1 4 0v2a2 2 0 0 1-2 2zm-4-1a4 4 0 0 0 8 0M12 17v-2" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>,
     color: "#8B5CF6",
   },
-  pec: {
-    icon: <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#4F46E5"/><path d="M5 8l7 5 7-5M5 8v9h14V8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 15l1.5 1.5 3-3" stroke="#86EFAC" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-    color: "#4F46E5",
-  },
 };
 
-export function detectConnector(agent: Agent): string | null {
+function detectConnector(agent: Agent): string | null {
   // 1. Check primaryConnector in adapterConfig
   const config = agent.adapterConfig as Record<string, unknown> | null;
   const pc = config?.primaryConnector as string | undefined;
@@ -73,7 +63,6 @@ export function detectConnector(agent: Agent): string | null {
   const connectors = config?.connectors as Record<string, boolean> | undefined;
   if (connectors) {
     const keys = Object.keys(connectors).filter((k) => connectors[k]);
-    if (keys.includes("pec")) return "pec";
     if (keys.some((k) => ["gmail", "calendar", "drive", "sheets", "docs"].includes(k))) return "google";
     if (keys.some((k) => k.startsWith("tg_")) || keys.includes("telegram")) return "telegram";
     if (keys.includes("whatsapp")) return "whatsapp";
@@ -116,9 +105,15 @@ function getConnectorInfo(agent: Agent): { icon: React.ReactNode; displayName: s
 
   return { icon: connInfo.icon, displayName };
 }
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import type { Agent } from "@goitalia/shared";
 
 /** BFS sort: roots first (no reportsTo), then their direct reports, etc. */
-export function sortByHierarchy(agents: Agent[]): Agent[] {
+function sortByHierarchy(agents: Agent[]): Agent[] {
   const byId = new Map(agents.map((a) => [a.id, a]));
   const childrenOf = new Map<string | null, Agent[]>();
   for (const a of agents) {
@@ -136,78 +131,6 @@ export function sortByHierarchy(agents: Agent[]): Agent[] {
     if (children) queue.push(...children);
   }
   return sorted;
-}
-
-/** Renders agents grouped under a connector nav item */
-export function ConnectorAgentList({
-  connectorKeys,
-  agents,
-  liveCountByAgent,
-}: {
-  connectorKeys: string | string[];
-  agents: Agent[];
-  liveCountByAgent: Map<string, number>;
-}) {
-  const location = useLocation();
-  const { isMobile, setSidebarOpen } = useSidebar();
-
-  const keys = Array.isArray(connectorKeys) ? connectorKeys : [connectorKeys];
-
-  const agentMatch = location.pathname.match(/^\/(?:[^/]+\/)?agents\/([^/]+)(?:\/([^/]+))?/);
-  const activeAgentId = agentMatch?.[1] ?? null;
-  const activeTab = agentMatch?.[2] ?? null;
-
-  const matching = agents.filter(
-    (a) => a.status !== "terminated" && a.role !== "ceo" && keys.includes(detectConnector(a) ?? "")
-  );
-
-  if (matching.length === 0) return null;
-
-  return (
-    <div className="flex flex-col gap-0.5 mb-1">
-      {matching.map((agent: Agent) => {
-        const runCount = liveCountByAgent.get(agent.id) ?? 0;
-        const connInfo = getConnectorInfo(agent);
-        return (
-          <NavLink
-            key={agent.id}
-            to={activeTab ? `${agentUrl(agent)}/${activeTab}` : agentUrl(agent)}
-            onClick={() => { if (isMobile) setSidebarOpen(false); }}
-            className={cn(
-              "flex items-center gap-2 pl-8 pr-3 py-1 text-[12px] font-medium transition-all rounded-xl",
-              activeAgentId === agentRouteRef(agent)
-                ? "text-white"
-                : "text-foreground/55 hover:text-foreground/80"
-            )}
-            style={activeAgentId === agentRouteRef(agent) ? {
-              background: "linear-gradient(135deg, hsl(158 64% 42% / 0.2), hsl(158 64% 42% / 0.1))",
-              boxShadow: "0 0 12px hsl(158 64% 42% / 0.1)",
-            } : {}}
-          >
-            <span className="flex-1 truncate">{connInfo ? connInfo.displayName : agent.name}</span>
-            {(agent.pauseReason === "budget" || runCount > 0) && (
-              <span className="ml-auto flex items-center gap-1.5 shrink-0">
-                {agent.pauseReason === "budget" ? (
-                  <BudgetSidebarMarker title="Agent paused by budget" />
-                ) : null}
-                {runCount > 0 ? (
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-                  </span>
-                ) : null}
-                {runCount > 0 ? (
-                  <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                    {runCount} live
-                  </span>
-                ) : null}
-              </span>
-            )}
-          </NavLink>
-        );
-      })}
-    </div>
-  );
 }
 
 export function SidebarAgents() {
@@ -240,10 +163,9 @@ export function SidebarAgents() {
     return counts;
   }, [liveRuns]);
 
-  // Only show agents with no connector match (not already grouped under a connector)
   const visibleAgents = useMemo(() => {
     const filtered = (agents ?? []).filter(
-      (a: Agent) => a.status !== "terminated" && a.role !== "ceo" && detectConnector(a) === null
+      (a: Agent) => a.status !== "terminated"
     );
     return sortByHierarchy(filtered);
   }, [agents]);
@@ -252,51 +174,6 @@ export function SidebarAgents() {
   const activeAgentId = agentMatch?.[1] ?? null;
   const activeTab = agentMatch?.[2] ?? null;
 
-  if (visibleAgents.length === 0) {
-    return (
-      <>
-        <div className="flex items-center px-3 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/60">
-            Agenti
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAgentPopup(true);
-            }}
-            className="flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent/50 transition-colors ml-1.5"
-            aria-label="New agent"
-          >
-            <Plus className="h-3 w-3" />
-          </button>
-        </div>
-
-        {showAgentPopup && createPortal(
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center" onClick={() => setShowAgentPopup(false)}>
-            <div className="absolute inset-0 bg-black/50" />
-            <div className="relative glass-card p-6 mx-4 max-w-sm space-y-4 text-center" onClick={(e) => e.stopPropagation()} style={{ background: "linear-gradient(135deg, rgba(20,30,40,0.98), rgba(15,25,35,0.98))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "1rem" }}>
-              <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))" }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              </div>
-              <h3 className="text-base font-semibold">Crea un nuovo agente</h3>
-              <p className="text-sm text-muted-foreground">Vai in Chat con il Direttore AI e chiedigli di creare un agente. Descrivi cosa deve fare e lui lo configurerà per te.</p>
-              <button
-                onClick={() => {
-                  setShowAgentPopup(false);
-                  navigate("/" + (selectedCompanyId ? "" : "") + "chat?msg=" + encodeURIComponent("Crea un nuovo agente per la mia impresa."));
-                  window.location.href = "/" + (document.location.pathname.split("/")[1] || "") + "/chat?msg=" + encodeURIComponent("Crea un nuovo agente per la mia impresa.");
-                }}
-                className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-all"
-                style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", boxShadow: "0 4px 20px hsl(158 64% 42% / 0.3)" }}
-              >
-                Vai alla Chat
-              </button>
-            </div>
-          </div>
-        , document.body)}
-      </>
-    );
-  }
 
   return (
     <>
@@ -405,7 +282,7 @@ export function SidebarAgents() {
           </div>
         </div>
       , document.body)}
-
+    
     </>
   );
 }
