@@ -1,3 +1,4 @@
+console.log("goitalia-v2");
 import * as React from "react";
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom";
