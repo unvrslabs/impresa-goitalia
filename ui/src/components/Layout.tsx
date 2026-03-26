@@ -354,18 +354,21 @@ export function Layout() {
 
 function OnboardingOverlay({ companyId }: { companyId: string | null }) {
   const [step, setStep] = useState<number | null>(null);
+  const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
     if (!companyId) return;
     fetch("/api/onboarding/onboarding-step/" + companyId, { credentials: "include" })
       .then((r) => r.json()).then((d) => setStep(d.step ?? 99)).catch(() => {});
     const onStep = () => {
       fetch("/api/onboarding/onboarding-step/" + companyId, { credentials: "include" })
-        .then((r) => r.json()).then((d) => setStep(d.step ?? 99)).catch(() => {});
+        .then((r) => r.json()).then((d) => { setStep(d.step ?? 99); setDismissed(false); }).catch(() => {});
     };
+    const onDismiss = () => setDismissed(true);
     window.addEventListener("onboarding-step-changed", onStep);
-    return () => window.removeEventListener("onboarding-step-changed", onStep);
+    window.addEventListener("onboarding-overlay-dismiss", onDismiss);
+    return () => { window.removeEventListener("onboarding-step-changed", onStep); window.removeEventListener("onboarding-overlay-dismiss", onDismiss); };
   }, [companyId]);
-  if (step === null || step === 2 || step >= 4) return null;
+  if (step === null || step === 2 || step >= 4 || dismissed) return null;
   return <div className="absolute inset-0 z-[80] rounded-lg" style={{ background: "rgba(0,0,0,0.55)" }} />;
 }
 
@@ -405,7 +408,7 @@ function OnboardingTooltipPopup({ companyId, sidebarOpen }: { companyId: string 
   const handleDismiss = () => {
     setDismissed(true);
     if (onboardingStep === 0) {
-      // Just dismiss overlay, user needs to enter key
+      window.dispatchEvent(new Event("onboarding-overlay-dismiss"));
     }
     if (onboardingStep === 1 && companyId) {
       fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId, step: 2 }) });
