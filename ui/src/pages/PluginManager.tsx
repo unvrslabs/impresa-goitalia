@@ -487,17 +487,22 @@ export function PluginManager() {
                   )}
                 </>
               ) : waQrCode ? (
-                <div className="space-y-3 mt-2">
-                  <p className="text-xs text-muted-foreground">Scansiona il QR code con WhatsApp sul telefono</p>
-                  <div className="flex justify-center">
-                    <img src={"https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data=" + encodeURIComponent(waQrCode)} alt="QR Code WhatsApp" className="w-48 h-48 rounded-lg" />
+                <div className="mt-3 flex justify-center">
+                  <div className="rounded-2xl p-5 flex flex-col items-center gap-3" style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 4px 24px rgba(0,0,0,0.2)" }}>
+                    <div className="flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(37,211,102,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                      <p className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.8)" }}>Scansiona con WhatsApp</p>
+                    </div>
+                    <div className="rounded-xl p-2" style={{ background: "white" }}>
+                      <img src={"https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data=" + encodeURIComponent(waQrCode)} alt="QR Code WhatsApp" className="w-44 h-44" />
+                    </div>
+                    <p className="text-[10px] text-center" style={{ color: "rgba(255,255,255,0.4)" }}>Il QR scade ogni 45 secondi</p>
+                    <button onClick={async () => {
+                      const r = await fetch("/api/whatsapp/qr?companyId=" + selectedCompany?.id, { credentials: "include" });
+                      const d = await r.json();
+                      if (d.qrCode) setWaQrCode(d.qrCode);
+                    }} className="text-xs px-3 py-1 rounded-lg transition-colors" style={{ color: "rgba(37,211,102,0.8)", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.2)" }}>Aggiorna QR</button>
                   </div>
-                  <p className="text-[10px] text-muted-foreground text-center">Il QR scade ogni 45 secondi. Se non funziona, riprova.</p>
-                  <button onClick={async () => {
-                    const r = await fetch("/api/whatsapp/qr?companyId=" + selectedCompany?.id, { credentials: "include" });
-                    const d = await r.json();
-                    if (d.qrCode) setWaQrCode(d.qrCode);
-                  }} className="text-xs text-blue-400 hover:underline">Aggiorna QR</button>
                 </div>
               ) : showWaForm ? (
                 <div className="space-y-2 mt-2">
