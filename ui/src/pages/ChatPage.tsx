@@ -87,13 +87,23 @@ export function ChatPage() {
   }, [selectedCompany?.id]);
 
   // Auto-send message from URL ?msg= param
+  const pendingMsgRef = useRef<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const msg = params.get("msg");
+    if (msg) {
+      pendingMsgRef.current = msg;
+      setInput(msg);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  // Try to send pending message when ceoAgent is ready
+  useEffect(() => {
+    const msg = pendingMsgRef.current;
     if (!msg || !ceoAgent || !selectedCompanyId || isStreaming) return;
-    // Clear URL param
-    window.history.replaceState({}, "", window.location.pathname);
-    setAutoStarted(true);
+    pendingMsgRef.current = null;
+    setInput("");
     const startMsg = { id: crypto.randomUUID(), role: "user" as const, content: msg, timestamp: new Date() };
     setMessages(prev => [...prev, startMsg]);
     setIsStreaming(true);
