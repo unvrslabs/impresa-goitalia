@@ -224,6 +224,7 @@ export function Sidebar() {
         <div className={"flex flex-col gap-0.5" + (!isComplete ? " opacity-30 pointer-events-none" : "")}>
           <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />
           <SidebarNavItem to="/org" label="Organigramma" icon={Share2Icon} />
+          <SidebarNavItem to="/scheduled" label="Attività" icon={CalendarClock} badge={pendingCount > 0 ? pendingCount : undefined} />
         </div>
 
         {/* Lavoro */}
@@ -261,7 +262,6 @@ export function Sidebar() {
 
         {/* Impostazioni */}
         <SidebarSection label="Impostazioni">
-          <div className={!isComplete ? "opacity-30 pointer-events-none" : ""}><SidebarNavItem to="/scheduled" label="Attività" icon={CalendarClock} badge={pendingCount > 0 ? pendingCount : undefined} /></div>
           {isStep3 ? (
             <div className="relative" id="connettori-nav">
               <div className="absolute inset-0 rounded-lg animate-pulse" style={glowStyle} />
