@@ -86,17 +86,26 @@ export function ChatPage() {
       .catch(() => { setHistoryLoaded(true); });
   }, [selectedCompany?.id]);
 
-  // Auto-send message from URL ?msg= param
+  // Auto-send message from URL ?msg= param or sessionStorage
   const pendingMsgRef = useRef<string | null>(null);
-  useEffect(() => {
+  const checkPendingMsg = () => {
     const params = new URLSearchParams(window.location.search);
     let msg = params.get("msg");
     if (!msg) { msg = sessionStorage.getItem("goitalia_pending_msg"); sessionStorage.removeItem("goitalia_pending_msg"); }
-    if (msg) {
+    if (msg && !pendingMsgRef.current) {
       pendingMsgRef.current = msg;
       setInput(msg);
       window.history.replaceState({}, "", window.location.pathname);
     }
+  };
+  useEffect(() => { checkPendingMsg(); }, []);
+  // Also check when navigating back to chat (e.g. from Connettori → Crea agente)
+  useEffect(() => {
+    const onFocus = () => checkPendingMsg();
+    const onPageShow = (e: PageTransitionEvent) => { if (e.persisted) checkPendingMsg(); };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onPageShow);
+    return () => { window.removeEventListener("focus", onFocus); window.removeEventListener("pageshow", onPageShow); };
   }, []);
 
   // Try to send pending message when ceoAgent is ready
