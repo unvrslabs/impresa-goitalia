@@ -422,11 +422,8 @@ export function ChatPage() {
                 <button
                   onClick={() => {
                     setShowOnboardingButton(true);
-                    fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompanyId, step: 3 }) })
-                      .then(() => {
-                        window.dispatchEvent(new Event("onboarding-step-changed"));
-                        window.location.href = window.location.pathname.replace("/chat", "/plugins");
-                      });
+                    fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompanyId, step: 3 }) });
+                    window.location.href = window.location.pathname.replace("/chat", "/plugins");
                   }}
                   className="px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
                   style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", boxShadow: "0 4px 20px hsl(158 64% 42% / 0.4)" }}
