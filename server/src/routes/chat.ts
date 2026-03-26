@@ -63,7 +63,7 @@ const TOOLS = [
   },
   {
     name: "crea_agente",
-    description: "Crea un nuovo agente specializzato per la company.",
+    description: "Crea un nuovo agente specializzato per la company. Il connettore specificato sarà l'unico attivo di default.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -71,8 +71,9 @@ const TOOLS = [
         titolo: { type: "string", description: "Ruolo dell'agente (es: Social Media Manager)" },
         competenze: { type: "string", description: "Descrizione delle competenze" },
         istruzioni: { type: "string", description: "Prompt di sistema / istruzioni operative" },
+        connettore: { type: "string", description: "Connettore principale per cui l'agente è creato (google, telegram, whatsapp, meta, linkedin, fal, fic, openapi, voice)" },
       },
-      required: ["nome", "titolo", "competenze", "istruzioni"],
+      required: ["nome", "titolo", "competenze", "istruzioni", "connettore"],
     },
   },
   {
@@ -374,8 +375,14 @@ Tu sei il configuratore. Guidi il cliente con domande intelligenti e costruisci 
 "Ricapitolo l'agente: Nome: [nome] | Connettore: [connettore] | Scope: [cosa fa] | Limiti: [cosa non fa] | Autonomia: [livello] | Tono: [se applicabile]. Creo l'agente così o vuoi modificare qualcosa?"
 
 **Fase 4 — Creazione:**
-1. Chiama crea_agente con prompt costruito dalla conversazione
-2. Conferma: "Agente creato! [nome] è pronto."
+1. Chiama crea_agente con prompt costruito dalla conversazione E il campo connettore (es: "whatsapp", "google", "telegram", "fic", ecc.)
+2. L'agente verrà creato con SOLO quel connettore attivo
+3. Conferma: "Agente creato! [nome] è pronto e ha accesso a [connettore]."
+
+**Fase 5 — Suggerimento flussi multi-connettore (IMPORTANTE):**
+Se il cliente ha PIÙ connettori attivi, DOPO aver creato l'agente suggerisci:
+"Tip: [nome agente] ora ha accesso solo a [connettore]. Se vuoi creare flussi avanzati (per esempio generare una fattura e inviarla via WhatsApp, o creare un post social con un'immagine generata da Fal.ai), puoi andare nella pagina dell'agente → tab Connettori e abilitare altri servizi."
+Proponi 1-2 esempi concreti di flussi basati sui connettori che il cliente ha effettivamente attivi.
 
 ## ORCHESTRAZIONE — Dopo la creazione
 
@@ -850,10 +857,46 @@ async function executeChatTool(
       }
 
       case "crea_agente": {
-        const input = toolInput as { nome: string; titolo: string; competenze: string; istruzioni: string };
+        const input = toolInput as { nome: string; titolo: string; competenze: string; istruzioni: string; connettore?: string };
         // Check for duplicate agent name
         const existing = await db.select({ id: agents.id }).from(agents).where(and(eq(agents.companyId, companyId), eq(agents.name, input.nome))).then(r => r[0]);
         if (existing) return "Agente " + input.nome + " esiste gia (id: " + existing.id + "). Non creo duplicati.";
+
+        // Build connectors map — only the specified connector is active
+        const allConnectorKeys = ["gmail", "calendar", "drive", "sheets", "docs", "telegram", "whatsapp", "meta", "linkedin", "fal", "fic", "openapi", "voice"];
+        const connectors: Record<string, boolean> = {};
+        for (const k of allConnectorKeys) connectors[k] = false;
+
+        // Activate connector-specific keys
+        const conn = (input.connettore || "").toLowerCase();
+        if (conn === "google") {
+          connectors.gmail = true; connectors.calendar = true; connectors.drive = true; connectors.sheets = true; connectors.docs = true;
+        } else if (conn === "telegram") {
+          // Activate all telegram bots
+          try {
+            const tgSecrets = await db.select({ description: companySecrets.description }).from(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "telegram_bots"))).then(r => r[0]);
+            if (tgSecrets?.description) {
+              const bots = JSON.parse(tgSecrets.description) as Array<{ username: string }>;
+              for (const bot of bots) connectors["tg_" + bot.username] = true;
+            }
+          } catch {}
+          connectors.telegram = true;
+        } else if (conn === "whatsapp") {
+          connectors.whatsapp = true;
+        } else if (conn === "meta") {
+          connectors.meta = true;
+        } else if (conn === "linkedin") {
+          connectors.linkedin = true;
+        } else if (conn === "fal") {
+          connectors.fal = true;
+        } else if (conn === "fic") {
+          connectors.fic = true;
+        } else if (conn === "openapi") {
+          connectors.oai_company = true; connectors.oai_risk = true; connectors.oai_cap = true; connectors.oai_sdi = true;
+        } else if (conn === "voice") {
+          connectors.voice = true;
+        }
+
         const [newAgent] = await db.insert(agents).values({
           id: randomUUID(),
           companyId,
@@ -862,11 +905,11 @@ async function executeChatTool(
           role: input.titolo,
           capabilities: input.competenze,
           adapterType: "claude_api",
-          adapterConfig: { promptTemplate: input.istruzioni },
+          adapterConfig: { promptTemplate: input.istruzioni, connectors },
           reportsTo: agentId,
           status: "idle",
         }).returning();
-        return `Agente creato: ${input.nome} (${input.titolo}) \u2014 id: ${newAgent.id}`;
+        return `Agente creato: ${input.nome} (${input.titolo}) — id: ${newAgent.id} — connettore: ${conn || "nessuno"}. L'agente ha attivo solo il connettore ${conn}. Il cliente può abilitare altri connettori dalla pagina agente > Connettori.`;
       }
 
 
