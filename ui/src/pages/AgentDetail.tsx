@@ -2482,7 +2482,7 @@ function AgentConnectorsTab({ companyId }: { companyId?: string }) {
         const match = agents.find((a: any) => path.includes(a.id) || path.includes(a.urlKey));
         if (match) {
           const config = match.adapterConfig || {};
-          setAgentConnectors(config.connectors || { gmail: true, calendar: true, drive: true, telegram: true });
+          setAgentConnectors(config.connectors || {});
         }
       })
   }, [companyId]);
