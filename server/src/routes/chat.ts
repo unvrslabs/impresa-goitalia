@@ -448,6 +448,35 @@ export const TOOLS = [
       required: [] as string[],
     },
   },
+  {
+    name: "genera_immagine",
+    description: "Genera un'immagine con AI (Fal.ai). Ritorna l'URL dell'immagine generata. Usalo per creare grafiche, post social, illustrazioni.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        prompt: { type: "string", description: "Descrizione dettagliata dell'immagine da generare (in inglese per risultati migliori)" },
+        aspect_ratio: { type: "string", enum: ["square_hd", "portrait_4_3", "landscape_4_3", "landscape_16_9", "portrait_16_9"], description: "Proporzioni (default: square_hd)" },
+      },
+      required: ["prompt"] as string[],
+    },
+  },
+  {
+    name: "pubblica_social",
+    description: "Pubblica un post su Instagram, Facebook e/o LinkedIn. Può includere un'immagine (URL da genera_immagine o URL esterno). Per Instagram serve sempre un'immagine.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        testo: { type: "string", description: "Caption/testo del post" },
+        image_url: { type: "string", description: "URL dell'immagine da allegare (da genera_immagine o URL pubblico)" },
+        piattaforme: {
+          type: "array" as const,
+          items: { type: "string" },
+          description: "Array di piattaforme target. Formato: 'ig_USERNAME' per Instagram, 'fb_PAGEID' per Facebook, 'li' per LinkedIn. Es: ['ig_energizzo.it']",
+        },
+      },
+      required: ["testo", "piattaforme"] as string[],
+    },
+  },
 ];
 
 // Map each tool to the connector key it requires. null = always available.
@@ -496,6 +525,8 @@ export const TOOL_CONNECTOR: Record<string, string | null> = {
   stripe_crea_link_pagamento: "stripe",
   stripe_verifica_abbonamento: "stripe",
   riassunto_conversazioni_wa: "whatsapp",
+  genera_immagine: "fal",
+  pubblica_social: null, // CEO always has access, checks connectors internally
 };
 
 
@@ -1865,6 +1896,217 @@ export async function executeChatTool(
         }
 
         return `📊 RIASSUNTO CONVERSAZIONI WA — ultime ${hours}h\nTotale: ${Object.keys(convos).length} conversazioni, ${rows.length} messaggi\n` + parts.join("\n---") + "\n\nAnalizza queste conversazioni e riporta al titolare: punti chiave, richieste importanti, cose da sapere, e eventuali follow-up necessari.";
+      }
+
+      case "genera_immagine": {
+        const input = toolInput as { prompt: string; aspect_ratio?: string };
+        // Get FAL key
+        const falSecret = await db.select().from(companySecrets)
+          .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "fal_api_key")))
+          .then(r => r[0]);
+        if (!falSecret?.description) return "Fal.ai non configurato. Collega il servizio da Connettori.";
+        const falKey = decrypt(falSecret.description);
+
+        // Submit generation request
+        const falRes = await fetch("https://queue.fal.run/fal-ai/nano-banana-2", {
+          method: "POST",
+          headers: { Authorization: "Key " + falKey, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: input.prompt,
+            num_images: 1,
+            image_size: input.aspect_ratio || "square_hd",
+            enable_safety_checker: false,
+          }),
+        });
+        if (!falRes.ok) return "Errore FAL: " + falRes.status + " " + (await falRes.text()).substring(0, 200);
+        const falData = await falRes.json() as { request_id?: string; status_url?: string; response_url?: string; images?: Array<{ url: string }> };
+
+        // If synchronous result (rare)
+        if (falData.images?.[0]?.url) {
+          return `Immagine generata!\nURL: ${falData.images[0].url}\n\nUsa questo URL con pubblica_social per pubblicare sui social.`;
+        }
+
+        // Poll for result (queue mode)
+        if (!falData.request_id) return "Errore: nessun request_id da FAL";
+        const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-2/requests/${falData.request_id}/status`;
+        const resultUrl = `https://queue.fal.run/fal-ai/nano-banana-2/requests/${falData.request_id}`;
+
+        // Poll up to 60 seconds
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const statusRes = await fetch(statusUrl, { headers: { Authorization: "Key " + falKey } });
+          if (statusRes.ok) {
+            const status = await statusRes.json() as { status: string };
+            if (status.status === "COMPLETED") {
+              const resultRes = await fetch(resultUrl, { headers: { Authorization: "Key " + falKey } });
+              if (resultRes.ok) {
+                const result = await resultRes.json() as { images?: Array<{ url: string; content_type?: string }> };
+                if (result.images?.[0]?.url) {
+                  return `Immagine generata!\nURL: ${result.images[0].url}\n\nUsa questo URL con pubblica_social per pubblicare sui social.`;
+                }
+              }
+              return "Generazione completata ma nessuna immagine nel risultato.";
+            }
+            if (status.status === "FAILED") return "Generazione fallita.";
+          }
+        }
+        return "Timeout: la generazione sta richiedendo troppo tempo. Riprova.";
+      }
+
+      case "pubblica_social": {
+        const input = toolInput as { testo: string; image_url?: string; piattaforme: string[] };
+
+        // Get Meta tokens
+        const metaSecret = await db.select().from(companySecrets)
+          .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "meta_tokens")))
+          .then(r => r[0]);
+
+        const results: string[] = [];
+
+        if (metaSecret?.description) {
+          const meta = JSON.parse(decrypt(metaSecret.description));
+
+          // Download image if URL provided
+          let imageBuffer: Buffer | null = null;
+          let imageMime = "image/jpeg";
+          if (input.image_url) {
+            try {
+              const dlRes = await fetch(input.image_url);
+              if (dlRes.ok) {
+                imageBuffer = Buffer.from(await dlRes.arrayBuffer());
+                imageMime = dlRes.headers.get("content-type") || "image/jpeg";
+              }
+            } catch {}
+          }
+
+          // Facebook
+          for (const p of input.piattaforme.filter(t => t.startsWith("fb_"))) {
+            const pageId = p.replace("fb_", "");
+            const page = (meta.pages || []).find((pg: any) => pg.id === pageId);
+            if (!page) { results.push(`Facebook ${pageId}: pagina non trovata`); continue; }
+            const token = page.accessToken || meta.accessToken;
+            if (imageBuffer) {
+              const fd = new FormData();
+              fd.append("source", new Blob([imageBuffer], { type: imageMime }), "post.jpg");
+              fd.append("caption", input.testo);
+              fd.append("access_token", token);
+              const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, { method: "POST", body: fd });
+              results.push(`Facebook ${page.name}: ${r.ok ? "pubblicato" : "errore " + (await r.text()).substring(0, 100)}`);
+            } else {
+              const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/feed?message=${encodeURIComponent(input.testo)}&access_token=${token}`, { method: "POST" });
+              results.push(`Facebook ${page.name}: ${r.ok ? "pubblicato" : "errore " + (await r.text()).substring(0, 100)}`);
+            }
+          }
+
+          // Instagram
+          for (const p of input.piattaforme.filter(t => t.startsWith("ig_"))) {
+            const igUsername = p.replace("ig_", "");
+            const ig = (meta.instagram || []).find((i: any) => i.username === igUsername);
+            if (!ig) { results.push(`Instagram @${igUsername}: account non trovato`); continue; }
+            if (!imageBuffer) { results.push(`Instagram @${igUsername}: serve un'immagine. Usa genera_immagine prima.`); continue; }
+
+            const page = (meta.pages || []).find((pg: any) => pg.id === ig.pageId) || (meta.pages || [])[0];
+            if (!page) { results.push(`Instagram @${igUsername}: nessuna pagina Facebook collegata`); continue; }
+            const token = page.accessToken || meta.accessToken;
+
+            // Upload unpublished to FB page to get public URL
+            const uploadFd = new FormData();
+            uploadFd.append("source", new Blob([imageBuffer], { type: imageMime }), "post.jpg");
+            uploadFd.append("published", "false");
+            uploadFd.append("access_token", token);
+            const uploadRes = await fetch(`https://graph.facebook.com/v21.0/${page.id}/photos`, { method: "POST", body: uploadFd });
+            if (!uploadRes.ok) { results.push(`Instagram @${igUsername}: errore upload immagine`); continue; }
+            const uploadData = await uploadRes.json() as { id?: string };
+            if (!uploadData.id) { results.push(`Instagram @${igUsername}: nessun ID foto`); continue; }
+
+            // Get image URL
+            const imgUrlRes = await fetch(`https://graph.facebook.com/v21.0/${uploadData.id}?fields=images&access_token=${token}`);
+            const imgUrlData = await imgUrlRes.json() as { images?: Array<{ source: string }> };
+            const publicUrl = imgUrlData.images?.[0]?.source;
+            if (!publicUrl) { results.push(`Instagram @${igUsername}: impossibile ottenere URL immagine`); continue; }
+
+            // Create IG container
+            const containerRes = await fetch(`https://graph.facebook.com/v21.0/${ig.id}/media`, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({ image_url: publicUrl, caption: input.testo, access_token: token }),
+            });
+            const containerData = await containerRes.json() as { id?: string };
+            if (!containerData.id) { results.push(`Instagram @${igUsername}: errore creazione container`); continue; }
+
+            // Poll until ready (max 20s)
+            let ready = false;
+            for (let i = 0; i < 10; i++) {
+              await new Promise(r => setTimeout(r, 2000));
+              const statusRes = await fetch(`https://graph.facebook.com/v21.0/${containerData.id}?fields=status_code&access_token=${token}`);
+              const statusData = await statusRes.json() as { status_code?: string };
+              if (statusData.status_code === "FINISHED") { ready = true; break; }
+              if (statusData.status_code === "ERROR") break;
+            }
+            if (!ready) { results.push(`Instagram @${igUsername}: timeout attesa pubblicazione`); continue; }
+
+            // Publish
+            const publishRes = await fetch(`https://graph.facebook.com/v21.0/${ig.id}/media_publish`, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({ creation_id: containerData.id, access_token: token }),
+            });
+            results.push(`Instagram @${igUsername}: ${publishRes.ok ? "pubblicato" : "errore " + (await publishRes.text()).substring(0, 100)}`);
+          }
+        }
+
+        // LinkedIn
+        for (const p of input.piattaforme.filter(t => t === "li")) {
+          const liSecret = await db.select().from(companySecrets)
+            .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "linkedin_tokens")))
+            .then(r => r[0]);
+          if (!liSecret?.description) { results.push("LinkedIn: non connesso"); continue; }
+          const li = JSON.parse(decrypt(liSecret.description));
+          const liToken = li.access_token;
+          const personUrn = li.person_urn || `urn:li:person:${li.sub}`;
+
+          let imageUrn = "";
+          if (input.image_url) {
+            // Initialize upload
+            const initRes = await fetch("https://api.linkedin.com/rest/images?action=initializeUpload", {
+              method: "POST",
+              headers: { Authorization: "Bearer " + liToken, "Content-Type": "application/json", "LinkedIn-Version": "202401" },
+              body: JSON.stringify({ initializeUploadRequest: { owner: personUrn } }),
+            });
+            if (initRes.ok) {
+              const initData = await initRes.json() as { value?: { uploadUrl?: string; image?: string } };
+              if (initData.value?.uploadUrl) {
+                const dlRes = await fetch(input.image_url);
+                if (dlRes.ok) {
+                  const buf = Buffer.from(await dlRes.arrayBuffer());
+                  await fetch(initData.value.uploadUrl, { method: "PUT", headers: { Authorization: "Bearer " + liToken }, body: buf });
+                  imageUrn = initData.value.image || "";
+                }
+              }
+            }
+          }
+
+          const postBody: any = {
+            author: personUrn,
+            commentary: input.testo,
+            visibility: "PUBLIC",
+            distribution: { feedDistribution: "MAIN_FEED" },
+            lifecycleState: "PUBLISHED",
+          };
+          if (imageUrn) {
+            postBody.content = { media: { id: imageUrn } };
+          }
+
+          const postRes = await fetch("https://api.linkedin.com/rest/posts", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + liToken, "Content-Type": "application/json", "LinkedIn-Version": "202401" },
+            body: JSON.stringify(postBody),
+          });
+          results.push(`LinkedIn: ${postRes.ok || postRes.status === 201 ? "pubblicato" : "errore " + (await postRes.text()).substring(0, 100)}`);
+        }
+
+        if (results.length === 0) return "Nessuna piattaforma target specificata. Usa formato: ['ig_energizzo.it'] per Instagram, ['fb_PAGEID'] per Facebook, ['li'] per LinkedIn.";
+        return "Risultati pubblicazione:\n" + results.map(r => "- " + r).join("\n");
       }
 
       default:
