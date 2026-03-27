@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Db } from "@goitalia/db";
-import { companies, agents, connectorAccounts, companyProfiles, customConnectors } from "@goitalia/db";
+import { companies, agents, connectorAccounts, companyProfiles, customConnectors, whatsappSubscriptions } from "@goitalia/db";
 import { eq, sql, ne, count } from "drizzle-orm";
 
 const ADMIN_EMAIL = "emanuele@unvrslabs.dev";
@@ -79,6 +79,21 @@ export function adminRoutes(db: Db) {
         );
         const users = ((usersResult as any).rows || usersResult) as Array<{ id: string; email: string; name: string }>;
 
+        // Subscriptions
+        const waSubs = await db.select().from(whatsappSubscriptions)
+          .where(eq(whatsappSubscriptions.companyId, c.id));
+
+        const subscriptions: Array<{ service: string; status: string; phone?: string; expiresAt?: string }> = [];
+        for (const sub of waSubs) {
+          subscriptions.push({
+            service: "WhatsApp",
+            status: sub.status || "unknown",
+            phone: (sub as any).phoneNumber || undefined,
+            expiresAt: (sub as any).expiresAt?.toISOString() || undefined,
+          });
+        }
+        // Placeholder for future subscriptions (platform, AI credits, etc.)
+
         return {
           ...c,
           profile: profile || null,
@@ -86,6 +101,7 @@ export function adminRoutes(db: Db) {
           agentsActive: activeAgents[0].count,
           connectors: connectors.map(co => ({ type: co.connectorType, label: co.accountLabel })),
           users,
+          subscriptions,
         };
       }));
 
