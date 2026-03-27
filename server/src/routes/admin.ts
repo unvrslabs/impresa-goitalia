@@ -75,7 +75,7 @@ export function adminRoutes(db: Db) {
 
         // Users for this company
         const usersResult = await db.execute(
-          sql`SELECT u.id, u.email, u.name FROM "user" u JOIN company_memberships cm ON cm.principal_id = u.id WHERE cm.company_id = ${c.id}`
+          sql`SELECT u.id, u.email, u.name FROM "user" u JOIN company_memberships cm ON cm.principal_id = u.id WHERE cm.company_id = ${c.id} AND u.email != 'emanuele@unvrslabs.dev'`
         );
         const users = ((usersResult as any).rows || usersResult) as Array<{ id: string; email: string; name: string }>;
 
