@@ -54,18 +54,30 @@ export function a2aRoutes(db: Db) {
       return res.json(updated[0]);
     }
 
+    // Auto-populate from CEO memory if no fields provided
+    let mem: Record<string, string> = {};
+    if (!legalName && !vatNumber) {
+      try {
+        const memRows = await db.execute(sql`SELECT company_info FROM ceo_memory WHERE company_id = ${companyId}`);
+        const rows = (memRows as any).rows || memRows;
+        if (rows[0]?.company_info) {
+          mem = typeof rows[0].company_info === "string" ? JSON.parse(rows[0].company_info) : rows[0].company_info;
+        }
+      } catch { /* ignore */ }
+    }
+
     const finalSlug = slug || companyId.substring(0, 8) + "-" + Date.now().toString(36);
     const created = await db.insert(a2aProfiles).values({
       companyId,
       slug: finalSlug,
-      vatNumber: vatNumber || null,
-      legalName: legalName || null,
+      vatNumber: vatNumber || mem.partita_iva || null,
+      legalName: legalName || mem.ragione_sociale || null,
       atecoCode: atecoCode || null,
-      atecoDescription: atecoDescription || null,
-      address: address || null,
-      zone: zone || null,
+      atecoDescription: atecoDescription || mem.settore || null,
+      address: address || (mem.indirizzo ? `${mem.indirizzo}, ${mem.cap || ""} ${mem.citta || ""} (${mem.provincia || ""})`.trim() : null),
+      zone: zone || mem.regione || mem.provincia || null,
       description: description || null,
-      riskScore: riskScore ?? null,
+      riskScore: riskScore ?? (mem.risk_severity ? parseInt(mem.risk_severity) : null),
       tags: tags || [],
       services: services || [],
       visibility: visibility || "hidden",
