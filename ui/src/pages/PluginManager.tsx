@@ -125,6 +125,7 @@ export function PluginManager() {
       if (p.get("linkedin_connected")) return "linkedin";
       if (p.get("fic_connected")) return "fic";
       if (p.get("wa_connected")) return "whatsapp";
+      if (p.get("hubspot_connected")) return "hubspot";
       if (p.get("fal_connected")) return "fal";
       if (p.get("openapi_connected")) return "openapi";
     } catch {} return null;
@@ -1251,31 +1252,19 @@ export function PluginManager() {
                       <span className="flex-1 text-xs">HubSpot CRM — {(customConnectors.find(c => c.slug === "hubspot")?.actions || []).length} azioni</span>
                     </div>
                     <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
-                      const c = customConnectors.find(x => x.slug === "hubspot");
-                      if (!c || !confirm("Disconnettere HubSpot CRM?")) return;
-                      await fetch(`/api/custom-connectors/${c.id}?companyId=${selectedCompany?.id}`, { method: "DELETE", credentials: "include" });
-                      setCustomConnectors(prev => prev.filter(x => x.id !== c.id));
+                      if (!confirm("Disconnettere HubSpot CRM?")) return;
+                      await fetch("/api/oauth/hubspot/disconnect", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany?.id }) });
+                      setCustomConnectors(prev => prev.filter(x => x.slug !== "hubspot"));
                     }} title="Disconnetti">{xIcon}</button>
                   </div>
                   <div className={actionRow}>{agentBtn(`custom_hubspot`, "HubSpot CRM")}</div>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-[10px] text-muted-foreground">Crea una Private App su <a href="https://app.hubspot.com/settings" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">HubSpot → Settings → Integrations → Private Apps</a>. Abilita gli scope CRM e copia il token.</p>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground mb-1.5 block">Private App Token</label>
-                    <input type="password" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" placeholder="pat-na1-..." value={crmApiKey} onChange={(e) => setCrmApiKey(e.target.value)} />
-                  </div>
-                  <button disabled={crmSaving || !crmApiKey} className="px-4 py-2 rounded-xl text-xs font-medium disabled:opacity-40 transition-all" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}
-                    onClick={async () => {
-                      setCrmSaving(true);
-                      try {
-                        const r = await fetch("/api/custom-connectors/from-template", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany?.id, templateKey: "hubspot", apiKey: crmApiKey }) });
-                        const d = await r.json();
-                        if (r.ok) { setCustomConnectors(prev => [...prev, d]); setCrmApiKey(""); } else { alert(d.error || "Errore"); }
-                      } catch { alert("Errore di rete"); }
-                      setCrmSaving(false);
-                    }}>{crmSaving ? "Verifica..." : "Collega HubSpot"}</button>
+                  <p className="text-xs text-muted-foreground">Collega il tuo account HubSpot con un click. Accedi con la tua email HubSpot e autorizza l'accesso al CRM.</p>
+                  <a href={`/api/oauth/hubspot/connect?companyId=${selectedCompany?.id}`} className="inline-flex px-4 py-2.5 rounded-xl text-xs font-medium transition-all items-center gap-2" style={{ background: "linear-gradient(135deg, #FF7A45, #FF5722)", color: "white" }}>
+                    <span className="font-bold">H</span> Connetti HubSpot
+                  </a>
                 </div>
               )}
             </div>
