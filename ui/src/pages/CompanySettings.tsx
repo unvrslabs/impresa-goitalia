@@ -74,6 +74,7 @@ export function CompanySettings() {
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+  const [catalogCategory, setCatalogCategory] = useState("all");
 
   useEffect(() => {
     if (!selectedCompanyId) return;
@@ -554,6 +555,27 @@ export function CompanySettings() {
             </div>
           </div>
 
+          {/* Category tabs */}
+          {(() => {
+            const categories = [...new Set(products.map(p => p.category).filter(Boolean))].sort();
+            if (categories.length === 0) return null;
+            return (
+              <div className="flex gap-1.5 flex-wrap">
+                <button onClick={() => setCatalogCategory("all")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${catalogCategory === "all" ? "" : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10"}`} style={catalogCategory === "all" ? { background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", borderColor: "transparent", color: "white" } : undefined}>
+                  Tutti ({products.length})
+                </button>
+                {categories.map(cat => {
+                  const count = products.filter(p => p.category === cat).length;
+                  return (
+                    <button key={cat} onClick={() => setCatalogCategory(cat!)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${catalogCategory === cat ? "" : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10"}`} style={catalogCategory === cat ? { background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", borderColor: "transparent", color: "white" } : undefined}>
+                      {cat} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           {/* Import CSV panel */}
           {showImport && (
             <div className="glass-card px-5 py-5 space-y-3">
@@ -593,7 +615,25 @@ export function CompanySettings() {
                   </select>
                 </Field>
                 <Field label="Categoria">
-                  <input className={inputCls} value={editingProduct.category || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, category: e.target.value }))} placeholder="Es: Farmaci" />
+                  {(() => {
+                    const existingCats = [...new Set(products.map(p => p.category).filter(Boolean))].sort();
+                    const isCustom = editingProduct.category && !existingCats.includes(editingProduct.category);
+                    return (
+                      <div className="flex gap-2">
+                        <select className={selectCls + " flex-1"} value={isCustom ? "__new__" : (editingProduct.category || "")} onChange={(e) => {
+                          if (e.target.value === "__new__") { setEditingProduct((p) => ({ ...p!, category: "" })); }
+                          else { setEditingProduct((p) => ({ ...p!, category: e.target.value })); }
+                        }}>
+                          <option value="">Nessuna</option>
+                          {existingCats.map(c => <option key={c} value={c!}>{c}</option>)}
+                          <option value="__new__">+ Nuova categoria</option>
+                        </select>
+                        {(isCustom || editingProduct.category === "") && editingProduct.category !== undefined && (
+                          <input className={inputCls + " flex-1"} value={editingProduct.category || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, category: e.target.value }))} placeholder="Nome categoria" autoFocus />
+                        )}
+                      </div>
+                    );
+                  })()}
                 </Field>
                 <Field label="Unità">
                   <input className={inputCls} value={editingProduct.unit || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, unit: e.target.value }))} placeholder="Es: pz, kg, ora" />
@@ -645,7 +685,7 @@ export function CompanySettings() {
             </div>
           ) : (
             <div className="space-y-2">
-              {products.map((p) => (
+              {products.filter(p => catalogCategory === "all" || p.category === catalogCategory).map((p) => (
                 <div key={p.id} className="glass-card px-4 py-3 flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
