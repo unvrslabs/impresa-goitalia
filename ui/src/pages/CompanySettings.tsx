@@ -357,7 +357,7 @@ export function CompanySettings() {
       </div>
 
       {/* Tab navigation */}
-      <div className="glass-card p-1 flex gap-1">
+      <div className="flex gap-1.5 flex-wrap">
         {tabDef.map((t) => {
           const Icon = t.icon;
           const isActive = activeTab === t.key;
@@ -365,15 +365,13 @@ export function CompanySettings() {
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
-              className={`flex-1 flex flex-row items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                isActive
-                  ? "text-white"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                isActive ? "" : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10"
               }`}
-              style={isActive ? { background: "linear-gradient(135deg, hsl(158 64% 42% / 0.25), hsl(158 64% 42% / 0.12))", border: "1px solid hsl(158 64% 42% / 0.3)" } : {}}
+              style={isActive ? { background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", borderColor: "transparent", color: "white" } : undefined}
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="truncate">{t.label}</span>
+              <Icon className="w-3.5 h-3.5" />
+              {t.label}
             </button>
           );
         })}
