@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { companyProfiles, a2aConnections, a2aTasks, a2aMessages, companies } from "@goitalia/db";
 import { eq, and, or, sql, desc, asc } from "drizzle-orm";
+import { processIncomingA2ATask } from "../services/a2a-auto-respond.js";
 
 export function a2aRoutes(db: Db) {
   const router = Router();
@@ -341,6 +342,15 @@ export function a2aRoutes(db: Db) {
       requiresApproval: requiresApproval || false,
       metadata: metadata || null,
     }).returning();
+
+    // Fire-and-forget: auto-process task with destination CEO
+    const senderProfile = await db.select({ ragioneSociale: companyProfiles.ragioneSociale })
+      .from(companyProfiles).where(eq(companyProfiles.companyId, companyId)).then((r) => r[0]);
+    processIncomingA2ATask(
+      db, created[0].id, toCompanyId,
+      senderProfile?.ragioneSociale || "Azienda",
+      title, description || "", type || "message",
+    ).catch((err) => console.error("[a2a] auto-respond error:", err));
 
     return res.status(201).json(created[0]);
   });

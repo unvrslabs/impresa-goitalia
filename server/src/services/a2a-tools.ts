@@ -1,6 +1,7 @@
 import type { Db } from "@goitalia/db";
 import { companyProfiles, a2aConnections, a2aTasks, a2aMessages, companies } from "@goitalia/db";
 import { eq, and, or, sql, desc, asc } from "drizzle-orm";
+import { processIncomingA2ATask } from "./a2a-auto-respond.js";
 
 /**
  * Execute an A2A CEO tool.
@@ -141,8 +142,17 @@ export async function executeA2aTool(
         });
       }
 
+      // Fire-and-forget: auto-process with destination CEO
+      const senderProfile = await db.select({ ragioneSociale: companyProfiles.ragioneSociale })
+        .from(companyProfiles).where(eq(companyProfiles.companyId, companyId)).then((r) => r[0]);
+      processIncomingA2ATask(
+        db, created[0].id, toCompanyId,
+        senderProfile?.ragioneSociale || "Azienda",
+        title, description, type,
+      ).catch((err) => console.error("[a2a-tool] auto-respond error:", err));
+
       const partnerLabel = conn?.relationshipLabel || targetProfile.legalName || toCompanyId;
-      return `Task inviato a ${partnerLabel}!\nID: ${created[0].id}\nTipo: ${type}\nTitolo: ${title}\nStato: creato — in attesa di risposta dal CEO dell'azienda destinataria.`;
+      return `Task inviato a ${partnerLabel}!\nID: ${created[0].id}\nTipo: ${type}\nTitolo: ${title}\nStato: creato — il CEO dell'azienda destinataria sta elaborando la risposta.`;
     }
 
     case "rispondi_task_a2a": {
