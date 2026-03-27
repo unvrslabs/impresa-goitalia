@@ -322,16 +322,12 @@ export function a2aRoutes(db: Db) {
     const { companyId, toCompanyId, type, title, description, requiresApproval, metadata } = req.body;
     if (!companyId || !toCompanyId || !title) return res.status(400).json({ error: "companyId, toCompanyId, title required" });
 
-    // Verify active connection exists
-    const conn = await db.select().from(a2aConnections)
-      .where(and(
-        eq(a2aConnections.fromCompanyId, companyId),
-        eq(a2aConnections.toCompanyId, toCompanyId),
-        eq(a2aConnections.status, "active"),
-      ))
+    // Verify target company has A2A profile (is on the network)
+    const targetProfile = await db.select({ id: a2aProfiles.id }).from(a2aProfiles)
+      .where(eq(a2aProfiles.companyId, toCompanyId))
       .then((r) => r[0]);
 
-    if (!conn) return res.status(403).json({ error: "No active connection with this company" });
+    if (!targetProfile) return res.status(403).json({ error: "L'azienda destinataria non ha attivato la rete A2A" });
 
     const created = await db.insert(a2aTasks).values({
       fromCompanyId: companyId,

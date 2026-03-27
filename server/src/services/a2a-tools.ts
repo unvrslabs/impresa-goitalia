@@ -97,24 +97,28 @@ export async function executeA2aTool(
       const title = toolInput.titolo as string;
       const description = toolInput.descrizione as string || "";
 
-      if (!toCompanyId || !title) return "Specifica azienda_id (dall'elenco partner) e titolo del task.";
+      if (!toCompanyId || !title) return "Specifica azienda_id (dall'elenco partner o dalla directory) e titolo del task.";
 
       // Orders always require approval
       const requiresApproval = type === "order";
 
-      // Verify active connection
-      const conn = await db.select({
-        id: a2aConnections.id,
-        relationshipLabel: a2aConnections.relationshipLabel,
-      }).from(a2aConnections)
+      // Verify target company has A2A profile
+      const targetProfile = await db.select({ id: a2aProfiles.id, legalName: a2aProfiles.legalName })
+        .from(a2aProfiles)
+        .where(eq(a2aProfiles.companyId, toCompanyId))
+        .then((r) => r[0]);
+
+      if (!targetProfile) return "L'azienda destinataria non ha attivato la rete A2A.";
+
+      // Check if it's a known partner (for label)
+      const conn = await db.select({ relationshipLabel: a2aConnections.relationshipLabel })
+        .from(a2aConnections)
         .where(and(
           eq(a2aConnections.fromCompanyId, companyId),
           eq(a2aConnections.toCompanyId, toCompanyId),
           eq(a2aConnections.status, "active"),
         ))
         .then((r) => r[0]);
-
-      if (!conn) return "Non sei collegato a questa azienda. Il titolare deve prima inviare una richiesta di connessione dalla pagina Rete B2B.";
 
       const created = await db.insert(a2aTasks).values({
         fromCompanyId: companyId,
@@ -136,7 +140,7 @@ export async function executeA2aTool(
         });
       }
 
-      const partnerLabel = conn.relationshipLabel || toCompanyId;
+      const partnerLabel = conn?.relationshipLabel || targetProfile.legalName || toCompanyId;
       return `Task inviato a ${partnerLabel}!\nID: ${created[0].id}\nTipo: ${type}\nTitolo: ${title}\nStato: creato — in attesa di risposta dal CEO dell'azienda destinataria.`;
     }
 
