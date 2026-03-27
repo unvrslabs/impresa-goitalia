@@ -464,8 +464,10 @@ export function PluginManager() {
     // Save message to DB — bulletproof, no SPA issues
     await fetch("/api/onboarding/onboarding-step", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, step: 99 }) });
     await fetch("/api/chat/queue-message", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany.id, message }) });
-    // Navigate to chat — the ChatPage will find the pending message in DB
-    window.location.href = "/" + (selectedCompany?.issuePrefix || "") + "/chat";
+    // Navigate to chat with ?create_agent= as URL fallback + DB pending
+    const params = new URLSearchParams({ create_agent: connector });
+    if (detail) params.set("detail", detail);
+    window.location.href = "/" + (selectedCompany?.issuePrefix || "") + "/chat?" + params.toString();
   };
   const agentBtn = (connector: string, detail?: string) => (
     <button onClick={() => navigateToChat(connector, detail)} className="text-xs px-3 py-1.5 rounded-lg transition-all" style={{ background: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.25)", color: "rgba(255,255,255,0.7)" }}>Crea agente</button>

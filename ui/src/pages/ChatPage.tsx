@@ -125,6 +125,10 @@ export function ChatPage() {
     fic: "Fatture in Cloud",
     openapi: "OpenAPI.it (dati aziendali, visure)",
     voice: "Vocali AI",
+    hubspot: "HubSpot CRM",
+    salesforce: "Salesforce CRM",
+    pec: "PEC (Posta Certificata)",
+    stripe: "Stripe",
   };
   const checkPendingMsg = () => {
     let msg: string | null = null;
@@ -258,7 +262,7 @@ export function ChatPage() {
 
   // Auto-start onboarding conversation
   useEffect(() => {
-    if (isOnboarding && !autoStarted && ceoAgent && messages.length === 0 && !isStreaming && historyLoaded && onboardingReady) {
+    if (isOnboarding && !autoStarted && ceoAgent && messages.length === 0 && !isStreaming && historyLoaded && onboardingReady && !pendingMsgRef.current) {
       setAutoStarted(true);
       const startMsg: ChatMessage = {
         id: crypto.randomUUID(),
