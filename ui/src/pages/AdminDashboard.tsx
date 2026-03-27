@@ -242,12 +242,6 @@ export function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Action */}
-                  <div className="pt-1">
-                    <Link to={`/${c.issuePrefix}/dashboard`} className="inline-flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-lg no-underline" style={{ background: "hsl(158 64% 42% / 0.1)", color: "hsl(158 64% 52%)", border: "1px solid hsl(158 64% 42% / 0.2)" }}>
-                      Apri Dashboard <ExternalLink className="w-3 h-3" />
-                    </Link>
-                  </div>
                 </div>
               )}
             </div>

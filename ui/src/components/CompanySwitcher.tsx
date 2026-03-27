@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { ChevronsUpDown, Plus, Settings } from "lucide-react";
 import { Link } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
@@ -27,15 +26,7 @@ function statusDotColor(status?: string): string {
 
 export function CompanySwitcher() {
   const { companies, selectedCompany, setSelectedCompanyId } = useCompany();
-  // Load switcher-only companies (excludes admin_viewer)
-  const [switcherCompanies, setSwitcherCompanies] = useState<typeof companies | null>(null);
-  useEffect(() => {
-    fetch("/api/companies?switcher=true", { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (Array.isArray(data)) setSwitcherCompanies(data); })
-      .catch(() => {});
-  }, []);
-  const sidebarCompanies = (switcherCompanies ?? companies).filter((company: any) => company.status !== "archived");
+  const sidebarCompanies = companies.filter((company) => company.status !== "archived");
 
   return (
     <DropdownMenu>

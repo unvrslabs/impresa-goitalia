@@ -74,17 +74,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
       return;
     }
     const allowed = new Set(req.actor.companyIds ?? []);
-    let filtered = result.filter((company) => allowed.has(company.id));
-    // If switcher mode, exclude admin_viewer companies
-    if (req.query.switcher === "true" && req.actor.userId) {
-      try {
-        const avRows = await db.select({ companyId: companyMemberships.companyId }).from(companyMemberships)
-          .where(and(eq(companyMemberships.principalId, req.actor.userId), eq(companyMemberships.membershipRole, "admin_viewer")));
-        const avIds = new Set(avRows.map(r => r.companyId));
-        filtered = filtered.filter(c => !avIds.has(c.id));
-      } catch {}
-    }
-    res.json(filtered);
+    res.json(result.filter((company) => allowed.has(company.id)));
   });
 
   router.get("/stats", async (req, res) => {
