@@ -76,20 +76,21 @@ export async function executeA2aTool(
         toCompanyId: a2aConnections.toCompanyId,
         relationshipLabel: a2aConnections.relationshipLabel,
         notes: a2aConnections.notes,
-        partnerName: companies.name,
+        partnerName: companyProfiles.ragioneSociale,
+        partnerSettore: companyProfiles.settore,
       })
         .from(a2aConnections)
-        .innerJoin(companies, eq(companies.id, a2aConnections.toCompanyId))
+        .innerJoin(companyProfiles, eq(companyProfiles.companyId, a2aConnections.toCompanyId))
         .where(and(
           eq(a2aConnections.fromCompanyId, companyId),
           eq(a2aConnections.status, "active"),
         ))
         .orderBy(asc(a2aConnections.relationshipLabel));
 
-      if (connections.length === 0) return "Nessun partner collegato nella Rete B2B. Il titolare può cercare e collegare aziende dalla pagina Rete B2B.";
+      if (connections.length === 0) return "Nessun partner collegato nella Rete A2A. Il titolare può cercare e collegare aziende dalla pagina A2A.";
 
-      return "Partner B2B collegati:\n\n" + connections.map((c) =>
-        `• ${c.partnerName} — ${c.relationshipLabel || "Partner"}\n  ${c.notes || ""}\n  [ID: ${c.toCompanyId}]`
+      return "Partner A2A collegati:\n\n" + connections.map((c) =>
+        `• ${c.partnerName || "Azienda"} — ${c.relationshipLabel || "Partner"} — ${c.partnerSettore || ""}\n  ${c.notes || ""}\n  [ID: ${c.toCompanyId}]`
       ).join("\n\n");
     }
 

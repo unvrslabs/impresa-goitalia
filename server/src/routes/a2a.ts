@@ -162,10 +162,11 @@ export function a2aRoutes(db: Db) {
       relationshipLabel: a2aConnections.relationshipLabel,
       notes: a2aConnections.notes,
       createdAt: a2aConnections.createdAt,
-      partnerName: companies.name,
+      partnerName: sql<string>`COALESCE(${companyProfiles.ragioneSociale}, ${companies.name})`.as("partner_name"),
     })
       .from(a2aConnections)
       .innerJoin(companies, eq(companies.id, a2aConnections.toCompanyId))
+      .leftJoin(companyProfiles, eq(companyProfiles.companyId, a2aConnections.toCompanyId))
       .where(eq(a2aConnections.fromCompanyId, companyId))
       .orderBy(desc(a2aConnections.createdAt));
 
@@ -177,10 +178,11 @@ export function a2aRoutes(db: Db) {
       relationshipLabel: a2aConnections.relationshipLabel,
       notes: a2aConnections.notes,
       createdAt: a2aConnections.createdAt,
-      partnerName: companies.name,
+      partnerName: sql<string>`COALESCE(${companyProfiles.ragioneSociale}, ${companies.name})`.as("partner_name"),
     })
       .from(a2aConnections)
       .innerJoin(companies, eq(companies.id, a2aConnections.fromCompanyId))
+      .leftJoin(companyProfiles, eq(companyProfiles.companyId, a2aConnections.fromCompanyId))
       .where(and(
         eq(a2aConnections.toCompanyId, companyId),
         eq(a2aConnections.status, "pending"),
