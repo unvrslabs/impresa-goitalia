@@ -42,6 +42,10 @@ export const companyProfiles = pgTable(
     soci: text("soci"),
     // Note extra
     note: text("note"),
+    // Orari
+    orariApertura: text("orari_apertura"),
+    giornoChiusura: text("giorno_chiusura"),
+    noteOrari: text("note_orari"),
     // A2A (ex a2a_profiles)
     slug: text("slug"),
     tags: jsonb("tags").$type<string[]>().default([]),

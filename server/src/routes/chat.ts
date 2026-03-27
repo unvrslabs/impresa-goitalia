@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { getStripeApiKey } from "./stripe-connector.js";
 import { getProjectFilesContent } from "./project-files.js";
-import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts, routines, routineTriggers, routineRuns, companyProfiles } from "@goitalia/db";
+import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts, routines, routineTriggers, routineRuns, companyProfiles, companyProducts } from "@goitalia/db";
 import { parseCron, nextCronTick } from "../services/cron.js";
 import { nextCronTickInTimeZone } from "../services/routines.js";
 import { eq, and, ne, inArray, desc, sql, asc } from "drizzle-orm";
@@ -1835,6 +1835,7 @@ export async function executeChatTool(
           capitale_sociale: "capitaleSociale", totale_attivo: "totaleAttivo",
           risk_score: "riskScore", rating: "rating", risk_severity: "riskSeverity",
           credit_limit: "creditLimit", soci: "soci", note: "note",
+          orari_apertura: "orariApertura", giorno_chiusura: "giornoChiusura", note_orari: "noteOrari",
         };
         const dbData: Record<string, unknown> = { updatedAt: new Date() };
         for (const [k, v] of Object.entries(fields)) {
@@ -1911,6 +1912,20 @@ export async function executeChatTool(
           output += "\nNOTE SALVATE:\n";
           for (const n of mem.notes) {
             output += "- [" + (n.categoria || "generale") + " " + (n.data || "") + "] " + n.contenuto + "\n";
+          }
+        }
+        // Add product catalog
+        const products = await db.select().from(companyProducts)
+          .where(eq(companyProducts.companyId, companyId))
+          .orderBy(asc(companyProducts.category), asc(companyProducts.name));
+        if (products.length > 0) {
+          output += "\nCATALOGO PRODOTTI/SERVIZI:\n";
+          for (const p of products) {
+            const prices = [
+              p.priceB2b ? `B2B: €${p.priceB2b}` : "",
+              p.priceB2c ? `B2C: €${p.priceB2c}` : "",
+            ].filter(Boolean).join(" | ");
+            output += `- ${p.name}${p.category ? " [" + p.category + "]" : ""} — ${prices || "prezzo su richiesta"}${p.available === false ? " [NON DISPONIBILE]" : ""}\n`;
           }
         }
         return output || "Memoria vuota.";
@@ -2620,6 +2635,26 @@ export function chatRoutes(db: Db) {
             for (const n of (mem.notes as Array<{contenuto: string; categoria?: string; data?: string}>)) {
               memoryContext += "- [" + (n.categoria || "generale") + "] " + n.contenuto + "\n";
             }
+          }
+        }
+        // Load product catalog
+        const products = await db.select().from(companyProducts)
+          .where(eq(companyProducts.companyId, companyId))
+          .orderBy(asc(companyProducts.category), asc(companyProducts.name));
+        if (products.length > 0) {
+          memoryContext += "\nCATALOGO PRODOTTI/SERVIZI:\n";
+          let currentCat = "";
+          for (const p of products) {
+            if (p.category && p.category !== currentCat) {
+              currentCat = p.category;
+              memoryContext += `\n[${currentCat}]\n`;
+            }
+            const prices = [
+              p.priceB2b ? `B2B: €${p.priceB2b}` : "",
+              p.priceB2c ? `B2C: €${p.priceB2c}` : "",
+            ].filter(Boolean).join(" | ");
+            memoryContext += `- ${p.name}${p.unit ? " (" + p.unit + ")" : ""} — ${prices || "prezzo su richiesta"}${p.available === false ? " [NON DISPONIBILE]" : ""}${p.sku ? " [SKU: " + p.sku + "]" : ""}\n`;
+            if (p.description) memoryContext += `  ${p.description}\n`;
           }
         }
         if (memoryContext) memoryContext += "--- FINE MEMORIA ---";

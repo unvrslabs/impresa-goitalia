@@ -9,7 +9,8 @@ import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
 import { authApi } from "../api/auth";
 import { Button } from "@/components/ui/button";
-import { Settings, Check, Download, Upload, LogOut, Mail } from "lucide-react";
+import { Settings, Check, Download, Upload, LogOut, Mail, Plus, Trash2, Package, Clock, Building2 } from "lucide-react";
+import { companyProductsApi, type CompanyProduct } from "../api/company-products";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import {
   Field,
@@ -56,6 +57,11 @@ export function CompanySettings() {
   const [profile, setProfile] = useState<Record<string, string>>({});
   const [profileSaved, setProfileSaved] = useState<Record<string, string>>({});
   const [profileSaving, setProfileSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<"dati" | "catalogo" | "orari">("dati");
+  const [products, setProducts] = useState<CompanyProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [editingProduct, setEditingProduct] = useState<Partial<CompanyProduct> | null>(null);
+  const [productSaving, setProductSaving] = useState(false);
 
   useEffect(() => {
     if (!selectedCompanyId) return;
@@ -66,6 +72,40 @@ export function CompanySettings() {
   }, [selectedCompanyId]);
 
   const profileDirty = JSON.stringify(profile) !== JSON.stringify(profileSaved);
+
+  // Load products
+  const loadProducts = async () => {
+    if (!selectedCompanyId) return;
+    setProductsLoading(true);
+    try {
+      const data = await companyProductsApi.list(selectedCompanyId);
+      setProducts(data);
+    } catch { /* ignore */ }
+    setProductsLoading(false);
+  };
+
+  useEffect(() => { loadProducts(); }, [selectedCompanyId]);
+
+  const saveProduct = async () => {
+    if (!editingProduct?.name || !selectedCompanyId) return;
+    setProductSaving(true);
+    try {
+      if (editingProduct.id) {
+        await companyProductsApi.update(editingProduct.id, editingProduct);
+      } else {
+        await companyProductsApi.create({ companyId: selectedCompanyId, ...editingProduct } as any);
+      }
+      setEditingProduct(null);
+      await loadProducts();
+    } catch { /* ignore */ }
+    setProductSaving(false);
+  };
+
+  const deleteProduct = async (id: string) => {
+    if (!selectedCompanyId) return;
+    await companyProductsApi.remove(id, selectedCompanyId);
+    await loadProducts();
+  };
 
   const saveProfile = async () => {
     setProfileSaving(true);
@@ -267,6 +307,14 @@ export function CompanySettings() {
     });
   }
 
+  const tabDef = [
+    { key: "dati" as const, label: "Dati Aziendali", icon: Building2 },
+    { key: "catalogo" as const, label: "Catalogo", icon: Package },
+    { key: "orari" as const, label: "Orari", icon: Clock },
+  ];
+
+  const inputCls = "w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-emerald-500/50 transition-colors";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -274,75 +322,68 @@ export function CompanySettings() {
         <h1 className="text-lg font-semibold">Profilo Impresa</h1>
       </div>
 
-      {/* Generale */}
-      <div className="space-y-4">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Generale
-        </div>
-        <div className="glass-card px-5 py-5 space-y-3">
-          {/* Logo */}
-          <div className="flex items-center gap-4 pb-3 border-b border-white/5">
-            <div className="relative shrink-0">
-              <CompanyPatternIcon
-                companyName={companyName || selectedCompany.name}
-                logoUrl={logoUrl || null}
-                brandColor={brandColor || null}
-                className="rounded-[14px]"
-              />
-              {logoUrl && (
-                <button
-                  onClick={handleClearLogo}
-                  disabled={clearLogoMutation.isPending}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center transition-colors"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              )}
-            </div>
-            <div>
-              <label className="relative cursor-pointer px-3 py-1.5 rounded-lg text-xs font-medium transition-all" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                Scegli file
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={handleLogoFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-              </label>
-              {logoUploadMutation.isPending && <span className="text-xs text-muted-foreground ml-2">Caricamento...</span>}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Field label="Email" hint="Email usata per la registrazione.">
-              <input className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none opacity-60" type="text" value={userEmail} readOnly />
-            </Field>
-            <Field label="Password">
-              <input className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none" type="password" value="••••••••" readOnly />
-            </Field>
-          </div>
-        </div>
+      {/* Tab navigation */}
+      <div className="glass-card p-1 flex gap-1">
+        {tabDef.map((t) => {
+          const Icon = t.icon;
+          const isActive = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                isActive
+                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {t.label}
+            </button>
+          );
+        })}
       </div>
-      {/* Save button for Generale + Aspetto */}
-      {generalDirty && (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handleSaveGenerale}
-            disabled={generalMutation.isPending || !companyName.trim()}
-          >
-            {generalMutation.isPending ? "Salvataggio..." : "Salva modifiche"}
-          </Button>
-          {generalMutation.isSuccess && (
-            <span className="text-xs text-muted-foreground">Salvato</span>
-          )}
-          {generalMutation.isError && (
-            <span className="text-xs text-destructive">
-              {generalMutation.error instanceof Error
-                  ? generalMutation.error.message
-                  : "Salvataggio fallito"}
-            </span>
-          )}
+
+      {/* ==================== TAB: DATI AZIENDALI ==================== */}
+      {activeTab === "dati" && <>
+        {/* Generale */}
+        <div className="space-y-4">
+          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Generale</div>
+          <div className="glass-card px-5 py-5 space-y-3">
+            <div className="flex items-center gap-4 pb-3 border-b border-white/5">
+              <div className="relative shrink-0">
+                <CompanyPatternIcon companyName={companyName || selectedCompany.name} logoUrl={logoUrl || null} brandColor={brandColor || null} className="rounded-[14px]" />
+                {logoUrl && (
+                  <button onClick={handleClearLogo} disabled={clearLogoMutation.isPending} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center transition-colors">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                )}
+              </div>
+              <div>
+                <label className="relative cursor-pointer px-3 py-1.5 rounded-lg text-xs font-medium transition-all" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  Scegli file
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onChange={handleLogoFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                </label>
+                {logoUploadMutation.isPending && <span className="text-xs text-muted-foreground ml-2">Caricamento...</span>}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Field label="Email" hint="Email usata per la registrazione.">
+                <input className={inputCls + " opacity-60"} type="text" value={userEmail} readOnly />
+              </Field>
+              <Field label="Password">
+                <input className={inputCls} type="password" value="••••••••" readOnly />
+              </Field>
+            </div>
+          </div>
         </div>
-      )}
-
-
-
+        {generalDirty && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleSaveGenerale} disabled={generalMutation.isPending || !companyName.trim()}>
+              {generalMutation.isPending ? "Salvataggio..." : "Salva modifiche"}
+            </Button>
+          </div>
+        )}
 
 
 
@@ -451,6 +492,140 @@ export function CompanySettings() {
           </div>
         )}
       </div>
+      </>}
+
+      {/* ==================== TAB: CATALOGO ==================== */}
+      {activeTab === "catalogo" && <>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Prodotti e Servizi</div>
+            <button
+              onClick={() => setEditingProduct({ type: "product", name: "", currency: "EUR", available: true })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" /> Aggiungi
+            </button>
+          </div>
+
+          {/* Form nuovo/modifica prodotto */}
+          {editingProduct && (
+            <div className="glass-card px-5 py-5 space-y-3">
+              <div className="text-xs font-medium pb-1">{editingProduct.id ? "Modifica prodotto" : "Nuovo prodotto/servizio"}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Nome *">
+                  <input className={inputCls} value={editingProduct.name || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, name: e.target.value }))} placeholder="Es: Aspirina 500mg" />
+                </Field>
+                <Field label="Tipo">
+                  <select className={inputCls} value={editingProduct.type || "product"} onChange={(e) => setEditingProduct((p) => ({ ...p!, type: e.target.value as "product" | "service" }))}>
+                    <option value="product">Prodotto</option>
+                    <option value="service">Servizio</option>
+                  </select>
+                </Field>
+                <Field label="Categoria">
+                  <input className={inputCls} value={editingProduct.category || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, category: e.target.value }))} placeholder="Es: Farmaci" />
+                </Field>
+                <Field label="Unità">
+                  <input className={inputCls} value={editingProduct.unit || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, unit: e.target.value }))} placeholder="Es: pz, kg, ora" />
+                </Field>
+                <Field label="Prezzo B2B">
+                  <input className={inputCls} value={editingProduct.priceB2b || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, priceB2b: e.target.value }))} placeholder="Es: 3.50" />
+                </Field>
+                <Field label="Prezzo B2C">
+                  <input className={inputCls} value={editingProduct.priceB2c || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, priceB2c: e.target.value }))} placeholder="Es: 5.90" />
+                </Field>
+                <Field label="Codice SKU">
+                  <input className={inputCls} value={editingProduct.sku || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, sku: e.target.value }))} placeholder="Opzionale" />
+                </Field>
+                <Field label="Disponibile">
+                  <select className={inputCls} value={editingProduct.available !== false ? "true" : "false"} onChange={(e) => setEditingProduct((p) => ({ ...p!, available: e.target.value === "true" }))}>
+                    <option value="true">Disponibile</option>
+                    <option value="false">Non disponibile</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label="Descrizione">
+                <input className={inputCls} value={editingProduct.description || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, description: e.target.value }))} placeholder="Descrizione opzionale" />
+              </Field>
+              <div className="flex gap-2 pt-2">
+                <button onClick={saveProduct} disabled={productSaving || !editingProduct.name} className="px-4 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-all disabled:opacity-40">
+                  {productSaving ? "Salvataggio..." : "Salva"}
+                </button>
+                <button onClick={() => setEditingProduct(null)} className="px-4 py-1.5 rounded-lg text-xs font-medium bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 transition-all">
+                  Annulla
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Lista prodotti */}
+          {productsLoading ? (
+            <div className="glass-card p-8 text-center text-sm text-muted-foreground">Caricamento...</div>
+          ) : products.length === 0 && !editingProduct ? (
+            <div className="glass-card p-8 text-center">
+              <Package className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Nessun prodotto o servizio.</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Aggiungi prodotti e servizi con i relativi prezzi B2B e B2C. Il CEO li userà per rispondere alle richieste nella rete A2A.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {products.map((p) => (
+                <div key={p.id} className="glass-card px-4 py-3 flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">{p.name}</span>
+                      {p.category && <span className="text-[11px] px-1.5 py-0.5 rounded bg-white/5 text-muted-foreground">{p.category}</span>}
+                      {p.type === "service" && <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">Servizio</span>}
+                      {!p.available && <span className="text-[11px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">Non disponibile</span>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                      {p.priceB2b && <span>B2B: €{p.priceB2b}</span>}
+                      {p.priceB2c && <span>B2C: €{p.priceB2c}</span>}
+                      {p.unit && <span>({p.unit})</span>}
+                      {p.sku && <span>SKU: {p.sku}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0 ml-3">
+                    <button onClick={() => setEditingProduct(p)} className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 transition-all" title="Modifica">
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => deleteProduct(p.id)} className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all" title="Elimina">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </>}
+
+      {/* ==================== TAB: ORARI ==================== */}
+      {activeTab === "orari" && <>
+        <div className="space-y-4">
+          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Orari e Apertura</div>
+          <p className="text-xs text-muted-foreground">Inserisci gli orari di apertura della tua attività. Il CEO li userà per rispondere alle richieste dei partner.</p>
+
+          <div className="glass-card px-5 py-5 space-y-3">
+            <Field label="Orari di Apertura" hint="Es: Lun-Ven 9:00-19:00, Sab 9:00-13:00">
+              <input className={inputCls} value={profile.orari_apertura || ""} onChange={(e) => setProfile((prev) => ({ ...prev, orari_apertura: e.target.value }))} placeholder="Es: Lun-Ven 9:00-19:00, Sab 9:00-13:00" />
+            </Field>
+            <Field label="Giorno di Chiusura" hint="Es: Domenica, Festivi">
+              <input className={inputCls} value={profile.giorno_chiusura || ""} onChange={(e) => setProfile((prev) => ({ ...prev, giorno_chiusura: e.target.value }))} placeholder="Es: Domenica" />
+            </Field>
+            <Field label="Note sugli Orari" hint="Es: Chiusura estiva, orari speciali">
+              <input className={inputCls} value={profile.note_orari || ""} onChange={(e) => setProfile((prev) => ({ ...prev, note_orari: e.target.value }))} placeholder="Es: Chiuso per ferie dal 10 al 25 agosto" />
+            </Field>
+          </div>
+
+          {profileDirty && (
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={saveProfile} disabled={profileSaving}>
+                {profileSaving ? "Salvataggio..." : "Salva Orari"}
+              </Button>
+            </div>
+          )}
+        </div>
+      </>}
 
     </div>
   );
