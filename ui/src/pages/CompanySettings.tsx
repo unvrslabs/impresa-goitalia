@@ -9,7 +9,7 @@ import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
 import { authApi } from "../api/auth";
 import { Button } from "@/components/ui/button";
-import { Settings, Check, Download, Upload, LogOut, Mail, Plus, Trash2, Package, Clock, Building2 } from "lucide-react";
+import { Settings, Check, Download, Upload, LogOut, Mail, Plus, Trash2, Package, Clock, Building2, FileUp } from "lucide-react";
 import { companyProductsApi, type CompanyProduct } from "../api/company-products";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import {
@@ -62,6 +62,10 @@ export function CompanySettings() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Partial<CompanyProduct> | null>(null);
   const [productSaving, setProductSaving] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedCompanyId) return;
@@ -99,6 +103,35 @@ export function CompanySettings() {
       await loadProducts();
     } catch { /* ignore */ }
     setProductSaving(false);
+  };
+
+  const handleImportFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImportText(reader.result as string);
+      setShowImport(true);
+      setImportResult(null);
+    };
+    reader.readAsText(file);
+  };
+
+  const doImport = async () => {
+    if (!selectedCompanyId || !importText.trim()) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await companyProductsApi.importCsv(selectedCompanyId, importText);
+      setImportResult(`${res.imported} prodotti importati`);
+      setImportText("");
+      setShowImport(false);
+      await loadProducts();
+    } catch (err: any) {
+      setImportResult(err?.message || "Errore durante l'importazione");
+    }
+    setImporting(false);
   };
 
   const deleteProduct = async (id: string) => {
@@ -499,13 +532,43 @@ export function CompanySettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Prodotti e Servizi</div>
-            <button
-              onClick={() => setEditingProduct({ type: "product", name: "", currency: "EUR", available: true })}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" /> Aggiungi
-            </button>
+            <div className="flex gap-2">
+              <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 transition-all cursor-pointer">
+                <FileUp className="w-3.5 h-3.5" /> Importa CSV
+                <input type="file" accept=".csv,.txt,.tsv" onChange={handleImportFile} className="hidden" />
+              </label>
+              <button
+                onClick={() => setEditingProduct({ type: "product", name: "", currency: "EUR", available: true })}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" /> Aggiungi
+              </button>
+            </div>
           </div>
+
+          {/* Import CSV panel */}
+          {showImport && (
+            <div className="glass-card px-5 py-5 space-y-3">
+              <div className="text-xs font-medium pb-1">Importa da CSV</div>
+              <p className="text-xs text-muted-foreground">Il file deve avere un header con le colonne: <strong>nome</strong> (obbligatorio), categoria, unita, prezzo_b2b, prezzo_b2c, descrizione, sku. Separatore: virgola, punto e virgola, o tab.</p>
+              <textarea
+                className="w-full rounded-md border border-border bg-transparent px-2.5 py-2 text-xs outline-none focus:border-emerald-500/50 font-mono"
+                rows={6}
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder={"nome;categoria;prezzo_b2b;prezzo_b2c;unita\nAspirina 500mg;Farmaci;3.50;5.90;pz\nTachipirina 1000;Farmaci;4.00;6.50;pz"}
+              />
+              {importResult && <p className="text-xs text-emerald-400">{importResult}</p>}
+              <div className="flex gap-2">
+                <button onClick={doImport} disabled={importing || !importText.trim()} className="px-4 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-all disabled:opacity-40">
+                  {importing ? "Importazione..." : "Importa"}
+                </button>
+                <button onClick={() => { setShowImport(false); setImportText(""); setImportResult(null); }} className="px-4 py-1.5 rounded-lg text-xs font-medium bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 transition-all">
+                  Annulla
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Form nuovo/modifica prodotto */}
           {editingProduct && (

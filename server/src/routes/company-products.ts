@@ -82,5 +82,66 @@ export function companyProductRoutes(db: Db) {
     return res.json({ ok: true });
   });
 
+  // POST /api/company-products/import — import from CSV text
+  router.post("/company-products/import", async (req, res) => {
+    const { companyId, csvText } = req.body;
+    if (!companyId || !csvText) return res.status(400).json({ error: "companyId and csvText required" });
+
+    try {
+      const lines = csvText.split("\n").map((l: string) => l.trim()).filter((l: string) => l);
+      if (lines.length < 2) return res.status(400).json({ error: "CSV deve avere almeno un header e una riga" });
+
+      // Parse header (case-insensitive, flexible names)
+      const header = lines[0].split(/[;,\t]/).map((h: string) => h.trim().toLowerCase().replace(/['"]/g, ""));
+      const colMap: Record<string, number> = {};
+      const aliases: Record<string, string[]> = {
+        name: ["nome", "name", "prodotto", "servizio", "articolo"],
+        type: ["tipo", "type"],
+        category: ["categoria", "category", "cat"],
+        unit: ["unita", "unità", "unit", "um"],
+        priceB2b: ["prezzo_b2b", "prezzo b2b", "price_b2b", "b2b", "prezzo_ingrosso"],
+        priceB2c: ["prezzo_b2c", "prezzo b2c", "price_b2c", "b2c", "prezzo", "prezzo_pubblico", "price"],
+        description: ["descrizione", "description", "desc"],
+        sku: ["sku", "codice", "codice_articolo", "cod"],
+      };
+      for (const [field, names] of Object.entries(aliases)) {
+        const idx = header.findIndex((h: string) => names.includes(h));
+        if (idx >= 0) colMap[field] = idx;
+      }
+
+      if (!("name" in colMap)) return res.status(400).json({ error: "CSV deve avere una colonna 'nome' o 'name'" });
+
+      // Parse rows
+      const products: Array<Record<string, unknown>> = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(/[;,\t]/).map((c: string) => c.trim().replace(/^['"]|['"]$/g, ""));
+        const name = cols[colMap.name] || "";
+        if (!name) continue;
+
+        products.push({
+          companyId,
+          name,
+          type: colMap.type !== undefined ? (cols[colMap.type] === "service" ? "service" : "product") : "product",
+          category: colMap.category !== undefined ? cols[colMap.category] || null : null,
+          unit: colMap.unit !== undefined ? cols[colMap.unit] || null : null,
+          priceB2b: colMap.priceB2b !== undefined ? cols[colMap.priceB2b] || null : null,
+          priceB2c: colMap.priceB2c !== undefined ? cols[colMap.priceB2c] || null : null,
+          description: colMap.description !== undefined ? cols[colMap.description] || null : null,
+          sku: colMap.sku !== undefined ? cols[colMap.sku] || null : null,
+        });
+      }
+
+      if (products.length === 0) return res.status(400).json({ error: "Nessun prodotto valido trovato nel CSV" });
+
+      // Insert all
+      await db.insert(companyProducts).values(products as any);
+
+      return res.json({ imported: products.length });
+    } catch (err) {
+      console.error("CSV import error:", err);
+      return res.status(500).json({ error: "Errore durante l'importazione" });
+    }
+  });
+
   return router;
 }

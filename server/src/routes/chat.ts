@@ -504,6 +504,66 @@ export const TOOLS = [
       required: ["testo", "piattaforme"] as string[],
     },
   },
+  // Catalogo prodotti/servizi
+  {
+    name: "lista_prodotti",
+    description: "Mostra il catalogo prodotti e servizi dell'azienda con prezzi B2B e B2C, categorie e disponibilità.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        categoria: { type: "string", description: "Filtra per categoria (opzionale)" },
+      },
+      required: [] as string[],
+    },
+  },
+  {
+    name: "aggiungi_prodotto",
+    description: "Aggiungi un prodotto o servizio al catalogo aziendale.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        nome: { type: "string", description: "Nome del prodotto/servizio" },
+        tipo: { type: "string", enum: ["product", "service"], description: "Tipo: product o service" },
+        categoria: { type: "string", description: "Categoria (es: Farmaci, Vini rossi, Consulenza)" },
+        unita: { type: "string", description: "Unità di misura (es: pz, kg, ora, confezione)" },
+        prezzo_b2b: { type: "string", description: "Prezzo B2B per aziende" },
+        prezzo_b2c: { type: "string", description: "Prezzo B2C al pubblico" },
+        descrizione: { type: "string", description: "Descrizione del prodotto" },
+        sku: { type: "string", description: "Codice articolo SKU (opzionale)" },
+      },
+      required: ["nome"] as string[],
+    },
+  },
+  {
+    name: "modifica_prodotto",
+    description: "Modifica un prodotto/servizio esistente nel catalogo. Usa lista_prodotti per ottenere l'ID.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        prodotto_id: { type: "string", description: "ID del prodotto da modificare" },
+        nome: { type: "string", description: "Nuovo nome" },
+        prezzo_b2b: { type: "string", description: "Nuovo prezzo B2B" },
+        prezzo_b2c: { type: "string", description: "Nuovo prezzo B2C" },
+        disponibile: { type: "boolean", description: "true = disponibile, false = non disponibile" },
+        descrizione: { type: "string", description: "Nuova descrizione" },
+        categoria: { type: "string", description: "Nuova categoria" },
+        unita: { type: "string", description: "Nuova unità" },
+        sku: { type: "string", description: "Nuovo SKU" },
+      },
+      required: ["prodotto_id"] as string[],
+    },
+  },
+  {
+    name: "elimina_prodotto",
+    description: "Elimina un prodotto/servizio dal catalogo.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        prodotto_id: { type: "string", description: "ID del prodotto da eliminare" },
+      },
+      required: ["prodotto_id"] as string[],
+    },
+  },
   // A2A — Rete B2B
   {
     name: "cerca_azienda_a2a",
@@ -636,6 +696,11 @@ export const TOOL_CONNECTOR: Record<string, string | null> = {
   riassunto_conversazioni_wa: "whatsapp",
   genera_immagine: "fal",
   pubblica_social: null, // CEO always has access, checks connectors internally
+  // Catalogo prodotti
+  lista_prodotti: null,
+  aggiungi_prodotto: null,
+  modifica_prodotto: null,
+  elimina_prodotto: null,
   // A2A — Rete B2B (always available, profile check is in the tool implementation)
   cerca_azienda_a2a: null,
   lista_partner_a2a: null,
@@ -2413,6 +2478,72 @@ export async function executeChatTool(
 
         if (results.length === 0) return "Nessuna piattaforma target specificata. Usa formato: ['ig_energizzo.it'] per Instagram, ['fb_PAGEID'] per Facebook, ['li'] per LinkedIn.";
         return "Risultati pubblicazione:\n" + results.map(r => "- " + r).join("\n");
+      }
+
+      // Catalogo prodotti tools
+      case "lista_prodotti": {
+        const catFilter = toolInput.categoria as string;
+        const conditions = [eq(companyProducts.companyId, companyId)];
+        if (catFilter) conditions.push(eq(companyProducts.category, catFilter));
+        const prods = await db.select().from(companyProducts)
+          .where(and(...conditions))
+          .orderBy(asc(companyProducts.category), asc(companyProducts.name));
+        if (prods.length === 0) return "Nessun prodotto o servizio nel catalogo. Il titolare può aggiungerli dalla pagina Profilo > Catalogo, oppure puoi aggiungerli tu con il tool aggiungi_prodotto.";
+        let result = `Catalogo (${prods.length} prodotti):\n\n`;
+        let currentCat = "";
+        for (const p of prods) {
+          if (p.category && p.category !== currentCat) { currentCat = p.category; result += `\n[${currentCat}]\n`; }
+          const prices = [p.priceB2b ? `B2B: €${p.priceB2b}` : "", p.priceB2c ? `B2C: €${p.priceB2c}` : ""].filter(Boolean).join(" | ");
+          result += `• ${p.name}${p.unit ? " (" + p.unit + ")" : ""} — ${prices || "prezzo su richiesta"}${!p.available ? " [NON DISPONIBILE]" : ""}${p.sku ? " [SKU: " + p.sku + "]" : ""} [ID: ${p.id}]\n`;
+          if (p.description) result += `  ${p.description}\n`;
+        }
+        return result;
+      }
+
+      case "aggiungi_prodotto": {
+        const nome = toolInput.nome as string;
+        if (!nome) return "Specifica il nome del prodotto.";
+        const created = await db.insert(companyProducts).values({
+          companyId,
+          type: (toolInput.tipo as string) || "product",
+          name: nome,
+          description: (toolInput.descrizione as string) || null,
+          category: (toolInput.categoria as string) || null,
+          unit: (toolInput.unita as string) || null,
+          priceB2b: (toolInput.prezzo_b2b as string) || null,
+          priceB2c: (toolInput.prezzo_b2c as string) || null,
+          sku: (toolInput.sku as string) || null,
+        }).returning();
+        return `Prodotto aggiunto: ${nome} [ID: ${created[0].id}]`;
+      }
+
+      case "modifica_prodotto": {
+        const prodId = toolInput.prodotto_id as string;
+        if (!prodId) return "Specifica prodotto_id (usa lista_prodotti per ottenerlo).";
+        const updates: Record<string, unknown> = { updatedAt: new Date() };
+        if (toolInput.nome) updates.name = toolInput.nome as string;
+        if (toolInput.prezzo_b2b !== undefined) updates.priceB2b = (toolInput.prezzo_b2b as string) || null;
+        if (toolInput.prezzo_b2c !== undefined) updates.priceB2c = (toolInput.prezzo_b2c as string) || null;
+        if (toolInput.disponibile !== undefined) updates.available = toolInput.disponibile as boolean;
+        if (toolInput.descrizione !== undefined) updates.description = (toolInput.descrizione as string) || null;
+        if (toolInput.categoria !== undefined) updates.category = (toolInput.categoria as string) || null;
+        if (toolInput.unita !== undefined) updates.unit = (toolInput.unita as string) || null;
+        if (toolInput.sku !== undefined) updates.sku = (toolInput.sku as string) || null;
+        const updated = await db.update(companyProducts).set(updates)
+          .where(and(eq(companyProducts.id, prodId), eq(companyProducts.companyId, companyId)))
+          .returning();
+        if (!updated.length) return "Prodotto non trovato con questo ID.";
+        return `Prodotto aggiornato: ${updated[0].name}`;
+      }
+
+      case "elimina_prodotto": {
+        const delId = toolInput.prodotto_id as string;
+        if (!delId) return "Specifica prodotto_id.";
+        const deleted = await db.delete(companyProducts)
+          .where(and(eq(companyProducts.id, delId), eq(companyProducts.companyId, companyId)))
+          .returning();
+        if (!deleted.length) return "Prodotto non trovato.";
+        return `Prodotto eliminato: ${deleted[0].name}`;
       }
 
       // A2A — Rete B2B tools (delegated to a2a-tools service)

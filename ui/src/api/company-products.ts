@@ -29,4 +29,7 @@ export const companyProductsApi = {
 
   remove: (id: string, companyId: string) =>
     api.delete<void>(`/company-products/${id}?companyId=${companyId}`),
+
+  importCsv: (companyId: string, csvText: string) =>
+    api.post<{ imported: number }>("/company-products/import", { companyId, csvText }),
 };
