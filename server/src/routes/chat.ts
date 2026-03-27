@@ -96,7 +96,7 @@ export const TOOLS = [
   },
   {
     name: "salva_info_azienda",
-    description: "Salva o aggiorna le informazioni dell'azienda del cliente in memoria (ragione sociale, P.IVA, CF, indirizzo, settore, PEC, telefono, email, sito web, ecc.)",
+    description: "Salva o aggiorna le informazioni dell'azienda del cliente in memoria. Usa TUTTI i campi disponibili quando hai i dati da cerca_piva_onboarding.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -107,12 +107,27 @@ export const TOOLS = [
         citta: { type: "string", description: "Città" },
         cap: { type: "string", description: "CAP" },
         provincia: { type: "string", description: "Provincia (sigla)" },
-        settore: { type: "string", description: "Settore / attività principale" },
+        regione: { type: "string", description: "Regione" },
+        settore: { type: "string", description: "Settore / attività principale con codice ATECO" },
+        forma_giuridica: { type: "string", description: "Forma giuridica (SRL, SPA, ecc.)" },
+        stato_attivita: { type: "string", description: "Stato attività (ATTIVA, CESSATA, ecc.)" },
+        data_inizio: { type: "string", description: "Data inizio attività" },
         pec: { type: "string", description: "Indirizzo PEC" },
+        codice_sdi: { type: "string", description: "Codice destinatario SDI" },
         telefono: { type: "string", description: "Telefono" },
         email: { type: "string", description: "Email di contatto" },
-        codice_sdi: { type: "string", description: "Codice destinatario SDI" },
+        whatsapp: { type: "string", description: "Numero WhatsApp" },
         sito_web: { type: "string", description: "Sito web" },
+        dipendenti: { type: "string", description: "Numero dipendenti" },
+        fatturato: { type: "string", description: "Fatturato ultimo bilancio" },
+        patrimonio_netto: { type: "string", description: "Patrimonio netto" },
+        capitale_sociale: { type: "string", description: "Capitale sociale" },
+        totale_attivo: { type: "string", description: "Totale attivo" },
+        risk_score: { type: "string", description: "Risk score (VERDE, GIALLO, ROSSO)" },
+        rating: { type: "string", description: "Rating creditizio (es: B2)" },
+        risk_severity: { type: "string", description: "Severità rischio (0-990)" },
+        credit_limit: { type: "string", description: "Limite credito operativo in euro" },
+        soci: { type: "string", description: "Elenco soci con quote % (es: Mario Rossi 60%, Luca Bianchi 40%)" },
         note: { type: "string", description: "Note aggiuntive sull'azienda" },
       },
       required: [],
@@ -666,7 +681,7 @@ Quando un nuovo cliente arriva (nessuna info aziendale in memoria):
 2. Chiedi SOLO la Partita IVA: "Per iniziare, dimmi la Partita IVA della tua azienda."
 3. Usa il tool cerca_piva_onboarding con la PIVA fornita
 4. Se trovata: mostra TUTTI i dati trovati al titolare senza omettere nulla — ragione sociale, PIVA, CF, forma giuridica, stato attività, data inizio, indirizzo completo (via, CAP, città, provincia, regione), ATECO, PEC, codice SDI, fatturato, patrimonio netto, capitale sociale, totale attivo, dipendenti, costo personale, soci con quote %, risk score, rating, severità rischio, limite credito operativo. Poi chiedi conferma: "Confermi che è la tua azienda?"
-5. Se confermato: salva TUTTO in memoria con salva_info_azienda — ragione_sociale, partita_iva, codice_fiscale, indirizzo, citta, cap, provincia, settore (descrizione ATECO), pec, codice_sdi. Salva anche con salva_nota i dati extra: forma giuridica, fatturato, dipendenti, patrimonio netto, soci, risk score, rating creditizio
+5. Se confermato: salva TUTTO in UNA SOLA chiamata a salva_info_azienda con TUTTI i campi disponibili: ragione_sociale, partita_iva, codice_fiscale, indirizzo, citta, cap, provincia, regione, settore (descrizione ATECO + codice), forma_giuridica, stato_attivita, data_inizio, pec, codice_sdi, dipendenti, fatturato, patrimonio_netto, capitale_sociale, totale_attivo, risk_score, rating, risk_severity, credit_limit, soci. NON usare salva_nota per questi dati — metti TUTTO in salva_info_azienda
 6. Chiedi: "Perfetto! C'è qualcos'altro che vuoi dirmi sulla tua azienda? Servizi particolari, specialità, obiettivi?"
 7. Salva eventuali info aggiuntive con salva_nota
 8. DOPO IL RIEPILOGO: scrivi ESATTAMENTE: "Perfetto! Premi il bottone qui sotto per andare ai Connettori e collegare i tuoi servizi (Google, WhatsApp, Telegram, ecc.). Dopo aver collegato i connettori potrai creare i tuoi agenti AI specializzati."
