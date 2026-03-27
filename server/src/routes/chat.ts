@@ -1260,7 +1260,20 @@ async function getOaiToken(db: Db, companyId: string, service: string): Promise<
     return creds.tokens?.[service] || null;
   } catch { return null; }
 }
+// Lock to prevent parallel token refreshes for the same company
+const googleRefreshLocks = new Map<string, Promise<string | null>>();
+
 async function getGoogleTokenForChat(db: Db, companyId: string): Promise<string | null> {
+  // If a refresh is already in progress for this company, wait for it
+  const existing = googleRefreshLocks.get(companyId);
+  if (existing) return existing;
+
+  const promise = _getGoogleTokenForChatImpl(db, companyId);
+  googleRefreshLocks.set(companyId, promise);
+  try { return await promise; } finally { googleRefreshLocks.delete(companyId); }
+}
+
+async function _getGoogleTokenForChatImpl(db: Db, companyId: string): Promise<string | null> {
   const secret = await db.select().from(companySecrets)
     .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "google_oauth_tokens")))
     .then((r) => r[0]);
@@ -1618,16 +1631,27 @@ export async function executeChatTool(
         if (conn) {
           // Map connector name to connector_type in connector_accounts table
           let connType = conn; // default: same name
-          if (conn === "meta") connType = acctId ? "meta_ig" : "meta_ig"; // meta always maps to ig for now
+          if (conn === "meta") connType = "meta_ig"; // try IG first, then FB
           const accountIdForLookup = acctId || "default";
 
-          const connAccount = await db.select().from(connectorAccounts)
+          let connAccount = await db.select().from(connectorAccounts)
             .where(and(
               eq(connectorAccounts.companyId, companyId),
               eq(connectorAccounts.connectorType, connType),
               eq(connectorAccounts.accountId, accountIdForLookup),
             ))
             .then(r => r[0]);
+
+          // If meta_ig not found, try meta_fb
+          if (!connAccount && conn === "meta") {
+            connAccount = await db.select().from(connectorAccounts)
+              .where(and(
+                eq(connectorAccounts.companyId, companyId),
+                eq(connectorAccounts.connectorType, "meta_fb"),
+                eq(connectorAccounts.accountId, accountIdForLookup),
+              ))
+              .then(r => r[0]);
+          }
 
           if (connAccount) {
             await db.insert(agentConnectorAccounts).values({
@@ -2706,6 +2730,31 @@ export function getCeoPromptBase(): string {
   return CEO_PROMPT_BASE;
 }
 
+// Simple in-memory rate limiter for AI endpoints (per-company, sliding window)
+const aiRateLimits = new Map<string, number[]>();
+const AI_RATE_LIMIT = 20; // max requests per window
+const AI_RATE_WINDOW = 60_000; // 1 minute window
+
+function checkAiRateLimit(companyId: string): boolean {
+  const now = Date.now();
+  const timestamps = aiRateLimits.get(companyId) || [];
+  const recent = timestamps.filter(t => now - t < AI_RATE_WINDOW);
+  if (recent.length >= AI_RATE_LIMIT) return false;
+  recent.push(now);
+  aiRateLimits.set(companyId, recent);
+  return true;
+}
+
+// Cleanup stale entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamps] of aiRateLimits) {
+    const recent = timestamps.filter(t => now - t < AI_RATE_WINDOW);
+    if (recent.length === 0) aiRateLimits.delete(key);
+    else aiRateLimits.set(key, recent);
+  }
+}, 300_000);
+
 export function chatRoutes(db: Db) {
   const router = Router();
 
@@ -2727,7 +2776,8 @@ export function chatRoutes(db: Db) {
     const limit = parseInt(req.query.limit as string) || 50;
     if (!companyId) { res.json({ messages: [] }); return; }
     try {
-      const rows = await db.execute(sql`SELECT id, role, content, created_at FROM chat_messages WHERE company_id = ${companyId} AND user_id = ${actor.userId} ORDER BY created_at ASC LIMIT 50`);
+      const safeLimit = Math.min(Math.max(limit, 1), 200);
+      const rows = await db.execute(sql`SELECT id, role, content, created_at FROM chat_messages WHERE company_id = ${companyId} AND user_id = ${actor.userId} ORDER BY created_at ASC LIMIT ${safeLimit}`);
       res.json({ messages: rows || [] });
     } catch (err) {
       console.error("Chat history error:", err);
@@ -2788,6 +2838,12 @@ export function chatRoutes(db: Db) {
 
       if (!companyId || !message) {
         res.status(400).json({ error: "companyId e message sono obbligatori" });
+        return;
+      }
+
+      // Rate limit: max 20 AI requests per company per minute
+      if (!checkAiRateLimit(companyId)) {
+        res.status(429).json({ error: "Troppe richieste. Riprova tra un minuto." });
         return;
       }
 
