@@ -126,6 +126,7 @@ export function PluginManager() {
       if (p.get("fic_connected")) return "fic";
       if (p.get("wa_connected")) return "whatsapp";
       if (p.get("hubspot_connected")) return "hubspot";
+      if (p.get("salesforce_connected")) return "salesforce";
       if (p.get("fal_connected")) return "fal";
       if (p.get("openapi_connected")) return "openapi";
     } catch {} return null;
@@ -1296,36 +1297,19 @@ export function PluginManager() {
                       <span className="flex-1 text-xs">Salesforce CRM — {(customConnectors.find(c => c.slug === "salesforce")?.actions || []).length} azioni</span>
                     </div>
                     <button className="text-red-400/50 hover:text-red-400 transition-colors shrink-0" onClick={async () => {
-                      const c = customConnectors.find(x => x.slug === "salesforce");
-                      if (!c || !confirm("Disconnettere Salesforce CRM?")) return;
-                      await fetch(`/api/custom-connectors/${c.id}?companyId=${selectedCompany?.id}`, { method: "DELETE", credentials: "include" });
-                      setCustomConnectors(prev => prev.filter(x => x.id !== c.id));
+                      if (!confirm("Disconnettere Salesforce CRM?")) return;
+                      await fetch("/api/oauth/salesforce/disconnect", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany?.id }) });
+                      setCustomConnectors(prev => prev.filter(x => x.slug !== "salesforce"));
                     }} title="Disconnetti">{xIcon}</button>
                   </div>
                   <div className={actionRow}>{agentBtn(`custom_salesforce`, "Salesforce CRM")}</div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <p className="text-[10px] text-muted-foreground">Crea una Connected App in <a href="https://login.salesforce.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Salesforce Setup → App Manager</a>. Abilita OAuth e genera un Access Token.</p>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground mb-1.5 block">Instance URL</label>
-                    <input className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" placeholder="https://mycompany.my.salesforce.com" value={crmInstanceUrl} onChange={(e) => setCrmInstanceUrl(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground mb-1.5 block">Access Token (Bearer)</label>
-                    <input type="password" className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-transparent text-xs outline-none" placeholder="00D..." value={crmApiKey} onChange={(e) => setCrmApiKey(e.target.value)} />
-                  </div>
-                  <button disabled={crmSaving || !crmApiKey || !crmInstanceUrl} className="px-4 py-2 rounded-xl text-xs font-medium disabled:opacity-40 transition-all" style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}
-                    onClick={async () => {
-                      setCrmSaving(true);
-                      try {
-                        const r = await fetch("/api/custom-connectors/from-template", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ companyId: selectedCompany?.id, templateKey: "salesforce", apiKey: crmApiKey, instanceUrl: crmInstanceUrl }) });
-                        const d = await r.json();
-                        if (r.ok) { setCustomConnectors(prev => [...prev, d]); setCrmApiKey(""); setCrmInstanceUrl(""); } else { alert(d.error || "Errore"); }
-                      } catch { alert("Errore di rete"); }
-                      setCrmSaving(false);
-                    }}>{crmSaving ? "Verifica..." : "Collega Salesforce"}</button>
-                </div>
+                <button
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all mt-2"
+                  style={{ background: "linear-gradient(135deg, hsl(158 64% 42%), hsl(160 70% 36%))", color: "white" }}
+                  onClick={() => { window.location.href = "/api/oauth/salesforce/connect?companyId=" + selectedCompany?.id + "&prefix=" + (selectedCompany?.issuePrefix || ""); }}
+                >Collega Salesforce</button>
               )}
             </div>
           )}

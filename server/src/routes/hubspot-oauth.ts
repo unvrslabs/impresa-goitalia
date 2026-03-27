@@ -6,8 +6,8 @@ import crypto from "node:crypto";
 import { encrypt, decrypt } from "../utils/crypto.js";
 import { upsertConnectorAccount, removeConnectorAccount } from "../utils/connector-sync.js";
 
-const HUBSPOT_CLIENT_ID = process.env.HUBSPOT_CLIENT_ID || "2e8f0fe5-8ebc-4626-8722-59374d6427cf";
-const HUBSPOT_CLIENT_SECRET = process.env.HUBSPOT_CLIENT_SECRET || "4456c10d-9837-4ee2-9b79-38b15b901ae3";
+const HUBSPOT_CLIENT_ID = process.env.HUBSPOT_CLIENT_ID || "";
+const HUBSPOT_CLIENT_SECRET = process.env.HUBSPOT_CLIENT_SECRET || "";
 const BASE_URL = process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL || "https://impresa.goitalia.eu";
 const REDIRECT_URI = BASE_URL + "/api/oauth/hubspot/callback";
 
