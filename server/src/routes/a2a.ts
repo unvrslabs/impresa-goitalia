@@ -7,6 +7,14 @@ import { processIncomingA2ATask } from "../services/a2a-auto-respond.js";
 export function a2aRoutes(db: Db) {
   const router = Router();
 
+  // Auth helper — require authenticated user with access to companyId
+  function requireAuth(req: any, res: any, companyId: string | undefined): companyId is string {
+    const actor = req.actor as { type?: string; userId?: string; companyIds?: string[] } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return false; }
+    if (!companyId) { res.status(400).json({ error: "companyId required" }); return false; }
+    return true;
+  }
+
   // ==================== PROFILE ====================
 
   // Helper: convert companyProfiles row → A2A API response format (retrocompat)
@@ -34,7 +42,7 @@ export function a2aRoutes(db: Db) {
   // GET /api/a2a/profile?companyId=
   router.get("/a2a/profile", async (req, res) => {
     const companyId = req.query.companyId as string;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
+    if (!requireAuth(req, res, companyId)) return;
 
     const row = await db.select().from(companyProfiles)
       .where(eq(companyProfiles.companyId, companyId))
@@ -49,7 +57,7 @@ export function a2aRoutes(db: Db) {
   // POST /api/a2a/profile — activate A2A or update A2A fields
   router.post("/a2a/profile", async (req, res) => {
     const { companyId, slug, tags, services, visibility, description } = req.body;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
+    if (!requireAuth(req, res, companyId)) return;
 
     const existing = await db.select().from(companyProfiles)
       .where(eq(companyProfiles.companyId, companyId))
@@ -89,7 +97,7 @@ export function a2aRoutes(db: Db) {
   // DELETE /api/a2a/profile?companyId= — deactivate A2A (reset A2A fields, keep profile)
   router.delete("/a2a/profile", async (req, res) => {
     const companyId = req.query.companyId as string;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
+    if (!requireAuth(req, res, companyId)) return;
 
     await db.update(companyProfiles)
       .set({ slug: null, visibility: "hidden", updatedAt: new Date() })
@@ -102,10 +110,9 @@ export function a2aRoutes(db: Db) {
   // GET /api/a2a/directory?companyId=&q=&zone=&ateco=
   router.get("/a2a/directory", async (req, res) => {
     const companyId = req.query.companyId as string;
+    if (!requireAuth(req, res, companyId)) return;
     const q = (req.query.q as string || "").trim();
     const zone = (req.query.zone as string || "").trim();
-
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
 
     // Get IDs of already connected companies (active or pending)
     const connectedIds = await db.select({ toId: a2aConnections.toCompanyId })
@@ -160,7 +167,7 @@ export function a2aRoutes(db: Db) {
   // GET /api/a2a/connections?companyId=
   router.get("/a2a/connections", async (req, res) => {
     const companyId = req.query.companyId as string;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
+    if (!requireAuth(req, res, companyId)) return;
 
     const outgoing = await db.select({
       id: a2aConnections.id,
@@ -208,7 +215,8 @@ export function a2aRoutes(db: Db) {
   // POST /api/a2a/connections
   router.post("/a2a/connections", async (req, res) => {
     const { companyId, toCompanyId, relationshipLabel, notes } = req.body;
-    if (!companyId || !toCompanyId) return res.status(400).json({ error: "companyId and toCompanyId required" });
+    if (!requireAuth(req, res, companyId)) return;
+    if (!toCompanyId) return res.status(400).json({ error: "toCompanyId required" });
     if (companyId === toCompanyId) return res.status(400).json({ error: "Cannot connect to yourself" });
 
     const existing = await db.select().from(a2aConnections)
@@ -235,7 +243,7 @@ export function a2aRoutes(db: Db) {
   router.put("/a2a/connections/:id", async (req, res) => {
     const { id } = req.params;
     const { companyId, status, relationshipLabel, notes } = req.body;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
+    if (!requireAuth(req, res, companyId)) return;
 
     const conn = await db.select().from(a2aConnections)
       .where(eq(a2aConnections.id, id))
@@ -285,7 +293,7 @@ export function a2aRoutes(db: Db) {
   router.delete("/a2a/connections/:id", async (req, res) => {
     const { id } = req.params;
     const companyId = req.query.companyId as string;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
+    if (!requireAuth(req, res, companyId)) return;
 
     const conn = await db.select().from(a2aConnections)
       .where(eq(a2aConnections.id, id))
@@ -306,10 +314,10 @@ export function a2aRoutes(db: Db) {
   // GET /api/a2a/tasks?companyId=&direction=in|out&status=&type=
   router.get("/a2a/tasks", async (req, res) => {
     const companyId = req.query.companyId as string;
+    if (!requireAuth(req, res, companyId)) return;
     const direction = req.query.direction as string;
     const statusFilter = req.query.status as string;
     const typeFilter = req.query.type as string;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
 
     const conditions = [];
     if (direction === "in") {
@@ -333,7 +341,8 @@ export function a2aRoutes(db: Db) {
   // POST /api/a2a/tasks
   router.post("/a2a/tasks", async (req, res) => {
     const { companyId, toCompanyId, type, title, description, requiresApproval, metadata } = req.body;
-    if (!companyId || !toCompanyId || !title) return res.status(400).json({ error: "companyId, toCompanyId, title required" });
+    if (!requireAuth(req, res, companyId)) return;
+    if (!toCompanyId || !title) return res.status(400).json({ error: "toCompanyId and title required" });
 
     // Verify target company has A2A active (has slug in company_profiles)
     const targetProfile = await db.select({ id: companyProfiles.id }).from(companyProfiles)
@@ -365,12 +374,14 @@ export function a2aRoutes(db: Db) {
     return res.status(201).json(created[0]);
   });
 
-  // GET /api/a2a/tasks/:id
+  // GET /api/a2a/tasks/:id?companyId=
   router.get("/a2a/tasks/:id", async (req, res) => {
     const { id } = req.params;
+    const companyId = req.query.companyId as string;
+    if (!requireAuth(req, res, companyId)) return;
 
     const task = await db.select().from(a2aTasks)
-      .where(eq(a2aTasks.id, id))
+      .where(and(eq(a2aTasks.id, id), or(eq(a2aTasks.fromCompanyId, companyId), eq(a2aTasks.toCompanyId, companyId))))
       .then((r) => r[0]);
 
     if (!task) return res.status(404).json({ error: "Task not found" });
@@ -385,12 +396,13 @@ export function a2aRoutes(db: Db) {
   // PUT /api/a2a/tasks/:id
   router.put("/a2a/tasks/:id", async (req, res) => {
     const { id } = req.params;
-    const { status } = req.body;
+    const { companyId, status } = req.body;
+    if (!requireAuth(req, res, companyId)) return;
     if (!status) return res.status(400).json({ error: "status required" });
 
     const updated = await db.update(a2aTasks)
       .set({ status, updatedAt: new Date() })
-      .where(eq(a2aTasks.id, id))
+      .where(and(eq(a2aTasks.id, id), or(eq(a2aTasks.fromCompanyId, companyId), eq(a2aTasks.toCompanyId, companyId))))
       .returning();
 
     if (!updated.length) return res.status(404).json({ error: "Task not found" });
@@ -401,7 +413,8 @@ export function a2aRoutes(db: Db) {
   router.post("/a2a/tasks/:id/messages", async (req, res) => {
     const { id } = req.params;
     const { companyId, role, content, attachments } = req.body;
-    if (!companyId || !content) return res.status(400).json({ error: "companyId, content required" });
+    if (!requireAuth(req, res, companyId)) return;
+    if (!content) return res.status(400).json({ error: "content required" });
 
     const task = await db.select({ id: a2aTasks.id }).from(a2aTasks)
       .where(eq(a2aTasks.id, id))
@@ -424,7 +437,7 @@ export function a2aRoutes(db: Db) {
   // GET /api/a2a/unread-count?companyId=
   router.get("/a2a/unread-count", async (req, res) => {
     const companyId = req.query.companyId as string;
-    if (!companyId) return res.json({ connections: 0, tasks: 0, total: 0 });
+    if (!requireAuth(req, res, companyId)) return;
 
     const pendingConnections = await db.select({ count: sql<number>`count(*)` })
       .from(a2aConnections)

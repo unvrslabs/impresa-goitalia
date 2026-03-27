@@ -469,7 +469,12 @@ export function whatsappWebhookRouter(db: Db) {
   router.post("/:companyId", async (req, res) => {
     const companyId = req.params.companyId;
     const event = req.body;
-    // Webhook received
+    // Basic validation — reject if no valid event structure
+    if (!event?.event || !companyId || companyId.length < 20) {
+      res.status(400).json({ error: "Invalid webhook" });
+      return;
+    }
+    // Respond immediately
     res.json({ ok: true });
 
     if (event?.event === "messages.received" && event?.data?.messages) {

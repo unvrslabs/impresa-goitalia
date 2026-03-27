@@ -6,10 +6,18 @@ import { eq, and, asc } from "drizzle-orm";
 export function companyProductRoutes(db: Db) {
   const router = Router();
 
+  // Auth helper
+  function requireAuth(req: any, res: any, companyId: string | undefined): companyId is string {
+    const actor = req.actor as { type?: string; userId?: string } | undefined;
+    if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return false; }
+    if (!companyId) { res.status(400).json({ error: "companyId required" }); return false; }
+    return true;
+  }
+
   // GET /api/company-products?companyId=
   router.get("/company-products", async (req, res) => {
     const companyId = req.query.companyId as string;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
+    if (!requireAuth(req, res, companyId)) return;
 
     const products = await db.select().from(companyProducts)
       .where(eq(companyProducts.companyId, companyId))
@@ -21,7 +29,8 @@ export function companyProductRoutes(db: Db) {
   // POST /api/company-products
   router.post("/company-products", async (req, res) => {
     const { companyId, type, name, description, category, unit, priceB2b, priceB2c, currency, available, stockQty, vatRate, sku } = req.body;
-    if (!companyId || !name) return res.status(400).json({ error: "companyId and name required" });
+    if (!requireAuth(req, res, companyId)) return;
+    if (!name) return res.status(400).json({ error: "name required" });
 
     const created = await db.insert(companyProducts).values({
       companyId,
@@ -45,10 +54,11 @@ export function companyProductRoutes(db: Db) {
   // PUT /api/company-products/:id
   router.put("/company-products/:id", async (req, res) => {
     const { id } = req.params;
-    const { type, name, description, category, unit, priceB2b, priceB2c, currency, available, stockQty, vatRate, sku } = req.body;
+    const { companyId, type, name, description, category, unit, priceB2b, priceB2c, currency, available, stockQty, vatRate, sku } = req.body;
+    if (!requireAuth(req, res, companyId || req.query.companyId as string)) return;
 
     const existing = await db.select().from(companyProducts)
-      .where(eq(companyProducts.id, id))
+      .where(and(eq(companyProducts.id, id), eq(companyProducts.companyId, companyId || req.query.companyId as string)))
       .then((r) => r[0]);
     if (!existing) return res.status(404).json({ error: "Product not found" });
 
@@ -78,7 +88,7 @@ export function companyProductRoutes(db: Db) {
   router.delete("/company-products/:id", async (req, res) => {
     const { id } = req.params;
     const companyId = req.query.companyId as string;
-    if (!companyId) return res.status(400).json({ error: "companyId required" });
+    if (!requireAuth(req, res, companyId)) return;
 
     await db.delete(companyProducts)
       .where(and(eq(companyProducts.id, id), eq(companyProducts.companyId, companyId)));
@@ -89,7 +99,8 @@ export function companyProductRoutes(db: Db) {
   // POST /api/company-products/import — import from CSV text
   router.post("/company-products/import", async (req, res) => {
     const { companyId, csvText } = req.body;
-    if (!companyId || !csvText) return res.status(400).json({ error: "companyId and csvText required" });
+    if (!requireAuth(req, res, companyId)) return;
+    if (!csvText) return res.status(400).json({ error: "csvText required" });
 
     try {
       const lines = csvText.split("\n").map((l: string) => l.trim()).filter((l: string) => l);

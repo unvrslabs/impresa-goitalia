@@ -2358,13 +2358,12 @@ export async function executeChatTool(
         const input = toolInput as { ore?: number; numero?: string };
         const hours = input.ore || 24;
         const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-        let query = `SELECT remote_jid, from_name, message_text, direction, message_type, created_at FROM whatsapp_messages WHERE company_id = '${companyId}' AND created_at >= '${since}'`;
-        if (input.numero) {
-          const cleanNum = input.numero.replace(/\+/g, "").replace(/\s/g, "");
-          query += ` AND (from_name LIKE '%${cleanNum}%' OR remote_jid LIKE '%${cleanNum}%')`;
-        }
-        query += ` ORDER BY remote_jid, created_at ASC LIMIT 500`;
-        const rows = await db.execute(sql.raw(query)) as any[];
+        const cleanNum = input.numero ? input.numero.replace(/[^0-9]/g, "") : "";
+        const rows = await db.execute(
+          cleanNum
+            ? sql`SELECT remote_jid, from_name, message_text, direction, message_type, created_at FROM whatsapp_messages WHERE company_id = ${companyId} AND created_at >= ${since} AND (from_name LIKE ${"%" + cleanNum + "%"} OR remote_jid LIKE ${"%" + cleanNum + "%"}) ORDER BY remote_jid, created_at ASC LIMIT 500`
+            : sql`SELECT remote_jid, from_name, message_text, direction, message_type, created_at FROM whatsapp_messages WHERE company_id = ${companyId} AND created_at >= ${since} ORDER BY remote_jid, created_at ASC LIMIT 500`
+        ) as any[];
         if (!rows || rows.length === 0) return `Nessuna conversazione WhatsApp nelle ultime ${hours} ore.`;
 
         // Group by remote_jid
@@ -2813,7 +2812,7 @@ export function chatRoutes(db: Db) {
       let apiKey: string;
       try {
         apiKey = decryptSecret(secret.description);
-        console.info("[chat] decrypt OK, key starts with:", apiKey.substring(0, 10));
+        console.info("[chat] decrypt OK");
       } catch (decErr) {
         console.error("[chat] decrypt FAILED:", decErr);
         console.error("[chat] BETTER_AUTH_SECRET set:", !!process.env.BETTER_AUTH_SECRET);

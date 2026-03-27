@@ -173,13 +173,17 @@ export function billingWebhookRouter(db: Db) {
 
     let event: Stripe.Event;
     try {
-      if (webhookSecret && rawBody) {
-        const sig = req.headers["stripe-signature"] as string;
-        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
-      } else {
-        const body = rawBody ? rawBody.toString() : JSON.stringify(req.body);
-        event = JSON.parse(body) as Stripe.Event;
+      if (!webhookSecret) {
+        console.error("[billing webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting webhook");
+        res.status(500).json({ error: "Webhook secret not configured" });
+        return;
       }
+      if (!rawBody) {
+        res.status(400).json({ error: "Raw body not available" });
+        return;
+      }
+      const sig = req.headers["stripe-signature"] as string;
+      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } catch {
       res.status(400).json({ error: "Webhook verification failed" });
       return;
