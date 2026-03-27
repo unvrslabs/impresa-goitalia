@@ -2404,7 +2404,7 @@ export function chatRoutes(db: Db) {
       }
 
       let systemPrompt = "Sei un assistente AI di GoItalIA. Rispondi in italiano in modo professionale e conciso.";
-      let agentModel = "claude-sonnet-4-5-20241022";
+      let agentModel = "claude-sonnet-4-6";
       let agentRole = "ceo";
       let agentConnectors: Record<string, boolean> = {};
       let resolvedAgentId = agentId || "";
