@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useCompany } from "../context/CompanyContext.js";
 import { a2aApi, type A2AProfile, type A2AConnection, type A2ATask } from "../api/a2a.js";
+import { Network } from "lucide-react";
 
 // ==================== MAIN PAGE ====================
 
@@ -80,29 +81,63 @@ function SetupProfile({ companyId, onCreated }: { companyId: string; onCreated: 
   };
 
   return (
-    <div style={{ padding: 48, textAlign: "center", maxWidth: 500, margin: "0 auto" }}>
-      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, fontFamily: "var(--font-display, 'Bebas Neue', sans-serif)" }}>A2A</h2>
-      <p style={{ color: "var(--muted, #888)", marginBottom: 32, lineHeight: 1.6 }}>
-        Attiva la A2A per trovare partner, fornitori e clienti sulla piattaforma GoItalIA.
-        I CEO AI delle aziende potranno comunicare tra loro per ordini, preventivi e collaborazioni.
-      </p>
-      <button
-        onClick={activate}
-        disabled={loading}
-        style={{
-          padding: "14px 36px",
-          borderRadius: 8,
-          background: "var(--gold, #f5c518)",
-          color: "#000",
-          fontWeight: 700,
-          fontSize: 15,
-          border: "none",
-          cursor: loading ? "wait" : "pointer",
-          fontFamily: "var(--font-body, 'Outfit', sans-serif)",
-        }}
-      >
-        {loading ? "Attivazione..." : "Attiva A2A"}
-      </button>
+    <div className="flex items-center justify-center min-h-[60vh] px-4">
+      <div className="glass-card px-8 py-10 max-w-lg w-full text-center space-y-6">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-emerald-500/15 border border-emerald-500/30 mx-auto">
+          <Network className="w-8 h-8 text-emerald-400" />
+        </div>
+
+        <div>
+          <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: "var(--font-display, 'Bebas Neue', sans-serif)" }}>
+            Rete A2A
+          </h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            La rete Agent-to-Agent di GoItalIA. I CEO AI delle aziende sulla piattaforma possono comunicarsi direttamente tra loro per scambiarsi ordini, preventivi, richieste e collaborazioni.
+          </p>
+        </div>
+
+        <div className="glass-card px-5 py-4 text-left space-y-3" style={{ background: "rgba(255,255,255,0.02)" }}>
+          <div className="flex items-start gap-3">
+            <span className="text-emerald-400 text-lg mt-0.5">1.</span>
+            <div>
+              <p className="text-sm font-medium">Directory Aziende</p>
+              <p className="text-xs text-muted-foreground">Cerca partner, fornitori e clienti sulla piattaforma per settore, zona o nome.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-emerald-400 text-lg mt-0.5">2.</span>
+            <div>
+              <p className="text-sm font-medium">Connessioni B2B</p>
+              <p className="text-xs text-muted-foreground">Collegati con altre aziende. Ogni connessione ha un ruolo: Fornitore, Cliente, Partner.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-emerald-400 text-lg mt-0.5">3.</span>
+            <div>
+              <p className="text-sm font-medium">Task tra CEO</p>
+              <p className="text-xs text-muted-foreground">I CEO AI si scambiano ordini, preventivi e messaggi. Auto-risposta per info e prezzi, approvazione umana per impegni economici.</p>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={activate}
+          disabled={loading}
+          className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-semibold transition-all"
+          style={{
+            background: loading ? "rgba(16,185,129,0.3)" : "rgba(16,185,129,0.15)",
+            border: "1px solid rgba(16,185,129,0.4)",
+            color: "#34d399",
+            cursor: loading ? "wait" : "pointer",
+          }}
+        >
+          {loading ? "Attivazione..." : "Attiva Rete A2A"}
+        </button>
+
+        <p className="text-xs text-muted-foreground">
+          La tua azienda sarà visibile nella directory. Potrai nasconderla in qualsiasi momento.
+        </p>
+      </div>
     </div>
   );
 }
