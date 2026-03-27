@@ -346,7 +346,8 @@ export function CompanySettings() {
     { key: "orari" as const, label: "Orari", icon: Clock },
   ];
 
-  const inputCls = "w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-emerald-500/50 transition-colors";
+  const inputCls = "w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)] transition-colors";
+  const selectCls = inputCls + " pr-8";
 
   return (
     <div className="space-y-6">
@@ -580,7 +581,7 @@ export function CompanySettings() {
                   <input className={inputCls} value={editingProduct.name || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, name: e.target.value }))} placeholder="Es: Aspirina 500mg" />
                 </Field>
                 <Field label="Tipo">
-                  <select className={inputCls} value={editingProduct.type || "product"} onChange={(e) => setEditingProduct((p) => ({ ...p!, type: e.target.value as "product" | "service" }))}>
+                  <select className={selectCls} value={editingProduct.type || "product"} onChange={(e) => setEditingProduct((p) => ({ ...p!, type: e.target.value as "product" | "service" }))}>
                     <option value="product">Prodotto</option>
                     <option value="service">Servizio</option>
                   </select>
@@ -607,7 +608,7 @@ export function CompanySettings() {
                   <input className={inputCls} value={editingProduct.vatRate || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, vatRate: e.target.value }))} placeholder="Es: 22, 10, 4" />
                 </Field>
                 <Field label="Disponibile">
-                  <select className={inputCls} value={editingProduct.available !== false ? "true" : "false"} onChange={(e) => setEditingProduct((p) => ({ ...p!, available: e.target.value === "true" }))}>
+                  <select className={selectCls} value={editingProduct.available !== false ? "true" : "false"} onChange={(e) => setEditingProduct((p) => ({ ...p!, available: e.target.value === "true" }))}>
                     <option value="true">Disponibile</option>
                     <option value="false">Non disponibile</option>
                   </select>

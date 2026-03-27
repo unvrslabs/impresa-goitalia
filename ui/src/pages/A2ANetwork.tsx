@@ -513,7 +513,7 @@ function TasksTab({ companyId }: { companyId: string }) {
         <select
           value={direction}
           onChange={(e) => setDirection(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-white/10 bg-transparent text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)]"
+          className="px-3 pr-8 py-2 rounded-lg border border-white/10 bg-transparent text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)]"
         >
           <option value="">Tutte le direzioni</option>
           <option value="in">In entrata</option>
@@ -522,7 +522,7 @@ function TasksTab({ companyId }: { companyId: string }) {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-white/10 bg-transparent text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)]"
+          className="px-3 pr-8 py-2 rounded-lg border border-white/10 bg-transparent text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)]"
         >
           <option value="">Tutti gli stati</option>
           <option value="created">Creato</option>
