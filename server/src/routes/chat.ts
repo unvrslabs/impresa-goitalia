@@ -665,8 +665,8 @@ Quando un nuovo cliente arriva (nessuna info aziendale in memoria):
 1. Presentati: "Ciao! Sono il CEO della tua azienda AI su GoItalIA."
 2. Chiedi SOLO la Partita IVA: "Per iniziare, dimmi la Partita IVA della tua azienda."
 3. Usa il tool cerca_piva_onboarding con la PIVA fornita
-4. Se trovata: mostra i dati principali al titolare e chiedi conferma: "Ho trovato: [ragione sociale] — [attività/ATECO], [indirizzo]. Confermi che è la tua azienda?"
-5. Se confermato: salva TUTTO in memoria con salva_info_azienda (ragione_sociale, partita_iva, indirizzo, citta, cap, provincia, settore con descrizione ATECO, pec se presente)
+4. Se trovata: mostra i dati principali (ragione sociale, indirizzo, settore ATECO, PEC, codice SDI, stato attività, fatturato se disponibile) e chiedi conferma: "Ho trovato la tua azienda! Confermi?"
+5. Se confermato: salva TUTTO in memoria con salva_info_azienda — ragione_sociale, partita_iva, codice_fiscale, indirizzo, citta, cap, provincia, settore (descrizione ATECO), pec, codice_sdi. Salva anche con salva_nota i dati extra: forma giuridica, fatturato, dipendenti, patrimonio netto, soci, risk score, rating creditizio
 6. Chiedi: "Perfetto! C'è qualcos'altro che vuoi dirmi sulla tua azienda? Servizi particolari, specialità, obiettivi?"
 7. Salva eventuali info aggiuntive con salva_nota
 8. DOPO IL RIEPILOGO: scrivi ESATTAMENTE: "Perfetto! Premi il bottone qui sotto per andare ai Connettori e collegare i tuoi servizi (Google, WhatsApp, Telegram, ecc.). Dopo aver collegato i connettori potrai creare i tuoi agenti AI specializzati."
@@ -1704,9 +1704,11 @@ export async function executeChatTool(
         if (!piva || piva.length !== 11) return "Partita IVA non valida. Deve essere di 11 cifre.";
 
         const platformOaiToken = process.env.GOITALIA_OPENAPI_TOKEN;
+        const platformRiskToken = process.env.GOITALIA_OPENAPI_RISK_TOKEN;
         if (!platformOaiToken) return "Servizio temporaneamente non disponibile. Chiedi i dati aziendali manualmente.";
 
         try {
+          // 1. Fetch company data
           const r = await fetch(`https://company.openapi.com/IT-advanced/${encodeURIComponent(piva)}`, {
             headers: { Authorization: "Bearer " + platformOaiToken },
           });
@@ -1714,8 +1716,88 @@ export async function executeChatTool(
             if (r.status === 404) return "Partita IVA non trovata nel registro. Verifica il numero e riprova, oppure chiedi i dati manualmente.";
             return "Errore nella ricerca (status " + r.status + "). Chiedi i dati aziendali manualmente.";
           }
-          const data = await r.json();
-          return JSON.stringify(data, null, 2).substring(0, 4000);
+          const companyData = await r.json() as any;
+
+          // Pick the active company record (prefer ATTIVA over CESSATA)
+          const records = companyData.data || [];
+          const company = records.find((r: any) => r.activityStatus === "ATTIVA") || records[0];
+          if (!company) return "Nessun dato trovato per questa Partita IVA.";
+
+          // 2. Fetch risk score (if token available)
+          let riskInfo = "";
+          if (platformRiskToken) {
+            try {
+              const riskRes = await fetch(`https://risk.openapi.com/IT-creditscore-advanced/${encodeURIComponent(piva)}`, {
+                headers: { Authorization: "Bearer " + platformRiskToken },
+              });
+              if (riskRes.ok) {
+                const riskData = await riskRes.json() as any;
+                const rd = riskData.data;
+                if (rd) {
+                  riskInfo = `\n\n📊 CREDIT SCORE / AFFIDABILITÀ:
+- Risk Score: ${rd.risk_score || "N/D"} (${rd.risk_score_description || ""})
+- Rating: ${rd.rating || "N/D"}
+- Severità rischio: ${rd.risk_severity ?? "N/D"}/990
+- Limite credito operativo: €${rd.operational_credit_limit?.toLocaleString("it-IT") || "N/D"}`;
+                }
+              }
+            } catch { /* risk score non disponibile, non blocca */ }
+          }
+
+          // 3. Build structured response
+          const addr = company.address?.registeredOffice;
+          const ateco = company.atecoClassification?.ateco2007 || company.atecoClassification?.ateco;
+          const balance = company.balanceSheets?.last;
+          const legalForm = company.detailedLegalForm;
+          const shareholders = company.shareHolders || [];
+
+          let result = `🏢 DATI AZIENDALI TROVATI:
+
+📋 ANAGRAFICA:
+- Ragione Sociale: ${company.companyName || "N/D"}
+- Partita IVA: ${company.vatCode || piva}
+- Codice Fiscale: ${company.taxCode || piva}
+- Forma Giuridica: ${legalForm?.description || "N/D"}
+- Stato Attività: ${company.activityStatus || "N/D"}
+- Data Inizio: ${company.startDate || "N/D"}
+- Data Iscrizione CCIAA: ${company.registrationDate || "N/D"}
+
+📍 SEDE LEGALE:
+- Indirizzo: ${addr?.streetName || "N/D"}
+- CAP: ${addr?.zipCode || "N/D"}
+- Città: ${addr?.town || "N/D"}
+- Provincia: ${addr?.province || "N/D"}
+- Regione: ${addr?.region?.description || "N/D"}
+
+🏭 ATTIVITÀ:
+- Codice ATECO: ${ateco?.code || "N/D"}
+- Descrizione: ${ateco?.description || "N/D"}
+
+📬 CONTATTI:
+- PEC: ${company.pec || "N/D"}
+- Codice SDI: ${company.sdiCode || "N/D"}`;
+
+          if (balance) {
+            result += `\n\n💰 BILANCIO (${balance.year || "ultimo"}):
+- Fatturato: €${balance.turnover?.toLocaleString("it-IT") || "N/D"}
+- Patrimonio Netto: €${balance.netWorth?.toLocaleString("it-IT") || "N/D"}
+- Totale Attivo: €${balance.totalAssets?.toLocaleString("it-IT") || "N/D"}
+- Capitale Sociale: €${balance.shareCapital?.toLocaleString("it-IT") || "N/D"}
+- Dipendenti: ${balance.employees ?? "N/D"}
+- Costo Personale: €${balance.totalStaffCost?.toLocaleString("it-IT") || "N/D"}`;
+          }
+
+          if (shareholders.length > 0) {
+            result += "\n\n👥 SOCI:";
+            for (const sh of shareholders) {
+              const name = sh.companyName || `${sh.name || ""} ${sh.surname || ""}`.trim() || "N/D";
+              result += `\n- ${name} (${sh.percentShare || "?"}%)`;
+            }
+          }
+
+          result += riskInfo;
+
+          return result;
         } catch {
           return "Errore di connessione al servizio. Chiedi i dati aziendali manualmente.";
         }
