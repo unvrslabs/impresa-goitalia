@@ -347,7 +347,7 @@ export function CompanySettings() {
   ];
 
   const inputCls = "w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)] transition-colors";
-  const selectCls = inputCls + " pr-8";
+  const selectCls = inputCls + " !pr-10";
 
   return (
     <div className="space-y-6">

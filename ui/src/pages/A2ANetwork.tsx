@@ -171,11 +171,13 @@ function VisibilityToggle({ profile, onUpdate }: { profile: A2AProfile; onUpdate
     <button
       onClick={toggle}
       disabled={toggling}
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-        isPublic
-          ? "bg-[hsl(158_64%_42%/0.1)] border border-[hsl(158_64%_42%/0.3)] text-[hsl(158_64%_42%)]"
-          : "bg-white/5 border border-white/10 text-muted-foreground"
+      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+        isPublic ? "text-[hsl(158_64%_52%)]" : "text-white/40"
       }`}
+      style={isPublic
+        ? { background: "hsla(158,64%,42%,0.08)", border: "1px solid hsla(158,64%,42%,0.15)", backdropFilter: "blur(8px)" }
+        : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }
+      }
     >
       {isPublic ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
       {isPublic ? "Visibile" : "Nascosto"}
@@ -386,7 +388,7 @@ function ConnectionsTab({ companyId }: { companyId: string }) {
                   {c.relationshipLabel && <span className="text-xs text-muted-foreground ml-2">{c.relationshipLabel}</span>}
                 </div>
               </div>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">In attesa</span>
+              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full text-amber-300" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.15)", backdropFilter: "blur(8px)" }}>In attesa</span>
             </div>
           ))}
         </div>
@@ -421,7 +423,7 @@ function ConnectionsTab({ companyId }: { companyId: string }) {
                 {c.notes && <p className="text-xs text-muted-foreground mt-0.5">{c.notes}</p>}
               </div>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[hsl(158_64%_42%/0.15)] text-[hsl(158_64%_42%)]">Attivo</span>
+            <span className="text-[11px] font-medium px-2.5 py-1 rounded-full text-[hsl(158_64%_52%)]" style={{ background: "hsla(158,64%,42%,0.08)", border: "1px solid hsla(158,64%,42%,0.15)", backdropFilter: "blur(8px)" }}>Attivo</span>
           </div>
         ))}
       </div>
@@ -490,13 +492,14 @@ function TasksTab({ companyId }: { companyId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const statusLabels: Record<string, { label: string; color: string }> = {
-    created: { label: "Creato", color: "text-amber-400 bg-amber-500/10" },
-    accepted: { label: "Accettato", color: "text-[hsl(158_64%_42%)] bg-[hsl(158_64%_42%/0.1)]" },
-    in_progress: { label: "In corso", color: "text-blue-400 bg-blue-500/10" },
-    completed: { label: "Completato", color: "text-[hsl(158_64%_42%)] bg-[hsl(158_64%_42%/0.1)]" },
-    rejected: { label: "Rifiutato", color: "text-red-400 bg-red-500/10" },
-    cancelled: { label: "Annullato", color: "text-muted-foreground bg-white/5" },
+  const statusLabels: Record<string, { label: string; cls: string; style: React.CSSProperties }> = {
+    created: { label: "Creato", cls: "text-amber-300", style: { background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.15)", backdropFilter: "blur(8px)" } },
+    accepted: { label: "Accettato", cls: "text-[hsl(158_64%_52%)]", style: { background: "hsla(158,64%,42%,0.08)", border: "1px solid hsla(158,64%,42%,0.15)", backdropFilter: "blur(8px)" } },
+    in_progress: { label: "In lavorazione", cls: "text-blue-300", style: { background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.15)", backdropFilter: "blur(8px)" } },
+    shipping: { label: "In spedizione", cls: "text-purple-300", style: { background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.15)", backdropFilter: "blur(8px)" } },
+    completed: { label: "Completato", cls: "text-[hsl(158_64%_52%)]", style: { background: "hsla(158,64%,42%,0.08)", border: "1px solid hsla(158,64%,42%,0.15)", backdropFilter: "blur(8px)" } },
+    rejected: { label: "Rifiutato", cls: "text-red-300", style: { background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.15)", backdropFilter: "blur(8px)" } },
+    cancelled: { label: "Annullato", cls: "text-white/40", style: { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" } },
   };
 
   const typeLabels: Record<string, string> = {
@@ -513,7 +516,7 @@ function TasksTab({ companyId }: { companyId: string }) {
         <select
           value={direction}
           onChange={(e) => setDirection(e.target.value)}
-          className="px-3 pr-8 py-2 rounded-lg border border-white/10 bg-transparent text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)]"
+          className="pl-3 py-2 rounded-lg border border-white/10 bg-transparent text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)]" style={{ paddingRight: "2.5rem" }}
         >
           <option value="">Tutte le direzioni</option>
           <option value="in">In entrata</option>
@@ -522,12 +525,13 @@ function TasksTab({ companyId }: { companyId: string }) {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 pr-8 py-2 rounded-lg border border-white/10 bg-transparent text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)]"
+          className="pl-3 py-2 rounded-lg border border-white/10 bg-transparent text-sm outline-none focus:border-[hsl(158_64%_42%/0.5)]" style={{ paddingRight: "2.5rem" }}
         >
           <option value="">Tutti gli stati</option>
           <option value="created">Creato</option>
           <option value="accepted">Accettato</option>
-          <option value="in_progress">In corso</option>
+          <option value="in_progress">In lavorazione</option>
+          <option value="shipping">In spedizione</option>
           <option value="completed">Completato</option>
           <option value="rejected">Rifiutato</option>
         </select>
@@ -546,24 +550,24 @@ function TasksTab({ companyId }: { companyId: string }) {
 
       {tasks.map((t) => {
         const isIncoming = t.toCompanyId === companyId;
-        const st = statusLabels[t.status] || { label: t.status, color: "text-muted-foreground bg-white/5" };
+        const st = statusLabels[t.status] || { label: t.status, cls: "text-white/40", style: { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" } };
 
         return (
           <div key={t.id} className="glass-card p-5 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {isIncoming ? (
-                  <span className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full text-blue-300" style={{ background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.15)", backdropFilter: "blur(8px)" }}>
                     <ArrowDownLeft className="w-3 h-3" /> Entrata
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full text-amber-300" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.15)", backdropFilter: "blur(8px)" }}>
                     <ArrowUpRight className="w-3 h-3" /> Uscita
                   </span>
                 )}
                 <span className="text-sm font-medium">{t.title}</span>
               </div>
-              <span className={`text-[11px] font-mono px-2 py-0.5 rounded ${st.color}`}>
+              <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${st.cls}`} style={st.style}>
                 {st.label}
               </span>
             </div>
