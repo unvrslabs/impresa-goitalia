@@ -8,13 +8,21 @@ import { agentsApi } from "../api/agents";
 import { queryKeys } from "../lib/queryKeys";
 import { Send, Paperclip, Bot, User, Loader2 } from "lucide-react";
 import { MarkdownBody } from "../components/MarkdownBody";
+import { AgentProgressList } from "../components/AgentProgress";
 import { useNavigate } from "@/lib/router";
+
+interface ProgressItem {
+  id: string;
+  connector: string;
+  label: string;
+}
 
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  progressItems?: ProgressItem[];
 }
 
 export function ChatPage() {
@@ -388,7 +396,16 @@ export function ChatPage() {
             if (data === "[DONE]") continue;
             try {
               const parsed = JSON.parse(data);
-              if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+              if (parsed.type === "agent_progress" && parsed.label) {
+                const progressItem: ProgressItem = {
+                  id: crypto.randomUUID(),
+                  connector: parsed.connector || "system",
+                  label: parsed.label,
+                };
+                setMessages((prev) =>
+                  prev.map((m) => m.id === assistantId ? { ...m, progressItems: [...(m.progressItems || []), progressItem] } : m)
+                );
+              } else if (parsed.type === "content_block_delta" && parsed.delta?.text) {
                 fullText += parsed.delta.text;
                 setMessages((prev) =>
                   prev.map((m) => m.id === assistantId ? { ...m, content: fullText } : m)
@@ -519,13 +536,20 @@ export function ChatPage() {
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
-              {msg.role === "assistant" && msg.content === "" && isStreaming ? (
+              {msg.role === "assistant" && msg.content === "" && isStreaming && (!msg.progressItems || msg.progressItems.length === 0) ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">Sta scrivendo...</span>
                 </div>
               ) : msg.role === "assistant" ? (
-                <MarkdownBody className="prose-sm prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{msg.content}</MarkdownBody>
+                <>
+                  {msg.progressItems && msg.progressItems.length > 0 && (
+                    <AgentProgressList items={msg.progressItems} />
+                  )}
+                  {msg.content && (
+                    <MarkdownBody className="prose-sm prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{msg.content}</MarkdownBody>
+                  )}
+                </>
               ) : (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               )}

@@ -1365,7 +1365,7 @@ async function executeAgentTask(
   istruzioni: string,
   apiKey: string,
   contesto?: string,
-  onProgress?: (message: string) => void,
+  onProgress?: (message: string, toolName?: string) => void,
 ): Promise<string> {
   // 1. Load the target agent
   const agent = await db.select().from(agents)
@@ -1456,7 +1456,7 @@ async function executeAgentTask(
       // Stream progress to client
       if (onProgress) {
         const label = TOOL_PROGRESS_LABELS[toolName] || `Eseguendo ${toolName}...`;
-        onProgress(`⚙️ ${agent.name}: ${label}`);
+        onProgress(`${agent.name}: ${label}`, toolName);
       }
       const result = await executeChatTool(
         toolName,
@@ -1485,7 +1485,7 @@ export async function executeChatTool(
   companyId: string,
   agentId: string,
   apiKey?: string,
-  onProgress?: (message: string) => void,
+  onProgress?: (message: string, toolName?: string) => void,
 ): Promise<string> {
   try {
     switch (toolName) {
@@ -3096,13 +3096,17 @@ export function chatRoutes(db: Db) {
           break;
         }
 
-        // Stream tool activity with human-friendly labels
+        // Stream tool activity as agent_progress events (rendered specially in frontend)
         for (const block of toolUseBlocks) {
-          const toolLabel = block.name === "esegui_task_agente"
-            ? `🔄 Delegando a agente...`
-            : `🔧 ${TOOL_PROGRESS_LABELS[block.name || ""] || block.name}`;
-          const sseData = "data: " + JSON.stringify({ type: "content_block_delta", delta: { text: "\n" + toolLabel + "\n" } }) + "\n\n";
-          res.write(sseData);
+          if (block.name === "esegui_task_agente") {
+            // Delegating — extract agent name from input if possible
+            const agentId = (block.input as Record<string, unknown>)?.agente_id as string;
+            res.write("data: " + JSON.stringify({ type: "agent_progress", connector: "delegate", label: "Delegando compito all'agente..." }) + "\n\n");
+          } else {
+            const label = TOOL_PROGRESS_LABELS[block.name || ""] || `Eseguendo ${block.name}...`;
+            const connector = TOOL_CONNECTOR[block.name || ""] || "system";
+            res.write("data: " + JSON.stringify({ type: "agent_progress", connector, label }) + "\n\n");
+          }
           (res as any).flush?.();
         }
 
@@ -3110,8 +3114,9 @@ export function chatRoutes(db: Db) {
         messages.push({ role: "assistant", content });
 
         // Execute tools — pass SSE progress callback for agent delegation
-        const sseProgress = (msg: string) => {
-          res.write("data: " + JSON.stringify({ type: "content_block_delta", delta: { text: "\n" + msg + "\n" } }) + "\n\n");
+        const sseProgress = (msg: string, toolName?: string) => {
+          const connector = toolName ? (TOOL_CONNECTOR[toolName] || "system") : "system";
+          res.write("data: " + JSON.stringify({ type: "agent_progress", connector, label: msg }) + "\n\n");
           (res as any).flush?.();
         };
         const toolResults: Array<{ type: "tool_result"; tool_use_id: string; content: string }> = [];
