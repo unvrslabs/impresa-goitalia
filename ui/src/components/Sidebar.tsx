@@ -245,7 +245,7 @@ export function Sidebar() {
       {/* Main nav */}
       <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-1 px-2 py-2">
         {/* Top items - disabled during onboarding steps 0-3 */}
-        {session?.user?.email === "emanuele@unvrslabs.dev" && (
+        {(session?.user?.email === "emanuele@unvrslabs.dev" || session?.user?.id === "nAVU4wn2Chz3WJdcvl6JmoDbBfXJsX5y") && (
           <SidebarNavItem to="/admin" label="GoItalIA Admin" icon={ShieldCheck} />
         )}
         <div className={"flex flex-col gap-0.5" + (!isComplete ? " opacity-30 pointer-events-none" : "")}>
