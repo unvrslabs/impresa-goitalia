@@ -212,7 +212,7 @@ export function AnalisiAziende() {
     <div className="flex-1 overflow-auto p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Tabs */}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {TABS.filter((t) => t.service === "_always_" || services.includes(t.service)).map((tab) => {
             const Icon = tab.icon;
             return (
@@ -220,7 +220,7 @@ export function AnalisiAziende() {
                 key={tab.key}
                 onClick={() => { setActiveTab(tab.key); setResult(null); setSearchResults([]); setError(null); }}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border",
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border shrink-0 whitespace-nowrap",
                   activeTab !== tab.key && "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10"
                 )}
                 style={activeTab === tab.key ? { ...greenGradient, borderColor: "transparent", color: "white" } : undefined}
