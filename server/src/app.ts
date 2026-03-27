@@ -37,6 +37,7 @@ import { socialRoutes } from "./routes/social.js";
 import { a2aRoutes } from "./routes/a2a.js";
 import { companyProductRoutes } from "./routes/company-products.js";
 import { connectorAccountRoutes } from "./routes/connector-accounts.js";
+import { customConnectorRoutes } from "./routes/custom-connectors.js";
 import { companySkillRoutes } from "./routes/company-skills.js";
 import { agentRoutes } from "./routes/agents.js";
 import { projectRoutes } from "./routes/projects.js";
@@ -288,6 +289,7 @@ app.use(express.json({
   api.use(socialRoutes(db));
   api.use(a2aRoutes(db));
   api.use(companyProductRoutes(db));
+  api.use(customConnectorRoutes(db));
   api.use("/companies", companyRoutes(db, opts.storageService));
   api.use(companySkillRoutes(db));
   api.use(agentRoutes(db));

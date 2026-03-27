@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Db } from "@goitalia/db";
 import { getStripeApiKey } from "./stripe-connector.js";
 import { getProjectFilesContent } from "./project-files.js";
-import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts, routines, routineTriggers, routineRuns, companyProfiles, companyProducts } from "@goitalia/db";
+import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts, routines, routineTriggers, routineRuns, companyProfiles, companyProducts, customConnectors } from "@goitalia/db";
 import { nextCronTickInTimeZone } from "../services/routines.js";
 import { eq, and, ne, inArray, desc, sql, asc } from "drizzle-orm";
 import { decrypt, encrypt } from "../utils/crypto.js";
@@ -649,6 +649,62 @@ export const TOOLS = [
       required: ["task_id", "messaggio"] as string[],
     },
   },
+  // Custom API Connectors
+  {
+    name: "crea_connettore_custom",
+    description: "Crea un connettore per collegare un servizio esterno con API REST (CRM, gestionale, ecc.). Chiedi al cliente: nome servizio, URL API, API key.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        nome: { type: "string", description: "Nome del servizio (es: Il Mio CRM)" },
+        base_url: { type: "string", description: "URL base delle API (es: https://api.miocrm.com)" },
+        api_key: { type: "string", description: "API key o token di accesso" },
+        descrizione: { type: "string", description: "Breve descrizione di cosa fa il servizio" },
+        auth_type: { type: "string", enum: ["bearer", "header", "none"], description: "Tipo autenticazione (default: bearer)" },
+      },
+      required: ["nome", "base_url", "api_key"],
+    },
+  },
+  {
+    name: "aggiungi_azione_custom",
+    description: "Aggiunge un'azione a un connettore custom. Ogni azione diventa un tool disponibile per l'agente.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        connector_id: { type: "string", description: "ID del connettore custom" },
+        nome: { type: "string", description: "Nome azione snake_case (es: lista_clienti)" },
+        label: { type: "string", description: "Nome leggibile (es: Lista Clienti)" },
+        descrizione: { type: "string", description: "Cosa fa l'azione" },
+        metodo: { type: "string", enum: ["GET", "POST", "PUT", "PATCH", "DELETE"], description: "Metodo HTTP" },
+        path: { type: "string", description: "Path relativo (es: /api/clients)" },
+        parametri: { type: "array", description: "Parametri accettati dall'azione" },
+      },
+      required: ["connector_id", "nome", "metodo", "path"],
+    },
+  },
+  {
+    name: "lista_connettori_custom",
+    description: "Mostra i connettori API custom collegati dall'azienda con le loro azioni disponibili.",
+    input_schema: { type: "object" as const, properties: {}, required: [] as string[] },
+  },
+  {
+    name: "rimuovi_connettore_custom",
+    description: "Rimuove un connettore API custom e tutte le sue azioni.",
+    input_schema: {
+      type: "object" as const,
+      properties: { connector_id: { type: "string", description: "ID del connettore da rimuovere" } },
+      required: ["connector_id"],
+    },
+  },
+  {
+    name: "testa_connettore_custom",
+    description: "Testa la connettività di un connettore custom verificando che l'URL base risponda.",
+    input_schema: {
+      type: "object" as const,
+      properties: { connector_id: { type: "string", description: "ID del connettore da testare" } },
+      required: ["connector_id"],
+    },
+  },
 ];
 
 // Map each tool to the connector key it requires. null = always available.
@@ -713,6 +769,12 @@ export const TOOL_CONNECTOR: Record<string, string | null> = {
   lista_task_a2a: null,
   aggiorna_stato_task_a2a: null,
   messaggio_a2a: null,
+  // Custom API Connectors (CEO orchestration tools)
+  crea_connettore_custom: null,
+  aggiungi_azione_custom: null,
+  lista_connettori_custom: null,
+  rimuovi_connettore_custom: null,
+  testa_connettore_custom: null,
 };
 
 
@@ -847,6 +909,18 @@ SEMPRE passa contesto rilevante quando deleghi:
 
 ### Regola d'oro
 NON dire "Non posso farlo direttamente". Tu per l'utente fai tutto — delega dietro le quinte. L'utente non deve sapere che stai delegando. Agisci e comunica il risultato.
+
+## CONNETTORI CUSTOM — API Esterne
+Se il cliente dice di avere un CRM, gestionale, magazzino, o qualsiasi servizio con API:
+1. Chiedi: "Come si chiama il servizio?"
+2. Chiedi: "Qual è l'URL delle API?" (es: https://api.miocrm.com)
+3. Chiedi: "Hai una API key o token di accesso?"
+4. Usa crea_connettore_custom per registrarlo
+5. Chiedi: "Cosa vuoi poterci fare?" (es: cercare clienti, creare ordini, vedere fatture)
+6. Per ogni operazione usa aggiungi_azione_custom con metodo HTTP e path appropriati
+7. Testa con testa_connettore_custom
+8. Crea un agente dedicato con crea_agente e connettore custom
+Non serve che il cliente conosca i dettagli tecnici — chiedigli cosa vuole fare e deduci metodo/path.
 
 ## ATTIVITÀ PROGRAMMATE
 Puoi creare attività che vengono eseguite automaticamente a orari predefiniti:
@@ -1060,6 +1134,20 @@ const CONNECTOR_GUIDES: ConnectorGuide[] = [
       "Posso collegare PEC + Fatture in Cloud per inviare fatture via PEC certificata",
     ],
   },
+  {
+    key: "custom",
+    label: "API Custom",
+    capabilities: "Collegamento a qualsiasi servizio esterno con API REST (CRM, gestionale, magazzino, e-commerce)",
+    questions: [
+      "Che servizio vuoi collegare? (CRM, gestionale, magazzino, ecc.)",
+      "Hai l'URL delle API e una API key o token di accesso?",
+      "Che operazioni vuoi fare con questo servizio? (cercare clienti, creare ordini, vedere fatture...)",
+    ],
+    suggestions: [
+      "Posso collegare qualsiasi servizio con API REST — basta l'URL e una API key",
+      "Dopo aver collegato il servizio, creiamo le azioni specifiche che ti servono",
+    ],
+  },
 ];
 
 // Build connector guide section for CEO prompt
@@ -1153,6 +1241,12 @@ const CEO_TOOLS = new Set([
   "lista_task_a2a",
   "aggiorna_stato_task_a2a",
   "messaggio_a2a",
+  // Custom API Connectors
+  "crea_connettore_custom",
+  "aggiungi_azione_custom",
+  "lista_connettori_custom",
+  "rimuovi_connettore_custom",
+  "testa_connettore_custom",
 ]);
 
 // Tools that ONLY the CEO can use (agents must never have these)
@@ -1176,6 +1270,12 @@ const CEO_ONLY_TOOLS = new Set([
   "lista_task_a2a",
   "aggiorna_stato_task_a2a",
   "messaggio_a2a",
+  // Custom connector CEO tools
+  "crea_connettore_custom",
+  "aggiungi_azione_custom",
+  "lista_connettori_custom",
+  "rimuovi_connettore_custom",
+  "testa_connettore_custom",
 ]);
 
 export function filterToolsForAgent(agentRole: string, connectors: Record<string, boolean>): typeof TOOLS {
@@ -1193,6 +1293,29 @@ export function filterToolsForAgent(agentRole: string, connectors: Record<string
     // Check if connector is explicitly enabled
     return connectors[required] === true;
   });
+}
+
+// Generate dynamic tool definitions from custom connectors
+async function getCustomToolsForCompany(db: Db, companyId: string): Promise<typeof TOOLS> {
+  const connectors = await db.select().from(customConnectors)
+    .where(eq(customConnectors.companyId, companyId));
+  const tools: typeof TOOLS = [];
+  for (const connector of connectors) {
+    for (const action of (connector.actions as any[]) || []) {
+      const properties: Record<string, any> = {};
+      const required: string[] = [];
+      for (const param of (action.params || [])) {
+        properties[param.name] = { type: param.type || "string", description: param.description || param.name };
+        if (param.required) required.push(param.name);
+      }
+      tools.push({
+        name: `custom_${connector.slug}_${action.name}`,
+        description: `[${connector.name}] ${action.description || action.label || action.name}`,
+        input_schema: { type: "object" as const, properties, required },
+      });
+    }
+  }
+  return tools;
 }
 
 /**
@@ -1467,7 +1590,9 @@ async function executeAgentTask(
       console.log("[agent-task]", agent.name, "calls tool:", toolName);
       // Stream progress to client
       if (onProgress) {
-        const label = TOOL_PROGRESS_LABELS[toolName] || `Eseguendo ${toolName}...`;
+        const label = toolName.startsWith("custom_")
+          ? "Chiamando API esterna..."
+          : (TOOL_PROGRESS_LABELS[toolName] || `Eseguendo ${toolName}...`);
         onProgress(`${agent.name}: ${label}`, toolName);
       }
       const result = await executeChatTool(
@@ -1500,6 +1625,60 @@ export async function executeChatTool(
   onProgress?: (message: string, toolName?: string) => void,
 ): Promise<string> {
   try {
+    // Dynamic custom connector tools (custom_{slug}_{action})
+    if (toolName.startsWith("custom_")) {
+      const allCustom = await db.select().from(customConnectors)
+        .where(eq(customConnectors.companyId, companyId));
+      for (const connector of allCustom) {
+        const prefix = `custom_${connector.slug}_`;
+        if (!toolName.startsWith(prefix)) continue;
+        const actionName = toolName.substring(prefix.length);
+        const actions = (connector.actions as any[]) || [];
+        const action = actions.find((a: any) => a.name === actionName);
+        if (!action) continue;
+
+        const secret = await db.select().from(companySecrets)
+          .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, `custom_api_${connector.id}`)))
+          .then(r => r[0]);
+
+        let url = connector.baseUrl.replace(/\/$/, "") + action.path;
+        const queryParams = new URLSearchParams();
+        const bodyObj: Record<string, unknown> = {};
+
+        for (const param of (action.params || [])) {
+          const value = toolInput[param.name];
+          if (value === undefined || value === null) continue;
+          if (param.in === "path") { url = url.replace(`{${param.name}}`, encodeURIComponent(String(value))); }
+          else if (param.in === "query" || (param.in !== "body" && action.method === "GET")) { queryParams.set(param.name, String(value)); }
+          else { bodyObj[param.name] = value; }
+        }
+        const qs = queryParams.toString();
+        if (qs) url += (url.includes("?") ? "&" : "?") + qs;
+
+        const headers: Record<string, string> = {};
+        if (secret?.description && connector.authType !== "none") {
+          const apiKey = decrypt(secret.description);
+          headers[connector.authHeader || "Authorization"] = `${connector.authPrefix || "Bearer"} ${apiKey}`.trim();
+        }
+        if (["POST", "PUT", "PATCH"].includes(action.method)) headers["Content-Type"] = "application/json";
+
+        try {
+          const fetchOpts: RequestInit = { method: action.method, headers, signal: AbortSignal.timeout(30000) };
+          if (["POST", "PUT", "PATCH"].includes(action.method) && Object.keys(bodyObj).length > 0) {
+            fetchOpts.body = JSON.stringify(bodyObj);
+          }
+          const r = await fetch(url, fetchOpts);
+          const text = await r.text();
+          if (!r.ok) return `Errore ${connector.name} (${r.status}): ${text.substring(0, 500)}`;
+          try { return JSON.stringify(JSON.parse(text), null, 2).substring(0, 3000); } catch {}
+          return text.substring(0, 3000);
+        } catch (err) {
+          return `Errore chiamata ${connector.name}: ${(err as Error).message}`;
+        }
+      }
+      return "Errore: connettore o azione custom non trovata.";
+    }
+
     switch (toolName) {
       case "lista_agenti": {
         const rows = await db.select({
@@ -2715,6 +2894,90 @@ export async function executeChatTool(
         return await executeA2aTool(db, companyId, toolName, toolInput);
       }
 
+      case "crea_connettore_custom": {
+        const input = toolInput as { nome: string; base_url: string; api_key: string; descrizione?: string; auth_type?: string };
+        if (!input.nome || !input.base_url || !input.api_key) return "Errore: nome, base_url e api_key obbligatori.";
+        try {
+          const parsed = new URL(input.base_url);
+          if (parsed.protocol !== "https:") return "Errore: solo URL HTTPS consentiti.";
+          const blocked = ["localhost", "127.0.0.1", "0.0.0.0", "169.254.169.254", "[::1]"];
+          if (blocked.some(h => parsed.hostname === h) || parsed.hostname.startsWith("10.") || parsed.hostname.startsWith("192.168.") || parsed.hostname.startsWith("172.")) return "Errore: URL non consentito.";
+        } catch { return "Errore: URL non valido."; }
+        const slug = input.nome.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").substring(0, 30);
+        const existingCount = await db.select({ id: customConnectors.id }).from(customConnectors).where(eq(customConnectors.companyId, companyId));
+        if (existingCount.length >= 10) return "Errore: massimo 10 connettori custom per azienda.";
+        try {
+          const [row] = await db.insert(customConnectors).values({
+            companyId, name: input.nome, slug, baseUrl: input.base_url,
+            authType: input.auth_type || "bearer", description: input.descrizione || null, actions: [],
+          }).returning();
+          await db.insert(companySecrets).values({ id: randomUUID(), companyId, name: `custom_api_${row.id}`, provider: "encrypted", description: encrypt(input.api_key) });
+          const { upsertConnectorAccount } = await import("../utils/connector-sync.js");
+          await upsertConnectorAccount(db, companyId, `custom_${slug}`, row.id, input.nome);
+          return `Connettore "${input.nome}" creato (id: ${row.id}). Ora dimmi quali operazioni vuoi fare con questo servizio.`;
+        } catch (err: any) {
+          if (err.code === "23505") return "Errore: connettore con questo nome esiste già.";
+          return "Errore creazione connettore: " + (err.message || "").substring(0, 100);
+        }
+      }
+
+      case "aggiungi_azione_custom": {
+        const input = toolInput as { connector_id: string; nome: string; label?: string; descrizione?: string; metodo: string; path: string; parametri?: any[] };
+        if (!input.connector_id || !input.nome || !input.metodo || !input.path) return "Errore: connector_id, nome, metodo e path obbligatori.";
+        const connector = await db.select().from(customConnectors)
+          .where(and(eq(customConnectors.id, input.connector_id), eq(customConnectors.companyId, companyId))).then(r => r[0]);
+        if (!connector) return "Errore: connettore non trovato.";
+        const actions = (connector.actions as any[]) || [];
+        if (actions.length >= 20) return "Errore: massimo 20 azioni per connettore.";
+        const actionSlug = input.nome.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+        if (actions.some((a: any) => a.name === actionSlug)) return "Errore: azione già esistente.";
+        actions.push({ name: actionSlug, label: input.label || input.nome, description: input.descrizione || "", method: input.metodo.toUpperCase(), path: input.path, params: input.parametri || [], body_template: null });
+        await db.update(customConnectors).set({ actions, updatedAt: new Date() }).where(eq(customConnectors.id, connector.id));
+        return `Azione "${input.label || input.nome}" aggiunta a "${connector.name}". Tool: custom_${connector.slug}_${actionSlug}. Altre azioni?`;
+      }
+
+      case "lista_connettori_custom": {
+        const connectors = await db.select().from(customConnectors).where(eq(customConnectors.companyId, companyId));
+        if (connectors.length === 0) return "Nessun connettore custom configurato.";
+        return connectors.map(c => {
+          const acts = (c.actions as any[]) || [];
+          const al = acts.map((a: any) => `  - ${a.label || a.name} (${a.method} ${a.path})`).join("\n");
+          return `📡 ${c.name} (${c.baseUrl}) — id: ${c.id}\n${al || "  Nessuna azione configurata"}`;
+        }).join("\n\n");
+      }
+
+      case "rimuovi_connettore_custom": {
+        const cid = toolInput.connector_id as string;
+        if (!cid) return "Errore: connector_id obbligatorio.";
+        const connector = await db.select().from(customConnectors)
+          .where(and(eq(customConnectors.id, cid), eq(customConnectors.companyId, companyId))).then(r => r[0]);
+        if (!connector) return "Errore: connettore non trovato.";
+        await db.delete(companySecrets).where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, `custom_api_${connector.id}`)));
+        const { removeConnectorAccount: rmConn } = await import("../utils/connector-sync.js");
+        await rmConn(db, companyId, `custom_${connector.slug}`);
+        await db.delete(customConnectors).where(eq(customConnectors.id, connector.id));
+        return `Connettore "${connector.name}" rimosso.`;
+      }
+
+      case "testa_connettore_custom": {
+        const cid = toolInput.connector_id as string;
+        if (!cid) return "Errore: connector_id obbligatorio.";
+        const connector = await db.select().from(customConnectors)
+          .where(and(eq(customConnectors.id, cid), eq(customConnectors.companyId, companyId))).then(r => r[0]);
+        if (!connector) return "Errore: connettore non trovato.";
+        const secret = await db.select().from(companySecrets)
+          .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, `custom_api_${connector.id}`))).then(r => r[0]);
+        try {
+          const headers: Record<string, string> = {};
+          if (secret?.description && connector.authType !== "none") {
+            const key = decrypt(secret.description);
+            headers[connector.authHeader || "Authorization"] = `${connector.authPrefix || "Bearer"} ${key}`.trim();
+          }
+          const r = await fetch(connector.baseUrl, { headers, signal: AbortSignal.timeout(10000) });
+          return r.ok ? `Test OK — ${connector.name} risponde (status ${r.status}).` : `Test FALLITO — status ${r.status}.`;
+        } catch (err) { return `Test FALLITO — ${(err as Error).message}`; }
+      }
+
       default:
         return "Tool sconosciuto: " + toolName;
     }
@@ -3087,6 +3350,18 @@ export function chatRoutes(db: Db) {
 
         if (!hasClaudeKey) dynamicContext += "\n⚠️ API key Claude NON configurata!\n";
 
+        // Custom connectors
+        const customConns = await db.select().from(customConnectors)
+          .where(eq(customConnectors.companyId, companyId));
+        if (customConns.length > 0) {
+          dynamicContext += "\nConnettori API custom:\n";
+          for (const c of customConns) {
+            const acts = (c.actions as any[]) || [];
+            const actionNames = acts.map((a: any) => a.label || a.name).join(", ");
+            dynamicContext += `- ${c.name} (${c.baseUrl}) — id: ${c.id} — azioni: ${actionNames || "nessuna"}\n`;
+          }
+        }
+
         dynamicContext += "--- FINE STATO ---\n\nUsa lista_agenti + esegui_task_agente per delegare operazioni ai tuoi agenti. Se un connettore è attivo ma non ha un agente, crealo con crea_agente prima di delegare. Se il connettore non è attivo, suggerisci al cliente di attivarlo da Connettori.";
       } catch (e) {
         console.error("Dynamic context error:", e);
@@ -3119,6 +3394,10 @@ export function chatRoutes(db: Db) {
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders();
 
+      // Load custom tools once before the loop
+      const customTools = await getCustomToolsForCompany(db, companyId);
+      const allTools = [...filterToolsForAgent(agentRole, agentConnectors), ...customTools];
+
       for (let turn = 0; turn < MAX_TURNS; turn++) {
         const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
@@ -3132,7 +3411,7 @@ export function chatRoutes(db: Db) {
             max_tokens: 4096,
             system: systemPrompt,
             messages,
-            tools: filterToolsForAgent(agentRole, agentConnectors),
+            tools: allTools,
           }),
         });
 
