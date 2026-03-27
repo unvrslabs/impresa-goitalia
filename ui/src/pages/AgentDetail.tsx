@@ -3090,42 +3090,44 @@ function AgentConnectorsTab({ companyId, agentRole, agentId, primaryConnector, a
               </div>
               {nativeToggle(isActive, () => toggleConnector(uiKey))}
             </div>
-            {isActive && (cc.actions || []).length > 0 && (
-              <div className="px-4 pb-3">
-                {(() => {
-                  const actions = cc.actions as any[];
-                  const categories = [...new Set(actions.map((a: any) => a.category || "Altro"))];
-                  return (
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-0">
-                      {categories.map((cat) => (
-                        <div key={cat}>
-                          <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider pt-2.5 pb-1.5 border-b border-white/5 mb-1">{cat}</div>
-                          {actions.filter((a: any) => (a.category || "Altro") === cat).map((a: any) => (
-                            <div key={a.name} className="flex items-center gap-2 py-1">
-                              <span className="px-1 py-0.5 rounded font-mono text-[9px] shrink-0" style={{ background: "rgba(255,255,255,0.06)", minWidth: 32, textAlign: "center" }}>{a.method}</span>
-                              <span className="flex-1 text-[11px] truncate">{a.label || a.name}</span>
-                              <label className="relative inline-block shrink-0" style={{ width: 32, height: 18 }}>
-                                <input type="checkbox" checked={a.enabled !== false} onChange={async () => {
-                                  const newActions = cc.actions.map((act: any) => act.name === a.name ? { ...act, enabled: !(act.enabled !== false) } : act);
-                                  setCustomConnectorsForAgent(prev => prev.map(x => x.id === cc.id ? { ...x, actions: newActions } : x));
-                                  await fetch(`/api/custom-connectors/${cc.id}`, {
-                                    method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
-                                    body: JSON.stringify({ companyId, actions: newActions }),
-                                  });
-                                }} style={{ opacity: 0, width: 0, height: 0, position: "absolute" }} />
-                                <span style={{ position: "absolute", cursor: "pointer", top: 0, left: 0, right: 0, bottom: 0, background: a.enabled !== false ? "#16a34a" : "rgba(255,255,255,0.15)", borderRadius: 9, transition: "background 0.2s" }}>
-                                  <span style={{ position: "absolute", height: 14, width: 14, left: a.enabled !== false ? 15 : 2, bottom: 2, background: "white", borderRadius: 7, transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
-                                </span>
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
+            {isActive && (cc.actions || []).length > 0 && (() => {
+              const actions = cc.actions as any[];
+              const categories = [...new Set(actions.map((a: any) => a.category || "Altro"))];
+              const methodColors: Record<string, string> = {
+                GET: "rgba(59,130,246,0.8)", POST: "rgba(34,197,94,0.8)", PUT: "rgba(168,85,247,0.8)",
+                PATCH: "rgba(245,158,11,0.8)", DELETE: "rgba(239,68,68,0.8)",
+              };
+              return (
+                <div className="px-4 pb-4 grid grid-cols-2 gap-3">
+                  {categories.map((cat) => (
+                    <div key={cat} className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>{cat}</div>
+                      <div className="space-y-1.5">
+                        {actions.filter((a: any) => (a.category || "Altro") === cat).map((a: any) => (
+                          <div key={a.name} className="flex items-center gap-2 group">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0 text-white" style={{ background: methodColors[a.method] || "rgba(255,255,255,0.2)", minWidth: 38, textAlign: "center" }}>{a.method}</span>
+                            <span className="flex-1 text-[11px] truncate" style={{ color: a.enabled !== false ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)" }}>{a.label || a.name}</span>
+                            <label className="relative inline-block shrink-0 cursor-pointer" style={{ width: 32, height: 18 }}>
+                              <input type="checkbox" checked={a.enabled !== false} onChange={async () => {
+                                const newActions = cc.actions.map((act: any) => act.name === a.name ? { ...act, enabled: !(act.enabled !== false) } : act);
+                                setCustomConnectorsForAgent(prev => prev.map(x => x.id === cc.id ? { ...x, actions: newActions } : x));
+                                await fetch(`/api/custom-connectors/${cc.id}`, {
+                                  method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+                                  body: JSON.stringify({ companyId, actions: newActions }),
+                                });
+                              }} style={{ opacity: 0, width: 0, height: 0, position: "absolute" }} />
+                              <span style={{ position: "absolute", cursor: "pointer", top: 0, left: 0, right: 0, bottom: 0, background: a.enabled !== false ? "#16a34a" : "rgba(255,255,255,0.12)", borderRadius: 9, transition: "background 0.2s" }}>
+                                <span style={{ position: "absolute", height: 14, width: 14, left: a.enabled !== false ? 15 : 2, bottom: 2, background: "white", borderRadius: 7, transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
+                              </span>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  );
-                })()}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         );
       })}
