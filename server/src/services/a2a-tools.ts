@@ -94,7 +94,7 @@ export async function executeA2aTool(
     }
 
     case "invia_task_a2a": {
-      const toCompanyId = toolInput.azienda_id as string;
+      let toCompanyId = (toolInput.azienda_id as string || "").trim();
       const type = (toolInput.tipo as string) || "message";
       const title = toolInput.titolo as string;
       const description = toolInput.descrizione as string || "";
@@ -104,15 +104,30 @@ export async function executeA2aTool(
       // Orders always require approval
       const requiresApproval = type === "order";
 
+      // If not a UUID, try to find by name/slug
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(toCompanyId);
+      if (!isUuid) {
+        const found = await db.select({ companyId: companyProfiles.companyId })
+          .from(companyProfiles)
+          .where(or(
+            sql`LOWER(${companyProfiles.ragioneSociale}) LIKE ${"%" + toCompanyId.toLowerCase() + "%"}`,
+            sql`LOWER(${companyProfiles.slug}) = ${toCompanyId.toLowerCase()}`,
+          ))
+          .then((r) => r[0]);
+        if (found) {
+          toCompanyId = found.companyId;
+        } else {
+          return `Azienda "${toCompanyId}" non trovata. Usa cerca_azienda_a2a per cercare nella directory.`;
+        }
+      }
+
       // Verify target company has A2A active
-      console.log("[a2a-tool] invia_task_a2a: from=" + companyId + " to=" + toCompanyId);
       const targetProfile = await db.select({ id: companyProfiles.id, legalName: companyProfiles.ragioneSociale, slug: companyProfiles.slug })
         .from(companyProfiles)
         .where(eq(companyProfiles.companyId, toCompanyId))
         .then((r) => r[0]);
-      console.log("[a2a-tool] targetProfile:", JSON.stringify(targetProfile));
 
-      if (!targetProfile || !targetProfile.slug) return "L'azienda destinataria non ha attivato la rete A2A. (ID: " + toCompanyId + ")";
+      if (!targetProfile || !targetProfile.slug) return "L'azienda destinataria non ha attivato la rete A2A.";
 
       // Check if it's a known partner (for label)
       const conn = await db.select({ relationshipLabel: a2aConnections.relationshipLabel })
