@@ -152,11 +152,17 @@ export function whatsappContactsRoutes(db: Db) {
     }
   });
 
-  // PUT /whatsapp-contacts/:id — update contact
+  // PUT /whatsapp-contacts/:id — update contact (ownership check via companyId)
   router.put("/whatsapp-contacts/:id", async (req, res) => {
     const actor = req.actor as { userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
-    const { name, notes, customInstructions, autoMode } = req.body;
+    const { name, notes, customInstructions, autoMode, companyId } = req.body;
+
+    // Verify contact belongs to caller's company
+    const contact = await db.select({ id: whatsappContacts.id, companyId: whatsappContacts.companyId })
+      .from(whatsappContacts).where(eq(whatsappContacts.id, req.params.id as string)).then(r => r[0]);
+    if (!contact) { res.status(404).json({ error: "Contatto non trovato" }); return; }
+    if (companyId && contact.companyId !== companyId) { res.status(403).json({ error: "Accesso negato" }); return; }
 
     const updates: Record<string, any> = { updatedAt: new Date() };
     if ("name" in req.body) updates.name = name || null;
@@ -167,14 +173,21 @@ export function whatsappContactsRoutes(db: Db) {
     const [updated] = await db.update(whatsappContacts).set(updates)
       .where(eq(whatsappContacts.id, req.params.id as string)).returning();
 
-    if (!updated) { res.status(404).json({ error: "Contatto non trovato" }); return; }
     res.json({ contact: updated });
   });
 
-  // DELETE /whatsapp-contacts/:id — delete contact + cascade files
+  // DELETE /whatsapp-contacts/:id?companyId= — delete contact + cascade files (ownership check)
   router.delete("/whatsapp-contacts/:id", async (req, res) => {
     const actor = req.actor as { userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const companyId = req.query.companyId as string;
+
+    // Verify contact belongs to caller's company
+    const contact = await db.select({ id: whatsappContacts.id, companyId: whatsappContacts.companyId })
+      .from(whatsappContacts).where(eq(whatsappContacts.id, req.params.id as string)).then(r => r[0]);
+    if (!contact) { res.status(404).json({ error: "Contatto non trovato" }); return; }
+    if (companyId && contact.companyId !== companyId) { res.status(403).json({ error: "Accesso negato" }); return; }
+
     await db.delete(whatsappContacts).where(eq(whatsappContacts.id, req.params.id as string));
     res.json({ deleted: true });
   });

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import type { Db } from "@goitalia/db";
-import { whatsappSubscriptions } from "@goitalia/db";
+import { whatsappSubscriptions, companyMemberships } from "@goitalia/db";
 import { eq, and } from "drizzle-orm";
 import Stripe from "stripe";
 
@@ -107,6 +107,12 @@ export function billingRoutes(db: Db) {
     };
     if (!companyId || !phone || !interval) { res.status(400).json({ error: "Campi obbligatori mancanti" }); return; }
 
+    // Verify user has access to this company
+    const membership = await db.select().from(companyMemberships)
+      .where(and(eq(companyMemberships.companyId, companyId), eq(companyMemberships.principalId, actor.userId)))
+      .then(r => r[0]);
+    if (!membership) { res.status(403).json({ error: "Accesso non autorizzato" }); return; }
+
     try {
       const stripe = getStripe();
       const prices = await ensurePrices(stripe);
@@ -139,7 +145,7 @@ export function billingRoutes(db: Db) {
       res.json({ url: session.url });
     } catch (err) {
       console.error("[billing] checkout error:", err);
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: "Errore elaborazione pagamento" });
     }
   });
 

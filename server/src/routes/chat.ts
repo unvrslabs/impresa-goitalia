@@ -3,10 +3,9 @@ import type { Db } from "@goitalia/db";
 import { getStripeApiKey } from "./stripe-connector.js";
 import { getProjectFilesContent } from "./project-files.js";
 import { companySecrets, agents, companyMemberships, companies, issues, connectorAccounts, agentConnectorAccounts, routines, routineTriggers, routineRuns, companyProfiles, companyProducts } from "@goitalia/db";
-import { parseCron, nextCronTick } from "../services/cron.js";
 import { nextCronTickInTimeZone } from "../services/routines.js";
 import { eq, and, ne, inArray, desc, sql, asc } from "drizzle-orm";
-import { decrypt as decryptSecret, decrypt, encrypt } from "../utils/crypto.js";
+import { decrypt, encrypt } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
 import { executeA2aTool } from "../services/a2a-tools.js";
 
@@ -1509,6 +1508,7 @@ export async function executeChatTool(
           .set({ issueCounter: sql`${companies.issueCounter} + 1` })
           .where(eq(companies.id, companyId))
           .returning({ issueCounter: companies.issueCounter, issuePrefix: companies.issuePrefix });
+        if (!company) return "Errore: company non trovata.";
         const identifier = `${company.issuePrefix}-${company.issueCounter}`;
         await db.insert(issues).values({
           id: randomUUID(),
@@ -2296,7 +2296,7 @@ export async function executeChatTool(
         if (!stripeKey) return "Stripe non connesso.";
         const limit = Math.min(toolInput.limite as number || 10, 30);
         const stato = toolInput.stato as string || "";
-        const url = `https://api.stripe.com/v1/payment_intents?limit=${limit}${stato ? "&query=status%3A%22" + stato + "%22" : ""}`;
+        const url = `https://api.stripe.com/v1/payment_intents?limit=${limit}`;
         const r = await fetch(url, { headers: { Authorization: "Bearer " + stripeKey } });
         if (!r.ok) return "Errore recupero pagamenti: " + r.status;
         const data = await r.json() as { data: Array<{ id: string; amount: number; currency: string; status: string; created: number; description?: string }> };
@@ -2494,7 +2494,7 @@ export async function executeChatTool(
               const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, { method: "POST", body: fd });
               results.push(`Facebook ${page.name}: ${r.ok ? "pubblicato" : "errore " + (await r.text()).substring(0, 100)}`);
             } else {
-              const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/feed?message=${encodeURIComponent(input.testo)}&access_token=${token}`, { method: "POST" });
+              const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/feed`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ message: input.testo, access_token: token }) });
               results.push(`Facebook ${page.name}: ${r.ok ? "pubblicato" : "errore " + (await r.text()).substring(0, 100)}`);
             }
           }
@@ -2521,7 +2521,7 @@ export async function executeChatTool(
             if (!uploadData.id) { results.push(`Instagram @${igUsername}: nessun ID foto`); continue; }
 
             // Get image URL
-            const imgUrlRes = await fetch(`https://graph.facebook.com/v21.0/${uploadData.id}?fields=images&access_token=${token}`);
+            const imgUrlRes = await fetch(`https://graph.facebook.com/v21.0/${uploadData.id}?fields=images`, { headers: { Authorization: "Bearer " + token } });
             const imgUrlData = await imgUrlRes.json() as { images?: Array<{ source: string }> };
             const publicUrl = imgUrlData.images?.[0]?.source;
             if (!publicUrl) { results.push(`Instagram @${igUsername}: impossibile ottenere URL immagine`); continue; }
@@ -2539,7 +2539,7 @@ export async function executeChatTool(
             let ready = false;
             for (let i = 0; i < 10; i++) {
               await new Promise(r => setTimeout(r, 2000));
-              const statusRes = await fetch(`https://graph.facebook.com/v21.0/${containerData.id}?fields=status_code&access_token=${token}`);
+              const statusRes = await fetch(`https://graph.facebook.com/v21.0/${containerData.id}?fields=status_code`, { headers: { Authorization: "Bearer " + token } });
               const statusData = await statusRes.json() as { status_code?: string };
               if (statusData.status_code === "FINISHED") { ready = true; break; }
               if (statusData.status_code === "ERROR") break;
@@ -2811,7 +2811,7 @@ export function chatRoutes(db: Db) {
 
       let apiKey: string;
       try {
-        apiKey = decryptSecret(secret.description);
+        apiKey = decrypt(secret.description);
         console.info("[chat] decrypt OK");
       } catch (decErr) {
         console.error("[chat] decrypt FAILED:", decErr);
@@ -2984,13 +2984,27 @@ export function chatRoutes(db: Db) {
 
         dynamicContext = "\n\n--- STATO ATTUALE DELL'IMPRESA ---\n";
 
-        if (companyAgents.length > 0) {
+        const activeAgents = companyAgents.filter(a => a.status !== "terminated");
+        if (activeAgents.length > 0) {
+          // Batch load all agent connectors in one query (avoid N+1)
+          const allAgentConns = await db.select({
+            agentId: agentConnectorAccounts.agentId,
+            connectorType: connectorAccounts.connectorType,
+            accountId: connectorAccounts.accountId,
+          })
+            .from(agentConnectorAccounts)
+            .innerJoin(connectorAccounts, eq(agentConnectorAccounts.connectorAccountId, connectorAccounts.id))
+            .where(inArray(agentConnectorAccounts.agentId, activeAgents.map(a => a.id)));
+
+          const connByAgent = new Map<string, string[]>();
+          for (const row of allAgentConns) {
+            if (!connByAgent.has(row.agentId)) connByAgent.set(row.agentId, []);
+            connByAgent.get(row.agentId)!.push(`${row.connectorType}:${row.accountId}`);
+          }
+
           dynamicContext += "Agenti e loro connettori:\n";
-          for (const a of companyAgents) {
-            if (a.status === "terminated") continue;
-            const agentConn = await getAgentConnectorsFromDb(db, a.id);
-            const connKeys = Object.keys(agentConn).filter(k => agentConn[k]);
-            const connStr = connKeys.length > 0 ? connKeys.join(", ") : "nessun connettore";
+          for (const a of activeAgents) {
+            const connStr = connByAgent.get(a.id)?.join(", ") || "nessun connettore";
             dynamicContext += `- ${a.name} (${a.title || a.role || ""}) — id: ${a.id} — connettori: ${connStr}\n`;
           }
         } else {

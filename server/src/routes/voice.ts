@@ -69,6 +69,16 @@ export function voiceRoutes(db: Db) {
     const { companyId, audioUrl } = req.body as { companyId: string; audioUrl: string };
     if (!companyId || !audioUrl) { res.status(400).json({ error: "companyId e audioUrl richiesti" }); return; }
 
+    // SSRF protection — only allow HTTPS URLs from trusted domains
+    try {
+      const parsed = new URL(audioUrl);
+      if (parsed.protocol !== "https:") { res.status(400).json({ error: "Solo URL HTTPS consentiti" }); return; }
+      const blocked = ["localhost", "127.0.0.1", "0.0.0.0", "169.254.169.254", "[::1]"];
+      if (blocked.some(h => parsed.hostname === h) || parsed.hostname.startsWith("10.") || parsed.hostname.startsWith("192.168.") || parsed.hostname.startsWith("172.")) {
+        res.status(400).json({ error: "URL non consentito" }); return;
+      }
+    } catch { res.status(400).json({ error: "URL non valido" }); return; }
+
     const secret = await db.select().from(companySecrets)
       .where(and(eq(companySecrets.companyId, companyId), eq(companySecrets.name, "openai_api_key")))
       .then((rows) => rows[0]);

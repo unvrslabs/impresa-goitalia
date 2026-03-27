@@ -373,8 +373,10 @@ export function openapiItRoutes(db: Db) {
   router.delete("/openapi-it/searches/:id", async (req, res) => {
     const actor = req.actor as { type?: string; userId?: string } | undefined;
     if (!actor?.userId) { res.status(401).json({ error: "Non autenticato" }); return; }
+    const companyId = req.query.companyId as string;
+    if (!companyId) { res.status(400).json({ error: "companyId required" }); return; }
     try {
-      await db.execute(sql`DELETE FROM openapi_searches WHERE id = ${req.params.id}`);
+      await db.execute(sql`DELETE FROM openapi_searches WHERE id = ${req.params.id} AND company_id = ${companyId}`);
       res.json({ deleted: true });
     } catch { res.status(500).json({ error: "Errore" }); }
   });
