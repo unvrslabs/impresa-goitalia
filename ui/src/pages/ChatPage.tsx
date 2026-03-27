@@ -543,7 +543,7 @@ export function ChatPage() {
                 </div>
               ) : msg.role === "assistant" ? (
                 <>
-                  {msg.progressItems && msg.progressItems.length > 0 && (
+                  {isStreaming && msg.progressItems && msg.progressItems.length > 0 && (
                     <AgentProgressList items={msg.progressItems} />
                   )}
                   {msg.content && (
