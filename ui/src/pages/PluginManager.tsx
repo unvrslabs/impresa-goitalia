@@ -1325,9 +1325,10 @@ export function PluginManager() {
               <div className="text-sm font-medium">API Custom</div>
               <div className="text-xs text-muted-foreground">Collega qualsiasi servizio con API REST</div>
             </div>
-            <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0", customConnectors.length > 0 ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-white/10 text-muted-foreground border-white/10")}>
-              {customConnectors.length > 0 ? `${customConnectors.length} connesso` : "Nessuno"}
-            </span>
+            {(() => { const count = customConnectors.filter(c => c.slug !== "hubspot" && c.slug !== "salesforce").length; return (
+            <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0", count > 0 ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-white/10 text-muted-foreground border-white/10")}>
+              {count > 0 ? `${count} connesso` : "Nessuno"}
+            </span>); })()}
             <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform shrink-0", expandedConnector === "custom" && "rotate-180")} />
           </button>
           {expandedConnector === "custom" && (
