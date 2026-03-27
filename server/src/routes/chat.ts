@@ -8,6 +8,7 @@ import { nextCronTickInTimeZone } from "../services/routines.js";
 import { eq, and, ne, inArray, desc, sql, asc } from "drizzle-orm";
 import { decrypt as decryptSecret, decrypt, encrypt } from "../utils/crypto.js";
 import { randomUUID } from "node:crypto";
+import { executeA2aTool } from "../services/a2a-tools.js";
 
 // Tool definitions (same as adapter)
 export const TOOLS = [
@@ -115,6 +116,17 @@ export const TOOLS = [
         note: { type: "string", description: "Note aggiuntive sull'azienda" },
       },
       required: [],
+    },
+  },
+  {
+    name: "cerca_piva_onboarding",
+    description: "Cerca dati aziendali tramite Partita IVA usando le API di piattaforma (gratuito per la PMI). Restituisce ragione sociale, codice ATECO, indirizzo, PEC, stato attività. Usalo durante l'onboarding per compilare automaticamente i dati aziendali.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        piva: { type: "string", description: "Partita IVA dell'azienda (11 cifre)" },
+      },
+      required: ["piva"] as string[],
     },
   },
   {
@@ -477,6 +489,87 @@ export const TOOLS = [
       required: ["testo", "piattaforme"] as string[],
     },
   },
+  // A2A — Rete B2B
+  {
+    name: "cerca_azienda_a2a",
+    description: "Cerca aziende nella directory della Rete B2B per nome, settore, tag o zona geografica.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "Testo di ricerca (nome azienda, settore, prodotto, servizio)" },
+        zona: { type: "string", description: "Zona geografica (regione, provincia, città)" },
+      },
+      required: [] as string[],
+    },
+  },
+  {
+    name: "lista_partner_a2a",
+    description: "Mostra la rubrica dei partner B2B collegati (connessioni attive) con il ruolo di ciascun partner (Fornitore, Cliente, ecc.).",
+    input_schema: { type: "object" as const, properties: {}, required: [] as string[] },
+  },
+  {
+    name: "invia_task_a2a",
+    description: "Crea e invia un task (ordine, preventivo, messaggio, richiesta servizio) a un'azienda partner collegata.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        azienda_id: { type: "string", description: "ID dell'azienda destinataria (da lista_partner_a2a o cerca_azienda_a2a)" },
+        tipo: { type: "string", enum: ["message", "quote", "order", "service"], description: "Tipo: message (messaggio), quote (preventivo), order (ordine), service (richiesta servizio)" },
+        titolo: { type: "string", description: "Titolo breve del task" },
+        descrizione: { type: "string", description: "Descrizione dettagliata della richiesta" },
+      },
+      required: ["azienda_id", "titolo"] as string[],
+    },
+  },
+  {
+    name: "rispondi_task_a2a",
+    description: "Rispondi a un task ricevuto da un'altra azienda e aggiorna lo stato.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        task_id: { type: "string", description: "ID del task a cui rispondere" },
+        risposta: { type: "string", description: "Testo della risposta" },
+        stato: { type: "string", enum: ["accepted", "rejected", "completed"], description: "Nuovo stato del task" },
+      },
+      required: ["task_id", "risposta"] as string[],
+    },
+  },
+  {
+    name: "lista_task_a2a",
+    description: "Mostra i task B2B in entrata e uscita con filtri per direzione e stato.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        direzione: { type: "string", enum: ["entrata", "uscita", "all"], description: "Filtra per direzione" },
+        stato: { type: "string", enum: ["created", "accepted", "in_progress", "completed", "rejected", "cancelled"], description: "Filtra per stato" },
+      },
+      required: [] as string[],
+    },
+  },
+  {
+    name: "aggiorna_stato_task_a2a",
+    description: "Cambia lo stato di un task B2B (accetta, rifiuta, completa, cancella).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        task_id: { type: "string", description: "ID del task" },
+        stato: { type: "string", enum: ["accepted", "rejected", "in_progress", "completed", "cancelled"], description: "Nuovo stato" },
+      },
+      required: ["task_id", "stato"] as string[],
+    },
+  },
+  {
+    name: "messaggio_a2a",
+    description: "Invia un messaggio in un task B2B esistente.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        task_id: { type: "string", description: "ID del task" },
+        messaggio: { type: "string", description: "Testo del messaggio" },
+      },
+      required: ["task_id", "messaggio"] as string[],
+    },
+  },
 ];
 
 // Map each tool to the connector key it requires. null = always available.
@@ -489,6 +582,7 @@ export const TOOL_CONNECTOR: Record<string, string | null> = {
   crea_agente: null,
   esegui_task_agente: null,
   salva_info_azienda: null,
+  cerca_piva_onboarding: null,
   salva_nota: null,
   leggi_memoria: null,
   // Project files
@@ -527,6 +621,14 @@ export const TOOL_CONNECTOR: Record<string, string | null> = {
   riassunto_conversazioni_wa: "whatsapp",
   genera_immagine: "fal",
   pubblica_social: null, // CEO always has access, checks connectors internally
+  // A2A — Rete B2B (always available, profile check is in the tool implementation)
+  cerca_azienda_a2a: null,
+  lista_partner_a2a: null,
+  invia_task_a2a: null,
+  rispondi_task_a2a: null,
+  lista_task_a2a: null,
+  aggiorna_stato_task_a2a: null,
+  messaggio_a2a: null,
 };
 
 
@@ -561,10 +663,18 @@ Se noti problemi o opportunità, segnalali con azione concreta proposta.
 ## ONBOARDING NUOVO CLIENTE
 Quando un nuovo cliente arriva (nessuna info aziendale in memoria):
 1. Presentati: "Ciao! Sono il CEO della tua azienda AI su GoItalIA."
-2. Chiedi le informazioni aziendali essenziali: ragione sociale, P.IVA, CF, indirizzo sede, settore/attività, PEC, telefono, email, sito web
-3. Salva TUTTO in memoria con salva_info_azienda
-4. DOPO IL RIEPILOGO: mostra i dati ricevuti, poi scrivi ESATTAMENTE: "Perfetto! Premi il bottone qui sotto per andare ai Connettori e collegare i tuoi servizi (Google, WhatsApp, Telegram, ecc.). Dopo aver collegato i connettori potrai creare i tuoi agenti AI specializzati."
-5. NON proporre agenti da creare. NON elencare agenti possibili. Il cliente deve PRIMA collegare i connettori.
+2. Chiedi SOLO la Partita IVA: "Per iniziare, dimmi la Partita IVA della tua azienda."
+3. Usa il tool cerca_piva_onboarding con la PIVA fornita
+4. Se trovata: mostra i dati principali al titolare e chiedi conferma: "Ho trovato: [ragione sociale] — [attività/ATECO], [indirizzo]. Confermi che è la tua azienda?"
+5. Se confermato: salva TUTTO in memoria con salva_info_azienda (ragione_sociale, partita_iva, indirizzo, citta, cap, provincia, settore con descrizione ATECO, pec se presente)
+6. Chiedi: "Perfetto! C'è qualcos'altro che vuoi dirmi sulla tua azienda? Servizi particolari, specialità, obiettivi?"
+7. Salva eventuali info aggiuntive con salva_nota
+8. DOPO IL RIEPILOGO: scrivi ESATTAMENTE: "Perfetto! Premi il bottone qui sotto per andare ai Connettori e collegare i tuoi servizi (Google, WhatsApp, Telegram, ecc.). Dopo aver collegato i connettori potrai creare i tuoi agenti AI specializzati."
+9. NON proporre agenti da creare. NON elencare agenti possibili. Il cliente deve PRIMA collegare i connettori.
+
+Se cerca_piva_onboarding fallisce (PIVA non trovata o errore):
+- Chiedi i dati manualmente: ragione sociale, indirizzo sede, settore/attività, PEC, telefono, email
+- Salva con salva_info_azienda
 
 ## CREAZIONE AGENTI — IL FLUSSO GUIDATO
 
@@ -879,9 +989,30 @@ function buildToolList(): string {
   return s;
 }
 
+// A2A guide appended to CEO prompt
+const A2A_PROMPT_GUIDE = `
+
+## RETE B2B — Comunicazione tra CEO AI
+Sei collegato alla Rete B2B di GoItalIA. Puoi comunicare con i CEO AI di altre aziende sulla piattaforma.
+
+### Come funziona
+- **Directory**: cerca aziende per nome, settore, zona, tag con cerca_azienda_a2a
+- **Partner**: vedi i tuoi partner collegati con lista_partner_a2a — questa è la tua rubrica B2B
+- **Task**: invia ordini, preventivi, messaggi ad aziende collegate con invia_task_a2a
+- **Risposte**: rispondi ai task ricevuti con rispondi_task_a2a
+
+### Regole di comportamento A2A
+- Quando il titolare chiede di contattare un partner (es: "ordina dal fornitore di vini"), usa PRIMA lista_partner_a2a per trovare il partner corretto tramite il relationship_label
+- Se il titolare nomina un'azienda che non è tra i partner, suggerisci di cercarla nella directory con cerca_azienda_a2a
+- Per task tipo "order" (ordini) chiedi SEMPRE conferma al titolare prima di accettare o completare — "Confermo l'ordine di [dettagli]?"
+- Per richieste info, listini, prezzi, preventivi: puoi rispondere automaticamente se hai le informazioni in memoria
+- Per conferma ordini, pagamenti, impegni economici: CHIEDI SEMPRE approvazione al titolare prima di procedere
+- Se la Rete B2B non è attiva, suggerisci al titolare di attivarla dalla pagina Rete B2B nella sidebar
+`;
+
 // Assemble the full CEO prompt (called at request time, so new connectors/tools are picked up)
 function buildCeoPrompt(): string {
-  return CEO_PROMPT_BASE + buildConnectorGuides() + buildToolList();
+  return CEO_PROMPT_BASE + buildConnectorGuides() + A2A_PROMPT_GUIDE + buildToolList();
 }
 
 export function filterToolsForAgent(agentRole: string, connectors: Record<string, boolean>): typeof TOOLS {
@@ -1568,6 +1699,28 @@ export async function executeChatTool(
         return JSON.stringify(data, null, 2).substring(0, 1000);
       }
 
+      case "cerca_piva_onboarding": {
+        const piva = ((toolInput.piva as string) || "").replace(/\s/g, "");
+        if (!piva || piva.length !== 11) return "Partita IVA non valida. Deve essere di 11 cifre.";
+
+        const platformOaiToken = process.env.GOITALIA_OPENAPI_TOKEN;
+        if (!platformOaiToken) return "Servizio temporaneamente non disponibile. Chiedi i dati aziendali manualmente.";
+
+        try {
+          const r = await fetch(`https://company.openapi.com/IT-advanced/${encodeURIComponent(piva)}`, {
+            headers: { Authorization: "Bearer " + platformOaiToken },
+          });
+          if (!r.ok) {
+            if (r.status === 404) return "Partita IVA non trovata nel registro. Verifica il numero e riprova, oppure chiedi i dati manualmente.";
+            return "Errore nella ricerca (status " + r.status + "). Chiedi i dati aziendali manualmente.";
+          }
+          const data = await r.json();
+          return JSON.stringify(data, null, 2).substring(0, 4000);
+        } catch {
+          return "Errore di connessione al servizio. Chiedi i dati aziendali manualmente.";
+        }
+      }
+
       case "salva_info_azienda": {
         const fields = toolInput as Record<string, string>;
         // Load existing memory
@@ -2107,6 +2260,17 @@ export async function executeChatTool(
 
         if (results.length === 0) return "Nessuna piattaforma target specificata. Usa formato: ['ig_energizzo.it'] per Instagram, ['fb_PAGEID'] per Facebook, ['li'] per LinkedIn.";
         return "Risultati pubblicazione:\n" + results.map(r => "- " + r).join("\n");
+      }
+
+      // A2A — Rete B2B tools (delegated to a2a-tools service)
+      case "cerca_azienda_a2a":
+      case "lista_partner_a2a":
+      case "invia_task_a2a":
+      case "rispondi_task_a2a":
+      case "lista_task_a2a":
+      case "aggiorna_stato_task_a2a":
+      case "messaggio_a2a": {
+        return await executeA2aTool(db, companyId, toolName, toolInput);
       }
 
       default:

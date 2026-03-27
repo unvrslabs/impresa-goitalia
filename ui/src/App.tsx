@@ -16,6 +16,7 @@ import { DrivePage } from "./pages/DrivePage";
 import { TelegramPage } from "./pages/TelegramPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
 import { SocialPage } from "./pages/SocialPage";
+import { A2ANetwork } from "./pages/A2ANetwork";
 import { ClaudeKeyPage } from "./pages/ClaudeKeyPage";
 import { Companies } from "./pages/Companies";
 import { Agents } from "./pages/Agents";
@@ -144,6 +145,7 @@ function boardRoutes() {
       <Route path="telegram" element={<TelegramPage />} />
       <Route path="whatsapp" element={<WhatsAppPage />} />
       <Route path="social" element={<SocialPage />} />
+      <Route path="a2a" element={<A2ANetwork />} />
       <Route path="api-claude" element={<ClaudeKeyPage />} />
       <Route path="onboarding" element={<OnboardingRoutePage />} />
       <Route path="companies" element={<Companies />} />

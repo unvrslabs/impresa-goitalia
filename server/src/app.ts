@@ -34,6 +34,7 @@ import { stripeConnectorRoutes } from "./routes/stripe-connector.js";
 import { projectFilesRoutes } from "./routes/project-files.js";
 import { whatsappContactsRoutes } from "./routes/whatsapp-contacts.js";
 import { socialRoutes } from "./routes/social.js";
+import { a2aRoutes } from "./routes/a2a.js";
 import { connectorAccountRoutes } from "./routes/connector-accounts.js";
 import { companySkillRoutes } from "./routes/company-skills.js";
 import { agentRoutes } from "./routes/agents.js";
@@ -255,6 +256,7 @@ app.use(express.json({
   api.use(whatsappContactsRoutes(db));
   api.use(billingRoutes(db));
   api.use(socialRoutes(db));
+  api.use(a2aRoutes(db));
   api.use("/companies", companyRoutes(db, opts.storageService));
   api.use(companySkillRoutes(db));
   api.use(agentRoutes(db));

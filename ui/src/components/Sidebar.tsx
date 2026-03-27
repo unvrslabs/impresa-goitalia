@@ -20,7 +20,7 @@ import {
   ShieldCheck,
   Key,
   LogOut,
-  FolderOpen, Sparkles, Receipt, Globe, CalendarClock, Shield,
+  FolderOpen, Sparkles, Receipt, Globe, CalendarClock, Shield, Network,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -58,6 +58,7 @@ export function Sidebar() {
   const [hasFal, setHasFal] = useState(false);
   const [hasFic, setHasFic] = useState(false);
   const [hasOpenapi, setHasOpenapi] = useState(false);
+  const [a2aBadge, setA2aBadge] = useState(0);
   const [hasPec, setHasPec] = useState(false);
   const [pecUnread, setPecUnread] = useState(0);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
@@ -145,8 +146,15 @@ export function Sidebar() {
         .then((d) => setMailUnread(d.count || 0))
         .catch(() => {});
     };
+    const fetchA2aBadge = () => {
+      fetch("/api/a2a/unread-count?companyId=" + selectedCompanyId, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setA2aBadge(d.total || 0))
+        .catch(() => {});
+    };
     fetchUnread();
-    const interval = setInterval(() => { fetchUnread(); fetchTgUnread(); fetchWaUnread(); fetchPecUnread();
+    fetchA2aBadge();
+    const interval = setInterval(() => { fetchUnread(); fetchTgUnread(); fetchWaUnread(); fetchPecUnread(); fetchA2aBadge();
     if (location.pathname.includes("/whatsapp")) setWaUnread(0);
     if (location.pathname.includes("/telegram")) setTelegramUnread(0);
     if (location.pathname.includes("/pec")) setPecUnread(0); }, 30000);
@@ -266,6 +274,7 @@ export function Sidebar() {
             {hasFal && <SidebarNavItem to="/genera" label="Genera Contenuti" icon={Sparkles} />}
             {hasFic && <SidebarNavItem to="/fatturazione" label="Fatture in Cloud" icon={Receipt} />}
             {hasOpenapi && <SidebarNavItem to="/analisi-aziende" label="OpenAPI.it" icon={Globe} />}
+            <SidebarNavItem to="/a2a" label="Rete B2B" icon={Network} badge={a2aBadge > 0 ? a2aBadge : undefined} />
             {hasGoogle && <SidebarNavItem to="/calendario" label="Calendario" icon={Calendar} />}
             {hasGoogle && <SidebarNavItem to="/documenti" label="Documenti" icon={HardDrive} />}
           </div>

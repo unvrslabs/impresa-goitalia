@@ -59,3 +59,6 @@ export { whatsappSubscriptions } from "./whatsapp_subscriptions.js";
 export { projectFiles } from "./project_files.js";
 export { whatsappContacts } from "./whatsapp_contacts.js";
 export { whatsappContactFiles } from "./whatsapp_contact_files.js";
+export { a2aProfiles } from "./a2a_profiles.js";
+export { a2aConnections } from "./a2a_connections.js";
+export { a2aTasks, a2aMessages } from "./a2a_tasks.js";
