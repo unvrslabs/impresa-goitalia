@@ -530,6 +530,8 @@ export const TOOLS = [
         prezzo_b2c: { type: "string", description: "Prezzo B2C al pubblico" },
         descrizione: { type: "string", description: "Descrizione del prodotto" },
         sku: { type: "string", description: "Codice articolo SKU (opzionale)" },
+        quantita_magazzino: { type: "string", description: "Quantità disponibile in magazzino" },
+        iva: { type: "string", description: "Aliquota IVA % (es: 22, 10, 4)" },
       },
       required: ["nome"] as string[],
     },
@@ -549,6 +551,8 @@ export const TOOLS = [
         categoria: { type: "string", description: "Nuova categoria" },
         unita: { type: "string", description: "Nuova unità" },
         sku: { type: "string", description: "Nuovo SKU" },
+        quantita_magazzino: { type: "string", description: "Nuova quantità magazzino" },
+        iva: { type: "string", description: "Nuova aliquota IVA %" },
       },
       required: ["prodotto_id"] as string[],
     },
@@ -2513,6 +2517,8 @@ export async function executeChatTool(
           priceB2b: (toolInput.prezzo_b2b as string) || null,
           priceB2c: (toolInput.prezzo_b2c as string) || null,
           sku: (toolInput.sku as string) || null,
+          stockQty: (toolInput.quantita_magazzino as string) || null,
+          vatRate: (toolInput.iva as string) || null,
         }).returning();
         return `Prodotto aggiunto: ${nome} [ID: ${created[0].id}]`;
       }
@@ -2529,6 +2535,8 @@ export async function executeChatTool(
         if (toolInput.categoria !== undefined) updates.category = (toolInput.categoria as string) || null;
         if (toolInput.unita !== undefined) updates.unit = (toolInput.unita as string) || null;
         if (toolInput.sku !== undefined) updates.sku = (toolInput.sku as string) || null;
+        if (toolInput.quantita_magazzino !== undefined) updates.stockQty = (toolInput.quantita_magazzino as string) || null;
+        if (toolInput.iva !== undefined) updates.vatRate = (toolInput.iva as string) || null;
         const updated = await db.update(companyProducts).set(updates)
           .where(and(eq(companyProducts.id, prodId), eq(companyProducts.companyId, companyId)))
           .returning();

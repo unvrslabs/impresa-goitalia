@@ -12,6 +12,8 @@ export interface CompanyProduct {
   priceB2c?: string | null;
   currency: string;
   available: boolean;
+  stockQty?: string | null;
+  vatRate?: string | null;
   sku?: string | null;
   createdAt: string;
   updatedAt: string;

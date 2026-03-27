@@ -20,7 +20,7 @@ export function companyProductRoutes(db: Db) {
 
   // POST /api/company-products
   router.post("/company-products", async (req, res) => {
-    const { companyId, type, name, description, category, unit, priceB2b, priceB2c, currency, available, sku } = req.body;
+    const { companyId, type, name, description, category, unit, priceB2b, priceB2c, currency, available, stockQty, vatRate, sku } = req.body;
     if (!companyId || !name) return res.status(400).json({ error: "companyId and name required" });
 
     const created = await db.insert(companyProducts).values({
@@ -34,6 +34,8 @@ export function companyProductRoutes(db: Db) {
       priceB2c: priceB2c || null,
       currency: currency || "EUR",
       available: available !== false,
+      stockQty: stockQty || null,
+      vatRate: vatRate || null,
       sku: sku || null,
     }).returning();
 
@@ -43,7 +45,7 @@ export function companyProductRoutes(db: Db) {
   // PUT /api/company-products/:id
   router.put("/company-products/:id", async (req, res) => {
     const { id } = req.params;
-    const { type, name, description, category, unit, priceB2b, priceB2c, currency, available, sku } = req.body;
+    const { type, name, description, category, unit, priceB2b, priceB2c, currency, available, stockQty, vatRate, sku } = req.body;
 
     const existing = await db.select().from(companyProducts)
       .where(eq(companyProducts.id, id))
@@ -61,6 +63,8 @@ export function companyProductRoutes(db: Db) {
         priceB2c: priceB2c !== undefined ? priceB2c : existing.priceB2c,
         currency: currency !== undefined ? currency : existing.currency,
         available: available !== undefined ? available : existing.available,
+        stockQty: stockQty !== undefined ? stockQty : existing.stockQty,
+        vatRate: vatRate !== undefined ? vatRate : existing.vatRate,
         sku: sku !== undefined ? sku : existing.sku,
         updatedAt: new Date(),
       })
@@ -103,6 +107,8 @@ export function companyProductRoutes(db: Db) {
         priceB2c: ["prezzo_b2c", "prezzo b2c", "price_b2c", "b2c", "prezzo", "prezzo_pubblico", "price"],
         description: ["descrizione", "description", "desc"],
         sku: ["sku", "codice", "codice_articolo", "cod"],
+        stockQty: ["stock", "stock_qty", "quantita", "quantità", "magazzino", "giacenza", "qty"],
+        vatRate: ["iva", "vat", "vat_rate", "aliquota", "aliquota_iva"],
       };
       for (const [field, names] of Object.entries(aliases)) {
         const idx = header.findIndex((h: string) => names.includes(h));
@@ -128,6 +134,8 @@ export function companyProductRoutes(db: Db) {
           priceB2c: colMap.priceB2c !== undefined ? cols[colMap.priceB2c] || null : null,
           description: colMap.description !== undefined ? cols[colMap.description] || null : null,
           sku: colMap.sku !== undefined ? cols[colMap.sku] || null : null,
+          stockQty: colMap.stockQty !== undefined ? cols[colMap.stockQty] || null : null,
+          vatRate: colMap.vatRate !== undefined ? cols[colMap.vatRate] || null : null,
         });
       }
 

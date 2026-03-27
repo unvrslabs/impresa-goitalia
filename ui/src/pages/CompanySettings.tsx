@@ -599,6 +599,12 @@ export function CompanySettings() {
                 <Field label="Codice SKU">
                   <input className={inputCls} value={editingProduct.sku || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, sku: e.target.value }))} placeholder="Opzionale" />
                 </Field>
+                <Field label="Quantità Magazzino">
+                  <input className={inputCls} value={editingProduct.stockQty || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, stockQty: e.target.value }))} placeholder="Es: 100" />
+                </Field>
+                <Field label="IVA %">
+                  <input className={inputCls} value={editingProduct.vatRate || ""} onChange={(e) => setEditingProduct((p) => ({ ...p!, vatRate: e.target.value }))} placeholder="Es: 22, 10, 4" />
+                </Field>
                 <Field label="Disponibile">
                   <select className={inputCls} value={editingProduct.available !== false ? "true" : "false"} onChange={(e) => setEditingProduct((p) => ({ ...p!, available: e.target.value === "true" }))}>
                     <option value="true">Disponibile</option>
@@ -645,6 +651,8 @@ export function CompanySettings() {
                       {p.priceB2c && <span>B2C: €{p.priceB2c}</span>}
                       {p.unit && <span>({p.unit})</span>}
                       {p.sku && <span>SKU: {p.sku}</span>}
+                      {p.stockQty && <span>Mag: {p.stockQty}</span>}
+                      {p.vatRate && <span>IVA: {p.vatRate}%</span>}
                     </div>
                   </div>
                   <div className="flex gap-1.5 shrink-0 ml-3">

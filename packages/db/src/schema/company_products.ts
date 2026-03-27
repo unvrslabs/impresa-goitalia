@@ -15,6 +15,8 @@ export const companyProducts = pgTable(
     priceB2c: text("price_b2c"),
     currency: text("currency").notNull().default("EUR"),
     available: boolean("available").notNull().default(true),
+    stockQty: text("stock_qty"),
+    vatRate: text("vat_rate"),
     sku: text("sku"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
